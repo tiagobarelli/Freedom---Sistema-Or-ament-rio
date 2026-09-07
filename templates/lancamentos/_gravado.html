@@ -1,0 +1,32 @@
+{#
+  Resposta de sucesso do POST.
+
+  O alvo principal e o <tbody> (hx-swap="afterbegin"), entao a resposta comeca
+  com <tr>. Isso poe o parser do navegador em contexto de tabela, e qualquer
+  <form> ou <div> solto depois seria expulso para fora da tabela - foi o que
+  quebrou o segundo lancamento seguido.
+
+  Por isso cada elemento out-of-band vai dentro de <template>: a tag e valida
+  dentro de tabela (nao e reposicionada) e o htmx procura swaps out-of-band
+  dentro dos <template> de primeiro nivel da resposta.
+#}
+{% include "lancamentos/_linha_despesa.html" %}
+
+{# Se a lista estava vazia, some com a linha de estado vazio. #}
+<template>
+  <tr id="despesas-vazio" hx-swap-oob="delete"></tr>
+</template>
+
+<template>
+  {% include "lancamentos/_formulario_oob.html" %}
+</template>
+
+<template>
+  {% include "lancamentos/_total_oob.html" %}
+</template>
+
+<template>
+  <div id="aviso-lancamento" class="aviso-inline" hx-swap-oob="true" role="status">
+    Despesa lançada.
+  </div>
+</template>

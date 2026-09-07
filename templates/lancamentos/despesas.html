@@ -1,0 +1,85 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{% block title %}Despesas - Freedom{% endblock %}
+{% block titulo_pagina %}Lançar despesa{% endblock %}
+{% block subtitulo_pagina %}
+  <p class="pagina-subtitulo">Despesa no cartão entra com a data da compra, como qualquer outra.</p>
+{% endblock %}
+
+{% block content %}
+  {% if pendencias %}
+    <div class="card card--solido">
+      {{ m.vazio("Falta cadastro antes de lançar",
+                 "Uma despesa precisa de subcategoria, conta e pessoa. Ainda falta:") }}
+      <ul class="pendencias">
+        {% for texto, url, rotulo in pendencias %}
+          <li>
+            <span>{{ texto }}</span>
+            <a class="btn btn--secundario btn--pequeno" href="{{ url }}">{{ rotulo }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% else %}
+    <div class="card card--solido form-despesa">
+      {% include "lancamentos/_formulario_oob.html" %}
+    </div>
+    {# Preenchido pelo swap out-of-band apos gravar. #}
+    <div id="aviso-lancamento" class="aviso-inline" role="status"></div>
+  {% endif %}
+
+  <section class="secao-recentes">
+    <div class="recentes-cabecalho">
+      <h2 class="card__titulo mt-0">Lançamentos recentes</h2>
+      {% include "lancamentos/_total_oob.html" %}
+    </div>
+
+    <div class="tabela-caixa">
+      <table class="tabela tabela--despesas">
+        <thead>
+          <tr>
+            <th class="col-data">Data</th>
+            <th class="col-descricao">Descrição</th>
+            <th class="col-classificacao">Classificação</th>
+            <th class="col-pessoa">Pessoa</th>
+            <th class="col-conta">Conta</th>
+            <th class="col-essencialidade">Essencialidade</th>
+            <th class="col-valor">Valor</th>
+            <th class="tabela__acoes"><span class="so-leitor">Ações</span></th>
+          </tr>
+        </thead>
+        <tbody id="lista-despesas">
+          {% for item in linhas %}
+            {% include "lancamentos/_linha_despesa.html" %}
+          {% else %}
+            <tr id="despesas-vazio">
+              <td colspan="8">
+                {{ m.vazio("Nenhum lançamento ainda",
+                           "As 15 despesas mais recentes aparecem aqui assim que a primeira for lançada.") }}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <script>
+    // Guarda o estado do bloco "Mais opcoes" num campo escondido, para o
+    // re-render por HTMX nao fechar o que a pessoa deixou aberto.
+    (function () {
+      function sincronizar(raiz) {
+        var det = (raiz || document).querySelector('#mais-opcoes');
+        var campo = (raiz || document).querySelector('#form-despesa [name="mais_opcoes"]');
+        if (!det || !campo) return;
+        campo.value = det.open ? '1' : '';
+        det.addEventListener('toggle', function () {
+          campo.value = det.open ? '1' : '';
+        });
+      }
+      sincronizar(document);
+      document.body.addEventListener('htmx:afterSwap', function () { sincronizar(document); });
+    })();
+  </script>
+{% endblock %}

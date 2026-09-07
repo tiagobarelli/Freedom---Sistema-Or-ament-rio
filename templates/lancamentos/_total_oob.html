@@ -1,0 +1,9 @@
+{# Total do mes trocado fora do alvo principal (out-of-band). #}
+{% import "_macros.html" as m %}
+<div id="total-mes" class="total-mes" hx-swap-oob="true">
+  <span class="total-mes__rotulo">Total em {{ resumo.rotulo }}</span>
+  <strong class="total-mes__valor">{{ m.reais(resumo.total) }}</strong>
+  <span class="total-mes__contagem">
+    {{ resumo.quantidade }} lançamento{{ '' if resumo.quantidade == 1 else 's' }}
+  </span>
+</div>

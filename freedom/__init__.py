@@ -42,11 +42,18 @@ def create_app(config_class=Config):
 
     from freedom.auth import bp as auth_bp
     from freedom.cadastros import bp as cadastros_bp
+    from freedom.lancamentos import bp as lancamentos_bp
     from freedom.main import bp as main_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(cadastros_bp)
+    app.register_blueprint(lancamentos_bp)
+
+    from freedom.lancamentos.servico import formatar_valor
+
+    # Usado pela macro `reais`: 1234.56 -> '1.234,56'.
+    app.add_template_filter(formatar_valor, "moeda")
 
     from freedom.cli import register_cli
 

@@ -1,0 +1,30 @@
+{% import "_macros.html" as m %}
+{# Linha da consulta. Difere da linha da tela de lancamento em duas coisas:
+   Editar carrega o caminho de volta, e Excluir devolve o bloco inteiro. #}
+<tr id="consulta-{{ item.id }}">
+  <td class="col-data">{{ item.data.strftime('%d/%m/%Y') }}</td>
+  <td class="tabela__principal col-descricao">
+    {{ item.descricao }}
+    <span class="linha-secundaria">
+      {{ item.data.strftime('%d/%m') }} · {{ item.categoria }} · {{ item.subcategoria }}
+      · {{ item.pessoa_nome }} · {{ item.essencialidade }}{% if item.prioridade %} P{{ item.prioridade }}{% endif %}
+    </span>
+  </td>
+  <td class="tabela__suave col-classificacao">{{ item.categoria }} · {{ item.subcategoria }}</td>
+  <td class="tabela__suave col-pessoa">{{ item.pessoa_nome }}</td>
+  <td class="tabela__suave col-conta">{{ item.conta_nome }}</td>
+  <td class="col-essencialidade">
+    {{ m.badge_essencialidade(item.essencialidade, item.prioridade) }}
+  </td>
+  <td class="col-valor">{{ m.reais(item.valor) }}</td>
+  <td class="tabela__acoes">
+    <a class="btn btn--discreto btn--pequeno"
+       href="{{ url_for('lancamentos.despesas_editar', despesa_id=item.id, retorno=retorno) }}">Editar</a>
+    <button type="button" class="btn btn--secundario btn--pequeno"
+            hx-post="{{ url_for('lancamentos.despesas_excluir', despesa_id=item.id,
+                                origem='consulta', **query_string(filtros, pagina)) }}"
+            hx-confirm="Excluir a despesa &quot;{{ item.descricao }}&quot;? Isso não pode ser desfeito."
+            hx-target="#resultados"
+            hx-swap="innerHTML">Excluir</button>
+  </td>
+</tr>

@@ -1,0 +1,30 @@
+{# Resumo da classificacao + campo prioridade.
+
+   E macro, e nao include, porque precisa receber argumentos: um {% include %}
+   dentro de outra macro enxerga o contexto do template, nao os parametros de
+   quem o chamou.
+#}
+{% macro classificacao(sub, efetiva, prioridade="", override=None) %}
+  {% if sub %}
+    <p class="classificacao-resumo">
+      <span class="classificacao-resumo__cat">{{ sub.categoria_nome }}</span>
+      <span aria-hidden="true">·</span>
+      {{ efetiva }}
+      {%- if override %} <span class="texto-fraco">(sobrescrita nesta despesa)</span>{% endif %}
+    </p>
+  {% endif %}
+
+  {% if efetiva == 'Não Essencial' %}
+    <div class="campo campo--prioridade">
+      <label class="campo__rotulo" for="prioridade">Prioridade</label>
+      <select class="selecao" id="prioridade" name="prioridade">
+        <option value="">Sem prioridade</option>
+        {% for v, rotulo in [('1','1 — mais importante'), ('2','2'), ('3','3'),
+                             ('4','4 — menos importante')] %}
+          <option value="{{ v }}" {{ 'selected' if prioridade == v }}>{{ rotulo }}</option>
+        {% endfor %}
+      </select>
+      <p class="campo__dica">Só se aplica a despesa não essencial. 1 é a mais importante.</p>
+    </div>
+  {% endif %}
+{% endmacro %}

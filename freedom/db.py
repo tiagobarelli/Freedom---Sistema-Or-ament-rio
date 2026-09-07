@@ -68,3 +68,15 @@ def query_all(sql, params=None):
     with get_connection() as conn, conn.cursor() as cur:
         cur.execute(sql, params or ())
         return cur.fetchall()
+
+
+def executar(sql, params=(), retornar=False):
+    """Roda INSERT/UPDATE/DELETE numa transacao. Commit ao sair, rollback em erro.
+
+    Com retornar=True devolve a primeira linha do RETURNING.
+    """
+    with get_connection() as conn, conn.cursor() as cur:
+        cur.execute(sql, params)
+        if retornar:
+            return cur.fetchone()
+    return None

@@ -12,6 +12,8 @@
         5.2 Botao         5.6 Flash
         5.3 Formulario    5.7 Modal
         5.4 Tabela        5.8 Estado vazio
+        5.9 Lancamento de despesa
+        5.10 Consulta de despesas
      6. Tela de login
      7. Responsivo (< 768px)
      8. Utilitarios
@@ -811,6 +813,17 @@ body {
   display: none;
 }
 
+
+.badge--essencial {
+  background: var(--cor-sucesso-fundo);
+  color: var(--cor-sucesso);
+}
+
+.badge--naoessencial {
+  background: var(--cor-aviso-fundo);
+  color: var(--cor-aviso);
+}
+
 /* --- 5.6 Flash --------------------------------------------------------- */
 
 .flash-lista {
@@ -936,6 +949,444 @@ body {
 
 .vazio__texto {
   font-size: 14px;
+}
+
+/* --- 5.9 Lancamento de despesa ----------------------------------------
+   Formulario e tabela desta tela sao superficie de leitura: quase opacos,
+   nunca vidro (ver a regra de legibilidade no topo do arquivo).
+*/
+
+/* Dois campos lado a lado que viram um por linha no celular. */
+.grade-despesa {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--e-4);
+}
+
+.grade-despesa .campo + .campo {
+  margin-top: 0;
+}
+
+.form-despesa .campo + .campo,
+.form-despesa .campo + .grade-despesa,
+.form-despesa .grade-despesa + .campo {
+  margin-top: var(--e-4);
+}
+
+/* Valor: o campo que mais recebe atencao, entao e maior que os demais. */
+.entrada-moeda {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.entrada-moeda__prefixo {
+  position: absolute;
+  left: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--cor-texto-fraco);
+  pointer-events: none;
+}
+
+.entrada--grande {
+  padding: 12px 12px 12px 42px;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Resumo da classificacao devolvido pelo HTMX. */
+.classificacao-resumo {
+  margin-top: var(--e-2);
+  font-size: 13px;
+  color: var(--cor-texto-suave);
+}
+
+.classificacao-resumo__cat {
+  font-weight: 600;
+  color: var(--cor-texto);
+}
+
+.campo--prioridade {
+  margin-top: var(--e-3);
+  padding: var(--e-3);
+  border: 1px dashed var(--cor-destaque-borda);
+  border-radius: var(--raio-m);
+  background: var(--cor-destaque-fantasma);
+}
+
+/* Bloco recolhido: <details> nativo, sem JavaScript para abrir e fechar. */
+.mais-opcoes {
+  margin-top: var(--e-5);
+  border-top: 1px solid var(--linha);
+  padding-top: var(--e-3);
+}
+
+.mais-opcoes__resumo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e-2);
+  padding: var(--e-2) 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--cor-destaque);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.mais-opcoes__resumo::-webkit-details-marker {
+  display: none;
+}
+
+.mais-opcoes__resumo::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform 0.15s;
+}
+
+.mais-opcoes[open] > .mais-opcoes__resumo::before {
+  transform: rotate(90deg);
+}
+
+.mais-opcoes__corpo {
+  padding-top: var(--e-2);
+}
+
+.form-despesa__acoes {
+  display: flex;
+  align-items: center;
+  gap: var(--e-3);
+  margin-top: var(--e-5);
+  padding-top: var(--e-4);
+  border-top: 1px solid var(--linha);
+}
+
+.btn--grande {
+  padding: 12px 22px;
+  font-size: 15px;
+}
+
+/* Confirmacao discreta na propria pagina: nao ha recarga, entao nao ha flash. */
+.aviso-inline:empty {
+  display: none;
+}
+
+.aviso-inline {
+  margin-top: var(--e-3);
+  padding: var(--e-2) var(--e-4);
+  border: 1px solid rgba(23, 121, 94, 0.28);
+  border-radius: var(--raio-m);
+  background: var(--cor-sucesso-fundo);
+  color: var(--cor-sucesso);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+/* Guarda de pre-requisitos. */
+.pendencias {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 0 0 var(--e-4);
+  list-style: none;
+}
+
+.pendencias li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-3);
+  padding: var(--e-3) 0;
+  border-top: 1px solid var(--linha);
+  font-size: 14px;
+}
+
+/* Lista de recentes. */
+.secao-recentes {
+  margin-top: var(--e-6);
+}
+
+.recentes-cabecalho {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--e-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--e-3);
+}
+
+.total-mes {
+  display: flex;
+  align-items: baseline;
+  gap: var(--e-2);
+  flex-wrap: wrap;
+}
+
+.total-mes__rotulo {
+  font-size: 13px;
+  color: var(--cor-texto-suave);
+}
+
+.total-mes__valor {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.total-mes__contagem {
+  font-size: 12.5px;
+  color: var(--cor-texto-fraco);
+}
+
+.tabela--despesas .col-valor {
+  text-align: right;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tabela--despesas .col-data {
+  white-space: nowrap;
+}
+
+/* No desktop a classificacao tem coluna propria; no celular ela desce para
+   baixo da descricao (ver secao 7). */
+.linha-secundaria {
+  display: none;
+}
+
+/* --- 5.10 Consulta de despesas ----------------------------------------
+   Faixa de totais e card de moldura (vidro). Filtros, resumo e tabela sao
+   superficie de leitura: quase opacos.
+*/
+
+.filtros-consulta {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--e-4);
+  flex-wrap: wrap;
+  padding: var(--e-3) var(--e-4);
+  margin-bottom: var(--e-4);
+  background: var(--solido);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-m);
+  box-shadow: var(--sombra-p);
+}
+
+/* O mes fica sempre visivel, inclusive no celular. */
+.filtro-mes {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  flex: 0 0 auto;
+}
+
+.filtro-mes .selecao {
+  width: auto;
+  min-width: 170px;
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+
+.btn--icone {
+  padding: 8px;
+  line-height: 0;
+}
+
+.filtros-extras {
+  flex: 1 1 420px;
+  min-width: 0;
+}
+
+.filtros-extras__resumo {
+  display: none;               /* no desktop os filtros ficam sempre abertos */
+}
+
+.filtros-extras__corpo {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--e-3);
+  flex-wrap: wrap;
+}
+
+.filtro-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.filtro-campo__rotulo {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--cor-texto-fraco);
+}
+
+.filtro-campo .selecao,
+.filtro-campo .entrada {
+  width: auto;
+  min-width: 150px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  font-size: 13.5px;
+}
+
+.filtro-campo--busca .entrada {
+  min-width: 200px;
+}
+
+.filtro-campo--acao {
+  justify-content: flex-end;
+  padding-bottom: 2px;
+}
+
+/* --- a) faixa de totais: card de moldura --- */
+
+.faixa-totais {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-5);
+  flex-wrap: wrap;
+  padding: var(--e-4) var(--e-5);
+  background: var(--vidro-forte);
+  -webkit-backdrop-filter: blur(var(--desfoque));
+  backdrop-filter: blur(var(--desfoque));
+  border: 1px solid var(--vidro-borda);
+  border-radius: var(--raio-g);
+  box-shadow: var(--sombra-m);
+}
+
+.faixa-totais__principal {
+  display: flex;
+  align-items: baseline;
+  gap: var(--e-2);
+  flex-wrap: wrap;
+}
+
+.faixa-totais__rotulo {
+  font-size: 13px;
+  color: var(--cor-texto-suave);
+}
+
+.faixa-totais__valor {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.faixa-totais__contagem {
+  font-size: 12.5px;
+  color: var(--cor-texto-fraco);
+}
+
+.faixa-totais__divisao {
+  display: flex;
+  gap: var(--e-5);
+  flex-wrap: wrap;
+}
+
+.divisao-item {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- b) resumo por categoria: barra proporcional, sem biblioteca --- */
+
+.resumo-lista {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.resumo-item {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.4fr) minmax(60px, 3fr) auto 46px;
+  align-items: center;
+  gap: var(--e-3);
+  padding: 5px 0;
+  font-size: 13.5px;
+}
+
+.resumo-item + .resumo-item {
+  border-top: 1px solid var(--linha);
+}
+
+.resumo-item__nome {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resumo-item__barra {
+  display: block;
+  height: 8px;
+  border-radius: var(--raio-pill);
+  background: rgba(26, 27, 46, 0.06);
+  overflow: hidden;
+}
+
+.resumo-item__preenchimento {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: var(--raio-pill);
+  background: var(--cor-destaque);
+}
+
+.resumo-item__valor {
+  text-align: right;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.resumo-item__pct {
+  text-align: right;
+  font-size: 12.5px;
+  color: var(--cor-texto-fraco);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- c) paginacao --- */
+
+.paginacao {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-3);
+  flex-wrap: wrap;
+  margin-top: var(--e-3);
+}
+
+.paginacao__contagem {
+  font-size: 13px;
+  color: var(--cor-texto-suave);
+  font-variant-numeric: tabular-nums;
+}
+
+.paginacao__botoes {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+}
+
+.paginacao__pagina {
+  font-size: 12.5px;
+  color: var(--cor-texto-fraco);
 }
 
 /* ==========================================================================
@@ -1107,6 +1558,186 @@ body {
 
   .card__rodape .btn {
     flex: 1 1 auto;
+  }
+
+  /* --- Lancamento de despesa no celular --- */
+
+  .grade-despesa {
+    grid-template-columns: 1fr;
+  }
+
+  .grade-despesa .campo + .campo {
+    margin-top: var(--e-4);
+  }
+
+  .form-despesa__acoes .btn--grande {
+    width: 100%;
+  }
+
+  .pendencias li {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .recentes-cabecalho {
+    align-items: flex-start;
+  }
+
+  /* A tabela de recentes nao rola na horizontal: as colunas secundarias
+     somem e a classificacao passa a viver embaixo da descricao. */
+  .tabela--despesas {
+    min-width: 0;
+  }
+
+  .tabela--despesas .col-data,
+  .tabela--despesas .col-classificacao,
+  .tabela--despesas .col-pessoa,
+  .tabela--despesas .col-conta,
+  .tabela--despesas .col-essencialidade {
+    display: none;
+  }
+
+  /* Sobram descricao, valor e acoes: cabe em 390px sem rolar de lado. */
+  .tabela--despesas .col-descricao {
+    width: auto;
+  }
+
+  .tabela--despesas .col-valor {
+    width: 1%;
+    padding-left: 0;
+  }
+
+  /* Botoes empilhados: alvo mais alto para o polegar e coluna mais estreita. */
+  .tabela--despesas .tabela__acoes {
+    padding-left: var(--e-2);
+  }
+
+  .tabela--despesas .tabela__acoes .btn {
+    display: block;
+    width: 100%;
+    padding: 7px 8px;
+    text-align: center;
+  }
+
+  .tabela--despesas .tabela__acoes .btn + .btn {
+    margin-top: var(--e-1);
+  }
+
+  .tabela--despesas .linha-secundaria {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--cor-texto-fraco);
+  }
+
+  .tabela--despesas th,
+  .tabela--despesas td {
+    padding: var(--e-3) var(--e-2);
+  }
+
+  .tabela--despesas .col-data {
+    font-size: 12.5px;
+    color: var(--cor-texto-suave);
+  }
+
+  /* --- Consulta de despesas no celular --- */
+
+  .filtros-consulta {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--e-3);
+  }
+
+  .filtro-mes .selecao {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* No desktop o flex-basis de 420px e largura; empilhado, viraria ALTURA e
+     abriria um vao em branco embaixo do <summary> recolhido. */
+  .filtros-extras {
+    flex: 0 0 auto;
+  }
+
+  /* Abaixo de 768px os demais filtros recolhem; o mes acima fica de fora. */
+  .filtros-extras__resumo {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--e-2);
+    padding: var(--e-2) 0;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--cor-destaque);
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+
+  .filtros-extras__resumo::-webkit-details-marker {
+    display: none;
+  }
+
+  .filtros-extras__resumo::before {
+    content: "";
+    width: 0;
+    height: 0;
+    border-left: 5px solid currentColor;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    transition: transform 0.15s;
+  }
+
+  .filtros-extras[open] > .filtros-extras__resumo::before {
+    transform: rotate(90deg);
+  }
+
+  .filtros-extras__corpo {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filtro-campo .selecao,
+  .filtro-campo .entrada,
+  .filtro-campo--busca .entrada {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .faixa-totais {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--e-3);
+    padding: var(--e-4);
+  }
+
+  .faixa-totais__divisao {
+    gap: var(--e-4);
+  }
+
+  .faixa-totais__valor {
+    font-size: 22px;
+  }
+
+  /* O resumo perde a barra e vira nome / valor / percentual. */
+  .resumo-item {
+    grid-template-columns: 1fr auto 44px;
+  }
+
+  .resumo-item__barra {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin-top: 2px;
+  }
+
+  .paginacao {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--e-2);
+  }
+
+  .paginacao__botoes {
+    justify-content: space-between;
   }
 }
 

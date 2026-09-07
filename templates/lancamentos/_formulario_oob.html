@@ -1,0 +1,12 @@
+{# Formulario re-renderizado fora do alvo principal, apos gravar ou apos erro. #}
+{% import "_macros.html" as m %}
+<form id="form-despesa" class="pilha" hx-swap-oob="true"
+      hx-post="{{ url_for('lancamentos.despesas_gravar') }}"
+      hx-target="#lista-despesas" hx-swap="afterbegin">
+  {{ m.campos_despesa(form, sub_selecionada,
+                      url_for('lancamentos.despesas_classificacao')) }}
+  <div class="form-despesa__acoes">
+    <button type="submit" class="btn btn--primario btn--grande">Lançar despesa</button>
+    <span class="htmx-indicator texto-fraco texto-p">gravando…</span>
+  </div>
+</form>

@@ -2,25 +2,13 @@
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
-from urllib.parse import urlparse
 from werkzeug.security import check_password_hash
 
 from freedom.auth.forms import LoginForm
 from freedom.auth.models import User
+from freedom.util import destino_interno
 
 bp = Blueprint("auth", __name__)
-
-
-def _destino_seguro(destino):
-    """So aceita redirect para caminho interno, para nao virar open redirect."""
-    if not destino:
-        return None
-    parsed = urlparse(destino)
-    if parsed.scheme or parsed.netloc:
-        return None
-    if not destino.startswith("/"):
-        return None
-    return destino
 
 
 @bp.route("/login", methods=["GET", "POST"])
@@ -37,7 +25,7 @@ def login():
             flash("Login ou senha invalidos.", "erro")
         else:
             login_user(user)
-            proximo = _destino_seguro(request.args.get("next"))
+            proximo = destino_interno(request.args.get("next"))
             return redirect(proximo or url_for("main.index"))
 
     return render_template("auth/login.html", form=form)

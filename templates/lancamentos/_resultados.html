@@ -1,0 +1,114 @@
+{% import "_macros.html" as m %}
+{#
+  Bloco de resultados: faixa de totais, resumo por categoria e tabela.
+
+  E o alvo de todo hx-get desta tela e tambem a resposta da exclusao feita
+  daqui. Todos os numeros vem de consultas agregadas sobre o filtro inteiro,
+  nunca da soma das linhas da pagina.
+#}
+
+{# --- a) faixa de totais: card de moldura (vidro) --------------------------- #}
+<div class="faixa-totais">
+  <div class="faixa-totais__principal">
+    <span class="faixa-totais__rotulo">Total em {{ rotulo_mes }}</span>
+    <strong class="faixa-totais__valor">{{ m.reais(totais.total) }}</strong>
+    <span class="faixa-totais__contagem">
+      {{ quantidade }} lançamento{{ '' if quantidade == 1 else 's' }}
+    </span>
+  </div>
+
+  {% if quantidade %}
+    <div class="faixa-totais__divisao">
+      <div class="divisao-item">
+        <span class="badge badge--essencial">Essencial</span>
+        <strong>{{ m.reais(totais.essencial) }}</strong>
+        <span class="texto-fraco texto-p">{{ '%.1f' | format(totais.pct_essencial) }}%</span>
+      </div>
+      <div class="divisao-item">
+        <span class="badge badge--naoessencial">Não Essencial</span>
+        <strong>{{ m.reais(totais.nao_essencial) }}</strong>
+        <span class="texto-fraco texto-p">{{ '%.1f' | format(totais.pct_nao_essencial) }}%</span>
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+{% if not quantidade %}
+
+  <div class="card card--solido mt-4">
+    {{ m.vazio("Nenhuma despesa encontrada",
+               "Nenhum lançamento bate com os filtros deste mês. Ajuste os filtros ou limpe-os para recomeçar.") }}
+  </div>
+
+{% else %}
+
+  {# --- b) resumo por categoria: barra proporcional em CSS puro ------------- #}
+  <section class="card card--solido resumo-categorias mt-4">
+    <h2 class="card__titulo">Por categoria</h2>
+    <ul class="resumo-lista">
+      {% for r in resumo %}
+        <li class="resumo-item">
+          <span class="resumo-item__nome">{{ r.categoria }}</span>
+          <span class="resumo-item__barra" aria-hidden="true">
+            <span class="resumo-item__preenchimento" style="width: {{ '%.2f' | format(r.pct) }}%"></span>
+          </span>
+          <span class="resumo-item__valor">{{ m.reais(r.total) }}</span>
+          <span class="resumo-item__pct">{{ '%.1f' | format(r.pct) }}%</span>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  {# --- c) tabela ---------------------------------------------------------- #}
+  <div class="tabela-caixa mt-4">
+    <table class="tabela tabela--despesas">
+      <thead>
+        <tr>
+          <th class="col-data">Data</th>
+          <th class="col-descricao">Descrição</th>
+          <th class="col-classificacao">Classificação</th>
+          <th class="col-pessoa">Pessoa</th>
+          <th class="col-conta">Conta</th>
+          <th class="col-essencialidade">Essencialidade</th>
+          <th class="col-valor">Valor</th>
+          <th class="tabela__acoes"><span class="so-leitor">Ações</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in linhas %}
+          {% include "lancamentos/_linha_consulta.html" %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <nav class="paginacao" aria-label="Paginação">
+    <span class="paginacao__contagem">
+      {{ primeiro }}–{{ ultimo }} de {{ quantidade }}
+    </span>
+    <span class="paginacao__botoes">
+      {% if pagina > 1 %}
+        <button type="button" class="btn btn--secundario btn--pequeno"
+                hx-get="{{ url_for('lancamentos.despesas_consulta',
+                                   **query_string(filtros, pagina - 1)) }}"
+                hx-target="#resultados" hx-swap="innerHTML"
+                hx-push-url="true">Anterior</button>
+      {% else %}
+        <button type="button" class="btn btn--secundario btn--pequeno" disabled>Anterior</button>
+      {% endif %}
+
+      <span class="paginacao__pagina">Página {{ pagina }} de {{ paginas }}</span>
+
+      {% if pagina < paginas %}
+        <button type="button" class="btn btn--secundario btn--pequeno"
+                hx-get="{{ url_for('lancamentos.despesas_consulta',
+                                   **query_string(filtros, pagina + 1)) }}"
+                hx-target="#resultados" hx-swap="innerHTML"
+                hx-push-url="true">Próxima</button>
+      {% else %}
+        <button type="button" class="btn btn--secundario btn--pequeno" disabled>Próxima</button>
+      {% endif %}
+    </span>
+  </nav>
+
+{% endif %}

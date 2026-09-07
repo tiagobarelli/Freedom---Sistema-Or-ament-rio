@@ -1,0 +1,29 @@
+{% import "_macros.html" as m %}
+<tr id="despesa-{{ item.id }}">
+  <td class="col-data">{{ item.data.strftime('%d/%m/%Y') }}</td>
+  <td class="tabela__principal col-descricao">
+    {{ item.descricao }}
+    {# So aparece abaixo de 768px: recebe o que as colunas escondidas diriam,
+       para a tabela caber sem rolagem horizontal no celular. #}
+    <span class="linha-secundaria">
+      {{ item.data.strftime('%d/%m/%Y') }} · {{ item.categoria }} · {{ item.subcategoria }}
+      · {{ item.essencialidade }}{% if item.prioridade %} P{{ item.prioridade }}{% endif %}
+    </span>
+  </td>
+  <td class="tabela__suave col-classificacao">{{ item.categoria }} · {{ item.subcategoria }}</td>
+  <td class="tabela__suave col-pessoa">{{ item.pessoa_nome }}</td>
+  <td class="tabela__suave col-conta">{{ item.conta_nome }}</td>
+  <td class="col-essencialidade">
+    {{ m.badge_essencialidade(item.essencialidade, item.prioridade) }}
+  </td>
+  <td class="col-valor">{{ m.reais(item.valor) }}</td>
+  <td class="tabela__acoes">
+    <a class="btn btn--discreto btn--pequeno"
+       href="{{ url_for('lancamentos.despesas_editar', despesa_id=item.id) }}">Editar</a>
+    <button type="button" class="btn btn--secundario btn--pequeno"
+            hx-post="{{ url_for('lancamentos.despesas_excluir', despesa_id=item.id) }}"
+            hx-confirm="Excluir a despesa &quot;{{ item.descricao }}&quot;? Isso não pode ser desfeito."
+            hx-target="#despesa-{{ item.id }}"
+            hx-swap="outerHTML">Excluir</button>
+  </td>
+</tr>

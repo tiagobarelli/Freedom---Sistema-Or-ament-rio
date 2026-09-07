@@ -1,0 +1,170 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{% block title %}Consultar despesas - Freedom{% endblock %}
+{% block titulo_pagina %}Consultar despesas{% endblock %}
+{% block subtitulo_pagina %}
+  <p class="pagina-subtitulo">Leitura e conferência do mês. Para digitar rápido, use Lançar despesa.</p>
+{% endblock %}
+{% block acoes_pagina %}
+  <a class="btn btn--secundario" href="{{ url_for('lancamentos.despesas_tela') }}">
+    Lançar despesa
+  </a>
+{% endblock %}
+
+{% set url_consulta = url_for('lancamentos.despesas_consulta') %}
+
+{% block content %}
+  {#
+    Os filtros ficam FORA de #resultados: o hx-get troca so o bloco de baixo,
+    entao o estado dos campos sobrevive a cada consulta. hx-push-url mantem a
+    URL em dia, o que faz a tela ser reproduzivel por link e o botao voltar
+    desfazer o ultimo filtro.
+  #}
+  <form id="filtros" class="filtros-consulta"
+        hx-get="{{ url_consulta }}"
+        hx-target="#resultados"
+        hx-swap="innerHTML"
+        hx-push-url="true"
+        hx-trigger="change">
+
+    {# O mes fica sempre visivel, inclusive no celular. #}
+    <div class="filtro-mes">
+      <button type="button" class="btn btn--secundario btn--icone"
+              aria-label="Mês anterior"
+              hx-get="{{ url_for('lancamentos.despesas_consulta',
+                                 **query_string(filtros, 1, mes=mes_anterior)) }}"
+              hx-target="#resultados" hx-swap="innerHTML" hx-push-url="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+
+      <select class="selecao" name="mes" aria-label="Mês">
+        {% for mm in meses %}
+          <option value="{{ mm }}" {{ 'selected' if mm == filtros.mes }}>
+            {{ rotulo_mes if mm == filtros.mes else
+               (mm | string)[4:6] ~ '/' ~ (mm | string)[0:4] }}
+          </option>
+        {% endfor %}
+      </select>
+
+      <button type="button" class="btn btn--secundario btn--icone"
+              aria-label="Mês seguinte"
+              hx-get="{{ url_for('lancamentos.despesas_consulta',
+                                 **query_string(filtros, 1, mes=mes_seguinte)) }}"
+              hx-target="#resultados" hx-swap="innerHTML" hx-push-url="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+
+    {# No celular o resto dos filtros recolhe; o mes acima fica de fora. #}
+    <details class="filtros-extras" {{ 'open' if filtros.pessoa_id or filtros.categoria_id
+                                       or filtros.conta_id or filtros.essencialidade
+                                       or filtros.q or filtros.ordem != 'data' }}>
+      <summary class="filtros-extras__resumo">Filtros</summary>
+      <div class="filtros-extras__corpo">
+
+        <label class="filtro-campo">
+          <span class="filtro-campo__rotulo">Pessoa</span>
+          <select class="selecao" name="pessoa_id">
+            <option value="">Todas</option>
+            {% for p in opcoes.pessoas %}
+              <option value="{{ p.id }}" {{ 'selected' if p.id == filtros.pessoa_id }}>
+                {{ p.nome }}{{ ' (inativa)' if not p.ativo }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label class="filtro-campo">
+          <span class="filtro-campo__rotulo">Categoria</span>
+          <select class="selecao" name="categoria_id">
+            <option value="">Todas</option>
+            {% for c in opcoes.categorias %}
+              <option value="{{ c.id }}" {{ 'selected' if c.id == filtros.categoria_id }}>
+                {{ c.nome }}{{ ' (inativa)' if not c.ativo }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label class="filtro-campo">
+          <span class="filtro-campo__rotulo">Conta</span>
+          <select class="selecao" name="conta_id">
+            <option value="">Todas</option>
+            {% for c in opcoes.contas %}
+              <option value="{{ c.id }}" {{ 'selected' if c.id == filtros.conta_id }}>
+                {{ c.nome }}{{ ' (inativa)' if not c.ativo }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label class="filtro-campo">
+          <span class="filtro-campo__rotulo">Essencialidade</span>
+          <select class="selecao" name="essencialidade">
+            <option value="">Todas</option>
+            <option value="Essencial" {{ 'selected' if filtros.essencialidade == 'Essencial' }}>Essencial</option>
+            <option value="Não Essencial" {{ 'selected' if filtros.essencialidade == 'Não Essencial' }}>Não Essencial</option>
+          </select>
+        </label>
+
+        <label class="filtro-campo">
+          <span class="filtro-campo__rotulo">Ordenar por</span>
+          <select class="selecao" name="ordem">
+            <option value="data" {{ 'selected' if filtros.ordem == 'data' }}>Data (mais recente)</option>
+            <option value="valor" {{ 'selected' if filtros.ordem == 'valor' }}>Valor (maior)</option>
+          </select>
+        </label>
+
+        <label class="filtro-campo filtro-campo--busca">
+          <span class="filtro-campo__rotulo">Descrição contém</span>
+          {# Digitar nao pode disparar uma consulta por tecla. #}
+          <input class="entrada" type="search" name="q" value="{{ filtros.q or '' }}"
+                 placeholder="ex.: supermercado" autocomplete="off"
+                 hx-get="{{ url_consulta }}"
+                 hx-target="#resultados" hx-swap="innerHTML" hx-push-url="true"
+                 hx-include="#filtros"
+                 hx-trigger="keyup changed delay:400ms, search">
+        </label>
+
+        <div class="filtro-campo filtro-campo--acao">
+          <a class="btn btn--discreto btn--pequeno"
+             href="{{ url_for('lancamentos.despesas_consulta', mes=filtros.mes) }}"
+             hx-get="{{ url_for('lancamentos.despesas_consulta', mes=filtros.mes) }}"
+             hx-target="#resultados" hx-swap="innerHTML" hx-push-url="true">
+            Limpar filtros
+          </a>
+        </div>
+
+      </div>
+    </details>
+
+    {# A pagina volta para 1 sempre que um filtro muda. #}
+    <input type="hidden" name="pagina" value="1">
+  </form>
+
+  <div id="resultados">
+    {% include "lancamentos/_resultados.html" %}
+  </div>
+
+  <script>
+    // Limpar filtros troca o bloco por HTMX; os campos do formulario ficam
+    // fora dele, entao precisam ser zerados na mao.
+    document.body.addEventListener('htmx:afterRequest', function (e) {
+      var alvo = e.detail && e.detail.pathInfo && e.detail.pathInfo.requestPath;
+      var form = document.getElementById('filtros');
+      if (!form || !alvo || alvo.indexOf('/consulta') === -1) return;
+      if (e.detail.elt && e.detail.elt.textContent.trim() === 'Limpar filtros') {
+        ['pessoa_id', 'categoria_id', 'conta_id', 'essencialidade'].forEach(function (n) {
+          var c = form.querySelector('[name="' + n + '"]'); if (c) c.value = '';
+        });
+        var ordem = form.querySelector('[name="ordem"]'); if (ordem) ordem.value = 'data';
+        var q = form.querySelector('[name="q"]'); if (q) q.value = '';
+      }
+    });
+  </script>
+{% endblock %}

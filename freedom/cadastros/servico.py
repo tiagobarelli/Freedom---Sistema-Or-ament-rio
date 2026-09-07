@@ -6,7 +6,10 @@ UNIQUE e montar a lista são a mesma coisa em todas — ficam aqui.
 
 from psycopg import errors
 
-from freedom.db import get_connection
+# executar() mora em freedom.db desde que os lancamentos passaram a usa-la
+# tambem. Reexportada aqui para os cinco modulos de cadastro nao mudarem
+# de import.
+from freedom.db import executar  # noqa: F401
 
 # As tabelas de referência têm coluna `ativo`, menos tb_contas, que usa `ativa`.
 # O nome vem sempre daqui, nunca de string interpolada em runtime.
@@ -88,15 +91,6 @@ def aplicar_erro_duplicado(form, exc):
     else:
         form.form_errors = list(getattr(form, "form_errors", [])) + [erro.mensagem]
     return False
-
-
-def executar(sql, params=(), retornar=False):
-    """Roda INSERT/UPDATE numa transação. Commit ao sair, rollback em erro."""
-    with get_connection() as conn, conn.cursor() as cur:
-        cur.execute(sql, params)
-        if retornar:
-            return cur.fetchone()
-    return None
 
 
 def alternar_ativo(entidade, registro_id):

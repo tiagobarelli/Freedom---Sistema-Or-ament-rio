@@ -93,3 +93,148 @@
     <a class="btn btn--secundario" href="{{ url_voltar }}">Cancelar</a>
   </div>
 {% endmacro %}
+
+
+{# ==========================================================================
+   Lancamentos
+   ========================================================================== #}
+
+{% from "lancamentos/_classificacao_macro.html" import classificacao %}
+
+{# --- Valor em reais ------------------------------------------------------ #}
+{% macro reais(valor) -%}
+  R$ {{ valor | moeda }}
+{%- endmacro %}
+
+
+{# --- Badge de essencialidade efetiva, com a prioridade junto -------------- #}
+{% macro badge_essencialidade(essencialidade, prioridade=None) %}
+  {% if essencialidade == 'Essencial' %}
+    <span class="badge badge--essencial">Essencial</span>
+  {% else %}
+    <span class="badge badge--naoessencial">
+      Não Essencial{% if prioridade %} · P{{ prioridade }}{% endif %}
+    </span>
+  {% endif %}
+{% endmacro %}
+
+
+{# --- Campos do formulario de despesa -------------------------------------
+   Uma macro so, usada pela tela de lancamento e pela de edicao, para a
+   marcacao nao ser copiada entre as duas.
+#}
+{% macro campos_despesa(form, sub_selecionada, url_classificacao) %}
+  {{ form.hidden_tag() }}
+
+  <div class="grade-despesa">
+    <div class="campo">
+      {{ form.data.label(class="campo__rotulo") }}
+      {{ form.data(class="entrada" ~ (" entrada--erro" if form.data.errors else ""),
+                   type="date") }}
+      {% for e in form.data.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
+    </div>
+
+    <div class="campo campo--valor">
+      {{ form.valor.label(class="campo__rotulo") }}
+      <div class="entrada-moeda">
+        <span class="entrada-moeda__prefixo" aria-hidden="true">R$</span>
+        {{ form.valor(class="entrada entrada--grande"
+                             ~ (" entrada--erro" if form.valor.errors else ""),
+                      inputmode="decimal", autocomplete="off",
+                      placeholder="0,00") }}
+      </div>
+      {% for e in form.valor.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
+    </div>
+  </div>
+
+  <div class="campo">
+    {{ form.descricao.label(class="campo__rotulo") }}
+    {# autofocus: apos gravar, o HTMX devolve este formulario por swap e
+       reposiciona o cursor aqui, que e onde o proximo lancamento comeca. #}
+    {{ form.descricao(class="entrada" ~ (" entrada--erro" if form.descricao.errors else ""),
+                      autocomplete="off", maxlength=200, autofocus=true) }}
+    {% for e in form.descricao.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
+  </div>
+
+  <div class="campo">
+    {{ form.subcategoria_id.label(class="campo__rotulo") }}
+    {#
+      Select montado a mao, e nao pelo widget do WTForms, por dois motivos:
+      o dict de optgroups nao aceita uma opcao solta antes dos grupos, e sem
+      essa opcao em branco o navegador pre-seleciona a primeira subcategoria
+      da lista - o que faria a classificacao exibida discordar do que o
+      servidor sabe, e deixaria gravar uma despesa sem ninguem escolher nada.
+    #}
+    <select class="selecao{{ ' selecao--erro' if form.subcategoria_id.errors }}"
+            id="subcategoria_id" name="subcategoria_id" required
+            hx-get="{{ url_classificacao }}"
+            hx-trigger="change"
+            hx-target="#classificacao"
+            hx-swap="innerHTML"
+            hx-include="#form-despesa">
+      <option value="">Escolha a subcategoria</option>
+      {% for nome_categoria, itens in form.grupos %}
+        <optgroup label="{{ nome_categoria }}">
+          {% for valor, rotulo in itens %}
+            <option value="{{ valor }}"
+                    {{ 'selected' if form.subcategoria_id.data == valor }}>{{ rotulo }}</option>
+          {% endfor %}
+        </optgroup>
+      {% endfor %}
+    </select>
+    {% for e in form.subcategoria_id.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
+  </div>
+
+  {# Contêiner de id fixo: a rota de classificacao troca so o conteudo daqui. #}
+  <div id="classificacao">
+    {{ classificacao(sub_selecionada,
+                     form.essencialidade.data or (sub_selecionada.essencialidade
+                                                  if sub_selecionada else none),
+                     form.prioridade.data or "",
+                     form.essencialidade.data or none) }}
+  </div>
+
+  <div class="grade-despesa">
+    <div class="campo">
+      {{ form.conta_id.label(class="campo__rotulo") }}
+      {{ form.conta_id(class="selecao" ~ (" selecao--erro" if form.conta_id.errors else "")) }}
+      {% for e in form.conta_id.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
+    </div>
+    <div class="campo">
+      {{ form.pessoa_id.label(class="campo__rotulo") }}
+      {{ form.pessoa_id(class="selecao" ~ (" selecao--erro" if form.pessoa_id.errors else "")) }}
+      {% for e in form.pessoa_id.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
+    </div>
+  </div>
+
+  <details class="mais-opcoes" id="mais-opcoes" {{ "open" if form.mais_opcoes_aberto }}>
+    <summary class="mais-opcoes__resumo">Mais opções</summary>
+    <div class="mais-opcoes__corpo">
+      <div class="campo">
+        {{ form.essencialidade.label(class="campo__rotulo") }}
+        {{ form.essencialidade(class="selecao",
+                               **{"hx-get": url_classificacao,
+                                  "hx-trigger": "change",
+                                  "hx-target": "#classificacao",
+                                  "hx-swap": "innerHTML",
+                                  "hx-include": "#form-despesa"}) }}
+        <p class="campo__dica">
+          Sobrescreve a essencialidade da subcategoria só nesta despesa.
+        </p>
+      </div>
+
+      <label class="marcar mt-4">
+        {{ form.integra_ipca() }} Integra o agregado deflacionado pelo IPCA
+      </label>
+      <p class="campo__dica">
+        Desmarque em gastos pontuais que distorceriam a série histórica.
+      </p>
+
+      <div class="campo">
+        {{ form.observacoes.label(class="campo__rotulo") }}
+        {{ form.observacoes(class="area-texto", rows=3) }}
+        {% for e in form.observacoes.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
+      </div>
+    </div>
+  </details>
+{% endmacro %}

@@ -15,6 +15,13 @@
 {%- endmacro %}
 
 {% set navegacao = [
+  ("Painel", [
+    ("main.index",                    "Início"),
+  ]),
+  ("Lançamentos", [
+    ("lancamentos.despesas_tela",     "Lançar despesa"),
+    ("lancamentos.despesas_consulta", "Consultar despesas"),
+  ]),
   ("Cadastros", [
     ("cadastros.categorias_lista",    "Categorias"),
     ("cadastros.subcategorias_lista", "Subcategorias"),
@@ -48,14 +55,29 @@
       {{ _logo() }} Freedom
     </a>
 
+    {#
+      Qual item fica aceso: vence o caminho MAIS ESPECIFICO que casa com a URL.
+      Sem isso, /lancamentos/despesas/consulta acenderia tambem o item
+      /lancamentos/despesas, e os dois ficariam destacados ao mesmo tempo.
+    #}
+    {% set ns = namespace(ativo='') %}
+    {% for _, itens in navegacao %}
+      {% for endpoint, _rotulo in itens %}
+        {% set alvo = url_for(endpoint) %}
+        {% if (request.endpoint == endpoint or request.path.startswith(alvo + '/'))
+              and alvo | length > ns.ativo | length %}
+          {% set ns.ativo = alvo %}
+        {% endif %}
+      {% endfor %}
+    {% endfor %}
+
     <nav class="sidebar__nav" aria-label="Navegacao principal">
       {% for titulo_grupo, itens in navegacao %}
         <div class="nav-grupo">
           <p class="nav-grupo__titulo">{{ titulo_grupo }}</p>
           {% for endpoint, rotulo in itens %}
             {% set alvo = url_for(endpoint) %}
-            <a class="nav-item {{ 'nav-item--ativo' if request.endpoint == endpoint
-                                   or request.path.startswith(alvo + '/') else '' }}"
+            <a class="nav-item {{ 'nav-item--ativo' if alvo == ns.ativo else '' }}"
                href="{{ alvo }}">{{ rotulo }}</a>
           {% endfor %}
         </div>

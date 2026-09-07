@@ -1,0 +1,14 @@
+{% import "_macros.html" as m %}
+{% from "cadastros/_rotulos.html" import rotulo_tipo_conta %}
+<tr id="linha-conta-{{ item.id }}" class="{{ 'linha--inativa' if not item.ativo }}">
+  <td class="tabela__principal">{{ item.nome }}</td>
+  <td><span class="badge badge--neutro">{{ rotulo_tipo_conta(item.tipo) }}</span></td>
+  <td class="tabela__suave">{{ item.observacao or '—' }}</td>
+  <td>{{ m.badge_ativo(item.ativo) }}</td>
+  <td class="tabela__acoes">
+    {{ m.acoes_linha(
+         url_for('cadastros.contas_editar', conta_id=item.id),
+         url_for('cadastros.contas_alternar', conta_id=item.id),
+         item.ativo) }}
+  </td>
+</tr>

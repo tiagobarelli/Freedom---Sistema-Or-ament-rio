@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{#
+  Layout das telas autenticadas: sidebar fixa + area de conteudo.
+  A tela de login nao usa este arquivo; ela estende base.html direto.
+#}
+
+{% macro _logo() -%}
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+       stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+       stroke-linejoin="round" aria-hidden="true">
+    <path d="M4 20V6a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/>
+    <path d="M8 13h6M8 16.5h4M8 9.5h4"/>
+  </svg>
+{%- endmacro %}
+
+{% set navegacao = [
+  ("Cadastros", [
+    ("cadastros.categorias_lista",    "Categorias"),
+    ("cadastros.subcategorias_lista", "Subcategorias"),
+    ("cadastros.contas_lista",        "Contas"),
+    ("cadastros.pessoas_lista",       "Pessoas"),
+    ("cadastros.ref_receitas_lista",  "Fontes de receita"),
+  ]),
+] %}
+
+{% block corpo %}
+<div class="app">
+
+  {# Barra de topo: aparece so abaixo de 768px (ver CSS secao 7). #}
+  <header class="topo-mobile">
+    <a class="topo-mobile__marca" href="{{ url_for('main.index') }}">
+      {{ _logo() }} Freedom
+    </a>
+    <button type="button" class="menu-botao" id="menu-botao"
+            aria-controls="sidebar" aria-expanded="false">
+      <span class="so-leitor">Abrir menu</span>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+           aria-hidden="true">
+        <path d="M3 6h18M3 12h18M3 18h18"/>
+      </svg>
+    </button>
+  </header>
+
+  <aside class="sidebar" id="sidebar">
+    <a class="sidebar__logo" href="{{ url_for('main.index') }}">
+      {{ _logo() }} Freedom
+    </a>
+
+    <nav class="sidebar__nav" aria-label="Navegacao principal">
+      {% for titulo_grupo, itens in navegacao %}
+        <div class="nav-grupo">
+          <p class="nav-grupo__titulo">{{ titulo_grupo }}</p>
+          {% for endpoint, rotulo in itens %}
+            {% set alvo = url_for(endpoint) %}
+            <a class="nav-item {{ 'nav-item--ativo' if request.endpoint == endpoint
+                                   or request.path.startswith(alvo + '/') else '' }}"
+               href="{{ alvo }}">{{ rotulo }}</a>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </nav>
+
+    <div class="sidebar__rodape">
+      <div class="usuario">
+        <span class="usuario__avatar" aria-hidden="true">
+          {{ current_user.pessoa_nome[0] | upper }}
+        </span>
+        <span class="usuario__dados">
+          <span class="usuario__nome">{{ current_user.pessoa_nome }}</span>
+          <span class="usuario__login">{{ current_user.login }}</span>
+        </span>
+      </div>
+      <form action="{{ url_for('auth.logout') }}" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn--secundario btn--bloco btn--pequeno">
+          Sair
+        </button>
+      </form>
+    </div>
+  </aside>
+
+  <main class="conteudo">
+    <div class="pagina-cabecalho">
+      <div>
+        <h1 class="pagina-titulo">{% block titulo_pagina %}{% endblock %}</h1>
+        {% block subtitulo_pagina %}{% endblock %}
+      </div>
+      <div class="pagina-acoes">{% block acoes_pagina %}{% endblock %}</div>
+    </div>
+
+    {% with mensagens = get_flashed_messages(with_categories=true) %}
+      {% if mensagens %}
+        <div class="flash-lista">
+          {% for categoria, texto in mensagens %}
+            <div class="flash flash--{{ categoria }}" role="status">{{ texto }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+<script>
+  // Abre e fecha o menu no mobile. Dez linhas de JS no lugar de uma biblioteca.
+  (function () {
+    var botao = document.getElementById('menu-botao');
+    var painel = document.getElementById('sidebar');
+    if (!botao || !painel) return;
+
+    function alternar(abrir) {
+      painel.classList.toggle('aberta', abrir);
+      botao.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+    }
+
+    botao.addEventListener('click', function () {
+      alternar(!painel.classList.contains('aberta'));
+    });
+
+    // Navegou para outra tela: fecha o painel.
+    painel.addEventListener('click', function (e) {
+      if (e.target.closest('a')) alternar(false);
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') alternar(false);
+    });
+  })();
+</script>
+{% endblock %}

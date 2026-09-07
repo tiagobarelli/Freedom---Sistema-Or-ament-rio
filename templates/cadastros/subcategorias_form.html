@@ -1,0 +1,18 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{% block title %}{{ 'Editar subcategoria' if registro else 'Nova subcategoria' }} - Freedom{% endblock %}
+{% block titulo_pagina %}{{ 'Editar subcategoria' if registro else 'Nova subcategoria' }}{% endblock %}
+
+{% block content %}
+  <div class="card card--solido formulario">
+    <form method="post" novalidate>
+      {{ form.hidden_tag() }}
+      {{ m.campo_selecao(form.categoria_id) }}
+      {{ m.campo(form.nome, extra={"maxlength": 120}) }}
+      {{ m.campo_selecao(form.essencialidade,
+           dica="Valor padrão herdado por toda despesa desta subcategoria. Pode ser sobrescrito em uma despesa específica.") }}
+      {{ m.acoes_formulario(url_for('cadastros.subcategorias_lista')) }}
+    </form>
+  </div>
+{% endblock %}

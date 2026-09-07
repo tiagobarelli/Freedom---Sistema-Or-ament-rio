@@ -1,0 +1,8 @@
+{# Traducao dos valores do CHECK ck_contas_tipo para rotulo de tela. #}
+{% macro rotulo_tipo_conta(tipo) -%}
+  {%- if tipo == 'corrente' -%}Conta corrente
+  {%- elif tipo == 'cartao' -%}Cartão
+  {%- elif tipo == 'dinheiro' -%}Dinheiro
+  {%- else -%}Outro
+  {%- endif -%}
+{%- endmacro %}

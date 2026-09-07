@@ -1,0 +1,15 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{% block title %}{{ 'Editar pessoa' if registro else 'Nova pessoa' }} - Freedom{% endblock %}
+{% block titulo_pagina %}{{ 'Editar pessoa' if registro else 'Nova pessoa' }}{% endblock %}
+
+{% block content %}
+  <div class="card card--solido formulario">
+    <form method="post" novalidate>
+      {{ form.hidden_tag() }}
+      {{ m.campo(form.nome, extra={"autofocus": true, "maxlength": 120}) }}
+      {{ m.acoes_formulario(url_for('cadastros.pessoas_lista')) }}
+    </form>
+  </div>
+{% endblock %}

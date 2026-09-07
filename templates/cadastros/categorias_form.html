@@ -1,0 +1,15 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{% block title %}{{ 'Editar categoria' if registro else 'Nova categoria' }} - Freedom{% endblock %}
+{% block titulo_pagina %}{{ 'Editar categoria' if registro else 'Nova categoria' }}{% endblock %}
+
+{% block content %}
+  <div class="card card--solido formulario">
+    <form method="post" novalidate>
+      {{ form.hidden_tag() }}
+      {{ m.campo(form.nome, extra={"autofocus": true, "maxlength": 120}) }}
+      {{ m.acoes_formulario(url_for('cadastros.categorias_lista')) }}
+    </form>
+  </div>
+{% endblock %}

@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Freedom",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "freedom",
+      "Username": "freedom",
+      "SSLMode": "prefer",
+      "Comment": "Freedom - Sistema Orcamentario. Host 'postgres' e o nome do servico no docker-compose, resolvido pela rede interna do Docker."
+    }
+  }
+}

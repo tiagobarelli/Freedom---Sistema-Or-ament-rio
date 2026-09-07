@@ -1,0 +1,18 @@
+{% import "_macros.html" as m %}
+<tr id="linha-pessoa-{{ item.id }}" class="{{ 'linha--inativa' if not item.ativo }}">
+  <td class="tabela__principal">{{ item.nome }}</td>
+  <td>
+    {% if item.tem_usuario %}
+      <span class="badge badge--destaque">Acessa o sistema</span>
+    {% else %}
+      <span class="tabela__suave">&mdash;</span>
+    {% endif %}
+  </td>
+  <td>{{ m.badge_ativo(item.ativo) }}</td>
+  <td class="tabela__acoes">
+    {{ m.acoes_linha(
+         url_for('cadastros.pessoas_editar', pessoa_id=item.id),
+         url_for('cadastros.pessoas_alternar', pessoa_id=item.id),
+         item.ativo) }}
+  </td>
+</tr>

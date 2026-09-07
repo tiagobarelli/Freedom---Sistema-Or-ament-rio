@@ -1,0 +1,19 @@
+# Ambiente virtual
+venv/
+.venv/
+
+# Segredos e configuracao local
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Flask
+instance/
+
+# Editores / SO
+.vscode/
+.idea/
+Thumbs.db

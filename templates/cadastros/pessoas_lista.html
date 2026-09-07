@@ -1,0 +1,32 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{% block title %}Pessoas - Freedom{% endblock %}
+{% block titulo_pagina %}Pessoas{% endblock %}
+{% block subtitulo_pagina %}
+  <p class="pagina-subtitulo">Membros da família. Nem toda pessoa acessa o sistema.</p>
+{% endblock %}
+{% block acoes_pagina %}
+  <a class="btn btn--primario" href="{{ url_for('cadastros.pessoas_nova') }}">Nova pessoa</a>
+{% endblock %}
+
+{% block content %}
+  <form class="filtros" method="get">
+    {{ m.filtro_inativos(mostrar_inativos) }}
+  </form>
+
+  <div class="tabela-caixa">
+    {% if linhas %}
+      <table class="tabela">
+        {{ m.cabecalho_tabela(["Nome", "Acesso", "Situação"]) }}
+        <tbody>
+          {% for item in linhas %}
+            {% include "cadastros/_linha_pessoa.html" %}
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      {{ m.vazio("Nenhuma pessoa", "Cadastre os membros da família.") }}
+    {% endif %}
+  </div>
+{% endblock %}

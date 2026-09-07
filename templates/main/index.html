@@ -1,0 +1,15 @@
+{% extends "layout_app.html" %}
+
+{% block title %}Início - Freedom{% endblock %}
+{% block titulo_pagina %}Início{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <h2 class="card__titulo">Bem-vindo, {{ usuario.pessoa_nome }}</h2>
+    <p class="card__texto">
+      Comece pelos cadastros na barra lateral: categorias e subcategorias de
+      despesa, contas, pessoas e fontes de receita. O lançamento de despesas e
+      receitas e o painel de indicadores entram nas próximas etapas.
+    </p>
+  </div>
+{% endblock %}

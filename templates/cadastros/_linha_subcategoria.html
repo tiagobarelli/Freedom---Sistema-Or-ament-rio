@@ -1,0 +1,22 @@
+{% import "_macros.html" as m %}
+<tr id="linha-subcategoria-{{ item.id }}" class="{{ 'linha--inativa' if not item.ativo }}">
+  <td class="tabela__principal">{{ item.nome }}</td>
+  <td class="tabela__suave">
+    {{ item.categoria_nome }}
+    {%- if not item.categoria_ativa %} <span class="badge badge--neutro">categoria inativa</span>{% endif %}
+  </td>
+  <td>
+    {% if item.essencialidade == 'Essencial' %}
+      <span class="badge badge--neutro">Essencial</span>
+    {% else %}
+      <span class="badge badge--neutro">Não Essencial</span>
+    {% endif %}
+  </td>
+  <td>{{ m.badge_ativo(item.ativo) }}</td>
+  <td class="tabela__acoes">
+    {{ m.acoes_linha(
+         url_for('cadastros.subcategorias_editar', subcategoria_id=item.id),
+         url_for('cadastros.subcategorias_alternar', subcategoria_id=item.id),
+         item.ativo) }}
+  </td>
+</tr>

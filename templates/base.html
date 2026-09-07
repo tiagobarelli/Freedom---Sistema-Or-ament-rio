@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Freedom{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <script src="{{ url_for('static', filename='js/htmx.min.js') }}" defer></script>
+</head>
+{#
+  O token CSRF viaja em todo POST do HTMX pelo cabecalho X-CSRFToken, que o
+  Flask-WTF aceita por padrao. Assim os botoes hx-post nao precisam de campo
+  escondido em cada linha da tabela.
+#}
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token() }}"}'>
+
+  {# Formas desfocadas do fundo: sem elas o vidro nao tem o que desfocar. #}
+  <div class="fundo-formas" aria-hidden="true">
+    <span></span><span></span><span></span>
+  </div>
+
+  {% block corpo %}{% endblock %}
+</body>
+</html>

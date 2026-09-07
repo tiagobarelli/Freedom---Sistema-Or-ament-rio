@@ -1,0 +1,19 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{% block title %}{{ 'Editar fonte de receita' if registro else 'Nova fonte de receita' }} - Freedom{% endblock %}
+{% block titulo_pagina %}{{ 'Editar fonte de receita' if registro else 'Nova fonte de receita' }}{% endblock %}
+
+{% block content %}
+  <div class="card card--solido formulario">
+    <form method="post" novalidate>
+      {{ form.hidden_tag() }}
+      {{ m.campo(form.categoria, dica="Ex.: Salário, Investimentos, Extras.",
+                 extra={"autofocus": true, "maxlength": 120}) }}
+      {{ m.campo(form.subcategoria, dica="Ex.: Salário líquido, Dividendos, Venda de item.",
+                 extra={"maxlength": 120}) }}
+      {{ m.campo_area(form.observacao) }}
+      {{ m.acoes_formulario(url_for('cadastros.ref_receitas_lista')) }}
+    </form>
+  </div>
+{% endblock %}

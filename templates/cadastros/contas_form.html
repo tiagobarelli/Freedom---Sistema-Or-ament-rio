@@ -1,0 +1,17 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{% block title %}{{ 'Editar conta' if registro else 'Nova conta' }} - Freedom{% endblock %}
+{% block titulo_pagina %}{{ 'Editar conta' if registro else 'Nova conta' }}{% endblock %}
+
+{% block content %}
+  <div class="card card--solido formulario">
+    <form method="post" novalidate>
+      {{ form.hidden_tag() }}
+      {{ m.campo(form.nome, extra={"autofocus": true, "maxlength": 120}) }}
+      {{ m.campo_selecao(form.tipo, dica="Permite agrupar relatórios por tipo de conta.") }}
+      {{ m.campo_area(form.observacao) }}
+      {{ m.acoes_formulario(url_for('cadastros.contas_lista')) }}
+    </form>
+  </div>
+{% endblock %}

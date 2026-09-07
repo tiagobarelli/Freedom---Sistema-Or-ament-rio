@@ -1,0 +1,95 @@
+{#
+  Macros reaproveitadas pelas cinco telas de cadastro.
+  Evitam repetir marcacao de campo, badge, acoes e tabela em cada entidade.
+#}
+
+{# --- Campo de formulario -------------------------------------------------
+   Recebe um campo WTForms e cuida de rotulo, classe de erro, dica e erros.
+#}
+{% macro campo(f, dica=None, classe="entrada", extra={}) %}
+  {% set tem_erro = f.errors | length > 0 %}
+  <div class="campo">
+    {{ f.label(class="campo__rotulo") }}
+    {{ f(class=classe ~ (" " ~ classe ~ "--erro" if tem_erro else ""), **extra) }}
+    {% if dica %}<p class="campo__dica">{{ dica }}</p>{% endif %}
+    {% for erro in f.errors %}
+      <p class="campo__erro">{{ erro }}</p>
+    {% endfor %}
+  </div>
+{% endmacro %}
+
+{% macro campo_selecao(f, dica=None) %}
+  {{ campo(f, dica=dica, classe="selecao") }}
+{% endmacro %}
+
+{% macro campo_area(f, dica=None) %}
+  {{ campo(f, dica=dica, classe="area-texto") }}
+{% endmacro %}
+
+
+{# --- Badge de situacao --------------------------------------------------- #}
+{% macro badge_ativo(ativo) %}
+  {% if ativo %}
+    <span class="badge badge--ativo">Ativo</span>
+  {% else %}
+    <span class="badge badge--inativo">Inativo</span>
+  {% endif %}
+{% endmacro %}
+
+
+{# --- Acoes da linha: Editar + Ativar/Desativar via HTMX -------------------
+   O POST troca apenas o <tr> da propria linha (hx-target closest tr), entao
+   a pagina nao recarrega e a posicao de rolagem nao se perde.
+#}
+{% macro acoes_linha(url_editar, url_alternar, ativo) %}
+  <a class="btn btn--discreto btn--pequeno" href="{{ url_editar }}">Editar</a>
+  <button type="button"
+          class="btn btn--secundario btn--pequeno"
+          hx-post="{{ url_alternar }}"
+          hx-target="closest tr"
+          hx-swap="outerHTML">
+    {{ "Desativar" if ativo else "Ativar" }}
+  </button>
+{% endmacro %}
+
+
+{# --- Cabecalho da tabela ------------------------------------------------- #}
+{% macro cabecalho_tabela(colunas) %}
+  <thead>
+    <tr>
+      {% for titulo in colunas %}<th>{{ titulo }}</th>{% endfor %}
+      <th class="tabela__acoes"><span class="so-leitor">Acoes</span></th>
+    </tr>
+  </thead>
+{% endmacro %}
+
+
+{# --- Estado vazio -------------------------------------------------------- #}
+{% macro vazio(titulo, texto) %}
+  <div class="vazio">
+    <p class="vazio__titulo">{{ titulo }}</p>
+    <p class="vazio__texto">{{ texto }}</p>
+  </div>
+{% endmacro %}
+
+
+{# --- Filtro "mostrar inativos" ------------------------------------------
+   Um GET simples: marcar a caixa envia o formulario e recarrega a lista.
+#}
+{% macro filtro_inativos(mostrar_inativos) %}
+  <label class="marcar">
+    <input type="checkbox" name="inativos" value="1"
+           {{ "checked" if mostrar_inativos }}
+           onchange="this.form.submit()">
+    Mostrar inativos
+  </label>
+{% endmacro %}
+
+
+{# --- Rodape de formulario ------------------------------------------------ #}
+{% macro acoes_formulario(url_voltar, rotulo_salvar="Salvar") %}
+  <div class="card__rodape">
+    <button type="submit" class="btn btn--primario">{{ rotulo_salvar }}</button>
+    <a class="btn btn--secundario" href="{{ url_voltar }}">Cancelar</a>
+  </div>
+{% endmacro %}

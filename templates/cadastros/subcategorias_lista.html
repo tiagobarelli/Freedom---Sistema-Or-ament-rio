@@ -1,0 +1,40 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{% block title %}Subcategorias - Freedom{% endblock %}
+{% block titulo_pagina %}Subcategorias{% endblock %}
+{% block subtitulo_pagina %}
+  <p class="pagina-subtitulo">É o que se escolhe ao lançar uma despesa; categoria e essencialidade vêm daqui.</p>
+{% endblock %}
+{% block acoes_pagina %}
+  <a class="btn btn--primario" href="{{ url_for('cadastros.subcategorias_nova') }}">Nova subcategoria</a>
+{% endblock %}
+
+{% block content %}
+  <form class="filtros" method="get">
+    <span class="filtros__rotulo">Categoria</span>
+    <select class="selecao" name="categoria_id" onchange="this.form.submit()">
+      <option value="">Todas</option>
+      {% for c in categorias %}
+        <option value="{{ c.id }}" {{ 'selected' if filtro_categoria == c.id }}>{{ c.nome }}</option>
+      {% endfor %}
+    </select>
+    {{ m.filtro_inativos(mostrar_inativos) }}
+  </form>
+
+  <div class="tabela-caixa">
+    {% if linhas %}
+      <table class="tabela">
+        {{ m.cabecalho_tabela(["Nome", "Categoria", "Essencialidade", "Situação"]) }}
+        <tbody>
+          {% for item in linhas %}
+            {% include "cadastros/_linha_subcategoria.html" %}
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      {{ m.vazio("Nenhuma subcategoria",
+                 "Crie subcategorias dentro das categorias já cadastradas.") }}
+    {% endif %}
+  </div>
+{% endblock %}

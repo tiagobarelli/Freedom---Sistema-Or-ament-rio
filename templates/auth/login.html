@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+
+{% block title %}Entrar - Freedom{% endblock %}
+
+{# Sem sidebar: nao ha usuario nem para onde navegar antes do login. #}
+{% block corpo %}
+<div class="login-tela">
+  <div class="login-caixa">
+
+    <p class="login-marca">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+           stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 20V6a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/>
+        <path d="M8 13h6M8 16.5h4M8 9.5h4"/>
+      </svg>
+      Freedom
+    </p>
+
+    {% with mensagens = get_flashed_messages(with_categories=true) %}
+      {% if mensagens %}
+        <div class="flash-lista">
+          {% for categoria, texto in mensagens %}
+            <div class="flash flash--{{ categoria }}" role="status">{{ texto }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="card">
+      <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+        {{ m.campo(form.login, extra={"autofocus": true, "autocomplete": "username"}) }}
+        {{ m.campo(form.senha, extra={"autocomplete": "current-password"}) }}
+        <button type="submit" class="btn btn--primario btn--bloco">Entrar</button>
+      </form>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

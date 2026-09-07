@@ -1,0 +1,13 @@
+{% import "_macros.html" as m %}
+<tr id="linha-ref-receita-{{ item.id }}" class="{{ 'linha--inativa' if not item.ativo }}">
+  <td class="tabela__principal">{{ item.categoria }}</td>
+  <td>{{ item.subcategoria }}</td>
+  <td class="tabela__suave">{{ item.observacao or '—' }}</td>
+  <td>{{ m.badge_ativo(item.ativo) }}</td>
+  <td class="tabela__acoes">
+    {{ m.acoes_linha(
+         url_for('cadastros.ref_receitas_editar', ref_id=item.id),
+         url_for('cadastros.ref_receitas_alternar', ref_id=item.id),
+         item.ativo) }}
+  </td>
+</tr>

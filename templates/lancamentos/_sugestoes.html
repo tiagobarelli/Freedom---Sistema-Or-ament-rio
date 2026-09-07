@@ -1,0 +1,26 @@
+{% import "_macros.html" as m %}
+{#
+  Painel do autocomplete. Nao e <datalist>: datalist so carrega texto, e aqui
+  cada item precisa levar os ids que vao preencher subcategoria, conta e
+  pessoa. Os dados viajam em data-*; quem le e o JS de campos_despesa.
+#}
+{% if sugestoes %}
+  <ul class="sugestoes__lista" role="listbox" id="sugestoes-lista"
+      aria-label="Descrições já usadas">
+    {% for s in sugestoes %}
+      <li class="sugestoes__item" role="option" id="sugestao-{{ loop.index0 }}"
+          tabindex="-1" aria-selected="false"
+          data-descricao="{{ s.descricao }}"
+          data-subcategoria-id="{{ s.subcategoria_id }}"
+          data-conta-id="{{ s.conta_id }}"
+          data-pessoa-id="{{ s.pessoa_id }}"
+          data-valor="{{ m.reais(s.valor) | trim }}">
+        <span class="sugestoes__descricao">{{ s.descricao }}</span>
+        <span class="sugestoes__apoio">
+          {{ m.reais(s.valor) }} · {{ s.subcategoria }}
+          <span class="sugestoes__usos">{{ s.usos }}x</span>
+        </span>
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}

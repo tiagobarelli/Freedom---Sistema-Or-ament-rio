@@ -123,7 +123,12 @@
    Uma macro so, usada pela tela de lancamento e pela de edicao, para a
    marcacao nao ser copiada entre as duas.
 #}
-{% macro campos_despesa(form, sub_selecionada, url_classificacao) %}
+{#
+   `url_sugestoes` liga o autocomplete. A tela de edicao chama sem ele: editar
+   e corrigir um registro especifico, nao repetir um anterior.
+#}
+{% macro campos_despesa(form, sub_selecionada, url_classificacao,
+                        url_sugestoes=None) %}
   {{ form.hidden_tag() }}
 
   <div class="grade-despesa">
@@ -143,16 +148,39 @@
                       inputmode="decimal", autocomplete="off",
                       placeholder="0,00") }}
       </div>
+      {# Preenchido pelo autocomplete; o valor em si NUNCA e copiado. #}
+      <p class="campo__apoio" id="valor-apoio" hidden></p>
       {% for e in form.valor.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
     </div>
   </div>
 
-  <div class="campo">
+  <div class="campo campo--descricao">
     {{ form.descricao.label(class="campo__rotulo") }}
     {# autofocus: apos gravar, o HTMX devolve este formulario por swap e
        reposiciona o cursor aqui, que e onde o proximo lancamento comeca. #}
-    {{ form.descricao(class="entrada" ~ (" entrada--erro" if form.descricao.errors else ""),
-                      autocomplete="off", maxlength=200, autofocus=true) }}
+    {#
+      hx-params="none" + hx-vals: sem isso o HTMX mandaria o valor sob o name
+      do campo (descricao=...), e a rota fala ?q=.
+    #}
+    {% if url_sugestoes %}
+      <div class="sugestoes" id="sugestoes">
+        {{ form.descricao(
+             class="entrada" ~ (" entrada--erro" if form.descricao.errors else ""),
+             autocomplete="off", maxlength=200, autofocus=true,
+             role="combobox", aria_expanded="false", aria_autocomplete="list",
+             aria_controls="sugestoes-lista",
+             **{"hx-get": url_sugestoes,
+                "hx-trigger": "keyup changed delay:250ms",
+                "hx-target": "#sugestoes-painel",
+                "hx-swap": "innerHTML",
+                "hx-vals": 'js:{"q": document.getElementById("descricao").value}'}) }}
+        <div class="sugestoes__painel" id="sugestoes-painel"></div>
+      </div>
+      <p class="campo__apoio campo__apoio--aviso" id="sugestao-aviso" hidden></p>
+    {% else %}
+      {{ form.descricao(class="entrada" ~ (" entrada--erro" if form.descricao.errors else ""),
+                        autocomplete="off", maxlength=200, autofocus=true) }}
+    {% endif %}
     {% for e in form.descricao.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
   </div>
 

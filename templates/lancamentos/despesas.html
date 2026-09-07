@@ -66,6 +66,96 @@
   </section>
 
   <script>
+    // --- Autocomplete de descricao -------------------------------------
+    // A lista vem pronta do servidor (HTMX). Aqui so cuidamos de teclado,
+    // ARIA e do preenchimento dos campos ao escolher um item.
+    (function () {
+      var d = document;
+      var campo = function () { return d.querySelector('#form-despesa [name="descricao"]'); };
+      var painel = function () { return d.getElementById('sugestoes-painel'); };
+      var itens = function () { return painel() ? [].slice.call(painel().querySelectorAll('.sugestoes__item')) : []; };
+      var destaque = -1;
+
+      function fechar() {
+        if (painel()) painel().innerHTML = '';
+        if (campo()) { campo().setAttribute('aria-expanded', 'false'); campo().removeAttribute('aria-activedescendant'); }
+        destaque = -1;
+      }
+
+      function marcar(i) {
+        var lista = itens();
+        if (!lista.length) return;
+        destaque = (i + lista.length) % lista.length;
+        lista.forEach(function (el, n) {
+          var ativo = n === destaque;
+          el.classList.toggle('sugestoes__item--ativo', ativo);
+          el.setAttribute('aria-selected', ativo ? 'true' : 'false');
+          if (ativo) { campo().setAttribute('aria-activedescendant', el.id); el.scrollIntoView({block: 'nearest'}); }
+        });
+      }
+
+      function apoio(id, texto) {
+        var el = d.getElementById(id);
+        if (!el) return;
+        el.textContent = texto || '';
+        el.hidden = !texto;
+      }
+
+      function escolher(item) {
+        var f = d.getElementById('form-despesa');
+        campo().value = item.dataset.descricao;
+        // Referencia desativada nao existe no select: nao inventa, avisa.
+        var faltando = [];
+        [['subcategoria_id', 'subcategoriaId', 'subcategoria'],
+         ['conta_id', 'contaId', 'conta'],
+         ['pessoa_id', 'pessoaId', 'pessoa']].forEach(function (par) {
+          var sel = f.querySelector('[name="' + par[0] + '"]');
+          var id = item.dataset[par[1]];
+          if (sel && [].some.call(sel.options, function (o) { return o.value === id; })) sel.value = id;
+          else faltando.push(par[2]);
+        });
+        apoio('valor-apoio', 'último: ' + item.dataset.valor);   // valor NAO e copiado
+        apoio('sugestao-aviso', faltando.length
+          ? 'A ' + faltando.join(', ') + ' do lançamento anterior está desativada; escolha outra.' : '');
+        fechar();
+        // Sem isto, categoria, essencialidade e prioridade ficariam mentindo.
+        htmx.trigger(f.querySelector('[name="subcategoria_id"]'), 'change');
+        var valor = f.querySelector('[name="valor"]');
+        if (valor) { valor.focus(); valor.select(); }
+      }
+
+      d.addEventListener('keydown', function (e) {
+        if (e.target !== campo()) return;
+        var lista = itens();
+        if (e.key === 'ArrowDown' && lista.length) { e.preventDefault(); marcar(destaque + 1); }
+        else if (e.key === 'ArrowUp' && lista.length) { e.preventDefault(); marcar(destaque - 1); }
+        else if (e.key === 'Enter' && lista.length) { e.preventDefault(); escolher(lista[destaque < 0 ? 0 : destaque]); }
+        else if (e.key === 'Escape' || e.key === 'Tab') fechar();
+      });
+
+      d.addEventListener('click', function (e) {
+        var item = e.target.closest ? e.target.closest('.sugestoes__item') : null;
+        if (item) { escolher(item); return; }
+        if (!e.target.closest || !e.target.closest('#sugestoes')) fechar();
+      });
+
+      // Digitar apaga o apoio: o valor sugerido era do lancamento anterior.
+      d.addEventListener('input', function (e) {
+        if (e.target.name === 'valor' || e.target.name === 'descricao') {
+          apoio('valor-apoio', '');
+          if (e.target.name === 'descricao') apoio('sugestao-aviso', '');
+        }
+      });
+
+      // Painel recem-trocado pelo HTMX: reabre o combobox e zera o destaque.
+      d.body.addEventListener('htmx:afterSwap', function (e) {
+        if (e.detail.target && e.detail.target.id === 'sugestoes-painel') {
+          destaque = -1;
+          if (campo()) campo().setAttribute('aria-expanded', itens().length ? 'true' : 'false');
+        }
+      });
+    })();
+
     // Guarda o estado do bloco "Mais opcoes" num campo escondido, para o
     // re-render por HTMX nao fechar o que a pessoa deixou aberto.
     (function () {

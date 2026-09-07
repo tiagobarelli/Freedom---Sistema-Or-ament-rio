@@ -24,6 +24,7 @@ from freedom.lancamentos.servico import (
     recentes,
     subcategoria,
     subcategorias_ativas,
+    sugestoes_de_descricao,
     total_do_mes,
     ultimo_lancamento_do_usuario,
 )
@@ -139,6 +140,26 @@ def despesas_classificacao():
     return render_template(
         "lancamentos/_classificacao.html",
         sub=sub, efetiva=efetiva, prioridade=prioridade, override=override,
+    )
+
+
+
+# --------------------------------------------------------------------------
+# Autocomplete de descricao
+# --------------------------------------------------------------------------
+
+@bp.route("/despesas/sugestoes")
+@login_required
+def despesas_sugestoes():
+    """Lista de descricoes ja usadas que casam com o trecho digitado.
+
+    Devolve fragmento vazio abaixo de 2 caracteres; o JS trata a lista vazia
+    fechando o painel. So na tela de lancamento - editar e corrigir um
+    registro especifico, nao repetir um anterior.
+    """
+    return render_template(
+        "lancamentos/_sugestoes.html",
+        sugestoes=sugestoes_de_descricao(request.args.get("q")),
     )
 
 

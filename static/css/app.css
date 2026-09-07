@@ -14,6 +14,7 @@
         5.4 Tabela        5.8 Estado vazio
         5.9 Lancamento de despesa
         5.10 Consulta de despesas
+        5.11 Autocomplete de descricao
      6. Tela de login
      7. Responsivo (< 768px)
      8. Utilitarios
@@ -1389,6 +1390,90 @@ body {
   color: var(--cor-texto-fraco);
 }
 
+/* --- 5.11 Autocomplete de descricao ------------------------------------
+   Painel ancorado abaixo do campo. Superficie de leitura: quase opaco, nunca
+   vidro - texto pequeno sobre desfoque seria ilegivel.
+*/
+
+.sugestoes {
+  position: relative;
+}
+
+.sugestoes__painel:empty {
+  display: none;
+}
+
+.sugestoes__painel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--solido-sutil);
+  border: 1px solid var(--linha-forte);
+  border-radius: var(--raio-m);
+  box-shadow: var(--sombra-g);
+  -webkit-overflow-scrolling: touch;
+}
+
+.sugestoes__lista {
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+}
+
+.sugestoes__item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 10px;
+  border-radius: var(--raio-p);
+  cursor: pointer;
+}
+
+.sugestoes__item:hover,
+.sugestoes__item--ativo {
+  background: var(--cor-destaque-fantasma);
+}
+
+.sugestoes__item--ativo {
+  box-shadow: inset 0 0 0 1px var(--cor-destaque-borda);
+}
+
+.sugestoes__descricao {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cor-texto);
+}
+
+.sugestoes__apoio {
+  display: flex;
+  align-items: baseline;
+  gap: var(--e-2);
+  font-size: 12.5px;
+  color: var(--cor-texto-suave);
+}
+
+.sugestoes__usos {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--cor-texto-fraco);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Texto de apoio: o "ultimo: R$ ..." e o aviso de referencia desativada. */
+.campo__apoio {
+  margin-top: var(--e-1);
+  font-size: 12px;
+  color: var(--cor-texto-suave);
+}
+
+.campo__apoio--aviso {
+  color: var(--cor-aviso);
+}
+
 /* ==========================================================================
    6. TELA DE LOGIN
    Sem sidebar: card unico centrado. Aqui o vidro e a moldura, e os campos
@@ -1738,6 +1823,19 @@ body {
 
   .paginacao__botoes {
     justify-content: space-between;
+  }
+
+  /* --- Autocomplete no celular --- */
+
+  /* Itens mais altos: alvo confortavel para o polegar. */
+  .sugestoes__item {
+    padding: 11px 12px;
+  }
+
+  /* Painel mais baixo para nao ficar atras do teclado virtual, que come
+     cerca de metade da tela. */
+  .sugestoes__painel {
+    max-height: 42vh;
   }
 }
 

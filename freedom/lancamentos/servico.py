@@ -28,10 +28,8 @@ class ValorInvalido(Exception):
 
 
 # Agrupamento de milhar bem formado: 1-3 dígitos e depois grupos de 3.
-# Compilado por separador; nada de .format() aqui, que colidiria com as
-# chaves de quantificador do próprio regex.
+# Só existe para o ponto: vírgula repetida é erro, não milhar.
 _AGRUPAMENTO = {
-    ",": re.compile(r"\d{1,3}(,\d{3})+"),
     ".": re.compile(r"\d{1,3}(\.\d{3})+"),
 }
 
@@ -39,18 +37,23 @@ _AGRUPAMENTO = {
 def _partir(bruto):
     """Decide o que em `bruto` é milhar e o que é decimal.
 
-    Devolve (parte_inteira, casas_decimais) já sem separadores. A regra:
+    Devolve (parte_inteira, casas_decimais) já sem separadores.
 
-      - `,` e `.` juntos: o separador mais à direita é o decimal, o outro é
-        milhar (1.234,56 e 1,234.56 dão os dois 1234,56);
-      - um separador só, uma vez só: 3 dígitos depois dele = milhar
-        (1.234 e 1,234 = 1234,00); 1 ou 2 dígitos = decimal (1.5 = 1,50);
-        nenhum dígito = separador solto no fim, aceito (10. = 10,00);
-        mais de 3 dígitos = erro;
-      - o mesmo separador repetido: todos são milhar (1.234.567).
+    A regra NÃO é simétrica entre `,` e `.`, porque em português a vírgula é
+    sempre decimal e o ponto é ambíguo:
 
-    O caso de 1 ou 2 dígitos é o que importa no celular, onde o teclado
-    numérico costuma oferecer só o ponto: 1.5 tem que virar 1,50, não 15,00.
+      - vírgula sem ponto: a vírgula é o decimal, ponto final. 10,99 = 10,99;
+        1,5 = 1,50; 10, = 10,00; e 1,234 ou 10,999 são ERRO — quem escreve
+        assim quase sempre errou a digitação, e gravar dez mil no lugar de dez
+        é caro demais para adivinhar;
+      - ponto sem vírgula: aí sim há heurística, porque o teclado numérico do
+        celular costuma oferecer só o ponto. Ponto único com 3 dígitos depois é
+        milhar (1.234 = 1234,00); com 1 ou 2 é decimal (1.5 = 1,50); com 4 ou
+        mais é erro; ponto repetido é tudo milhar (1.234.567);
+      - os dois presentes: o mais à direita é o decimal e o outro é milhar
+        (1.234,56 e 1,234.56 dão os dois 1234,56).
+
+    Quem passar de 2 casas decimais cai no teste de tamanho em converter_valor.
     """
     tem_virgula, tem_ponto = "," in bruto, "." in bruto
 
@@ -64,24 +67,27 @@ def _partir(bruto):
         inteiro, _, decimais = bruto.rpartition(decimal_sep)
         return inteiro.replace(milhar_sep, ""), decimais
 
-    if not tem_virgula and not tem_ponto:
+    if tem_virgula:
+        # Vírgula é decimal, sempre. Nada de heurística de milhar aqui.
+        if bruto.count(",") > 1:
+            raise ValorInvalido("Valor inválido. Use apenas uma vírgula.")
+        inteiro, _, decimais = bruto.partition(",")
+        return inteiro, decimais
+
+    if not tem_ponto:
         return bruto, ""
 
-    sep = "," if tem_virgula else "."
-
-    if bruto.count(sep) > 1:
+    if bruto.count(".") > 1:
         # Repetido: só pode ser milhar, e o agrupamento tem que fechar.
-        if not _AGRUPAMENTO[sep].fullmatch(bruto):
-            raise ValorInvalido(
-                "Valor inválido. Escreva como 1.234.567,89."
-            )
-        return bruto.replace(sep, ""), ""
+        if not _AGRUPAMENTO["."].fullmatch(bruto):
+            raise ValorInvalido("Valor inválido. Escreva como 1.234.567,89.")
+        return bruto.replace(".", ""), ""
 
-    inteiro, _, depois = bruto.partition(sep)
+    inteiro, _, depois = bruto.partition(".")
     if len(depois) == 3:
-        return inteiro + depois, ""      # 1.234 / 1,234 -> milhar
+        return inteiro + depois, ""      # 1.234 -> milhar
     if len(depois) <= 2:
-        return inteiro, depois           # 1.5 / 10,99 / 10. -> decimal
+        return inteiro, depois           # 1.5 / 10. -> decimal
     raise ValorInvalido("Use no máximo 2 casas decimais.")
 
 
@@ -307,6 +313,18 @@ ORDENS = {
 }
 
 
+def escapar_like(texto):
+    """Neutraliza os curingas do ILIKE dentro do que a pessoa digitou.
+
+    Sem isso, buscar por `%` casa com tudo e a busca por texto vira uma
+    listagem aberta; `_` casaria com qualquer caractere. A barra invertida
+    vem primeiro, senão escaparíamos as barras que acabamos de inserir.
+    """
+    return (texto.replace("\\", "\\\\")
+                 .replace("%", "\\%")
+                 .replace("_", "\\_"))
+
+
 def mes_valido(ano_mes):
     """AAAAMM -> (ano, mes) se fizer sentido como mes de calendario."""
     try:
@@ -336,10 +354,25 @@ def rotulo_mes(ano_mes):
     return f"{MESES[mes - 1]} de {ano}"
 
 
+def intervalo_do_mes(ano_mes):
+    """AAAAMM -> (primeiro dia do mes, primeiro dia do mes seguinte)."""
+    ano, mes = divmod(int(ano_mes), 100)
+    inicio = date(ano, mes, 1)
+    fim = date(ano + 1, 1, 1) if mes == 12 else date(ano, mes + 1, 1)
+    return inicio, fim
+
+
 def _where(filtros):
-    """Devolve (trecho_where, params) a partir dos filtros ja validados."""
-    condicoes = ["v.ano_mes = %s"]
-    params = [filtros["mes"]]
+    """Devolve (trecho_where, params) a partir dos filtros ja validados.
+
+    O mes entra como intervalo de datas, e nao como `ano_mes = %s`: ano_mes e
+    coluna derivada da view, e comparar com ela obriga o Postgres a calcular a
+    expressao linha a linha (Seq Scan). Com `data >= inicio AND data < fim` o
+    ix_despesas_data existente e usado, sem precisar de indice novo.
+    """
+    inicio, fim = intervalo_do_mes(filtros["mes"])
+    condicoes = ["v.data >= %s", "v.data < %s"]
+    params = [inicio, fim]
 
     if filtros["pessoa_id"]:
         condicoes.append("v.pessoa_id = %s")
@@ -357,8 +390,8 @@ def _where(filtros):
     if filtros["q"]:
         # ILIKE sem unaccent: 'cafe' nao acha 'café'. Instalar a extensao
         # esta fora do escopo desta rodada.
-        condicoes.append("v.descricao ILIKE '%%' || %s || '%%'")
-        params.append(filtros["q"])
+        condicoes.append("v.descricao ILIKE '%%' || %s || '%%' ESCAPE '\\'")
+        params.append(escapar_like(filtros["q"]))
 
     return " WHERE " + " AND ".join(condicoes), params
 
@@ -446,3 +479,55 @@ def opcoes_de_filtro():
         "contas": query_all(
             "SELECT id, nome, ativa AS ativo FROM tb_contas ORDER BY nome"),
     }
+
+
+# --------------------------------------------------------------------------
+# Autocomplete de descricao
+# --------------------------------------------------------------------------
+
+MIN_SUGESTAO = 2      # so busca a partir de dois caracteres
+MAX_SUGESTOES = 6
+
+
+def sugestoes_de_descricao(termo):
+    """Descricoes ja usadas que contem `termo`, com o contexto do ultimo uso.
+
+    Uma consulta so. As funcoes de janela agrupam por lower(descricao) para
+    contar usos e escolher a linha mais recente de cada grupo; dai saem a
+    grafia exibida e os ids que o formulario vai preencher. Fazer uma consulta
+    por sugestao seria seis idas ao banco por tecla digitada.
+
+    Ordem: mais usadas primeiro; empate desfeito pela mais recente. Descricao
+    usada uma unica vez continua aparecendo, atras das demais.
+    """
+    termo = (termo or "").strip()
+    if len(termo) < MIN_SUGESTAO:
+        return []
+
+    return query_all(
+        """
+        WITH achadas AS (
+            SELECT v.descricao,
+                   v.data,
+                   v.valor,
+                   v.subcategoria_id,
+                   v.subcategoria,
+                   v.categoria,
+                   v.conta_id,
+                   v.pessoa_id,
+                   count(*)    OVER (PARTITION BY lower(v.descricao)) AS usos,
+                   max(v.data) OVER (PARTITION BY lower(v.descricao)) AS ultima,
+                   row_number() OVER (PARTITION BY lower(v.descricao)
+                                      ORDER BY v.data DESC, v.id DESC) AS recencia
+              FROM vw_despesas v
+             WHERE v.descricao ILIKE '%%' || %s || '%%' ESCAPE '\\'
+        )
+        SELECT descricao, valor, subcategoria_id, subcategoria, categoria,
+               conta_id, pessoa_id, usos, ultima
+          FROM achadas
+         WHERE recencia = 1
+         ORDER BY usos DESC, ultima DESC, descricao
+         LIMIT %s
+        """,
+        (escapar_like(termo), MAX_SUGESTOES),
+    )

@@ -4,7 +4,8 @@
       hx-post="{{ url_for('lancamentos.despesas_gravar') }}"
       hx-target="#lista-despesas" hx-swap="afterbegin">
   {{ m.campos_despesa(form, sub_selecionada,
-                      url_for('lancamentos.despesas_classificacao')) }}
+                      url_for('lancamentos.despesas_classificacao'),
+                      url_sugestoes=url_for('lancamentos.despesas_sugestoes')) }}
   <div class="form-despesa__acoes">
     <button type="submit" class="btn btn--primario btn--grande">Lançar despesa</button>
     <span class="htmx-indicator texto-fraco texto-p">gravando…</span>

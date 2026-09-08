@@ -14,13 +14,16 @@ def index():
     """Painel do ano. O ano vem por GET (`/?ano=2026`) e nunca gera erro.
 
     A rota só orquestra: a lista de anos, a validação do que veio na URL e a
-    composição dos cards moram em `servico.py`.
+    composição de cards e gráficos moram em `servico.py`, que lê o ano uma vez
+    só para os dois.
     """
     anos = servico.anos_com_lancamento()
     ano = servico.ano_valido(request.args.get("ano"), anos)
+    painel = servico.painel_do_ano(ano)
     return render_template(
         "main/index.html",
         ano=ano,
         anos=anos,
-        cards=servico.cards_do_ano(ano),
+        cards=painel["cards"],
+        graficos=painel["graficos"],
     )

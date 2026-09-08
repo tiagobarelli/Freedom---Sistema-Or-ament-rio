@@ -88,10 +88,24 @@ templates/          Jinja2
   layout_app.html   shell + sidebar (telas autenticadas)
   _macros.html      macros de campo, tabela, badge e ações
   cadastros/        listas, formulários e parciais de linha (HTMX)
-static/             css e htmx
+static/             css e js de terceiros (ver abaixo)
 db/init/            DDL do banco
 docs/               especificação do banco (fonte da verdade)
 ```
+
+## Dependências de front-end
+
+Nenhuma vem de CDN: os arquivos são versionados junto com o projeto, em
+`static/js/`. Atualizar é baixar a versão nova por cima e trocar o número
+desta tabela — não há bundler nem `package.json`.
+
+| Biblioteca | Versão | Arquivo | Onde é carregada |
+|---|---|---|---|
+| HTMX | 2.0.4 | `static/js/htmx.min.js` | `base.html`, em toda tela |
+| Chart.js | 4.5.1 | `static/js/chart.umd.js` | só na Visão Anual (`/`), pelo bloco `scripts` |
+
+O código próprio de gráficos fica em `static/js/visao_anual.js`; ele não
+calcula valor nenhum, só desenha o que o servidor manda pronto.
 
 ## Cadastros
 

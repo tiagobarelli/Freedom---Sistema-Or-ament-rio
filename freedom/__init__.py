@@ -52,10 +52,13 @@ def create_app(config_class=Config):
     app.register_blueprint(lancamentos_bp)
     app.register_blueprint(configuracoes_bp)
 
-    from freedom.util import formatar_valor
+    from freedom.util import formatar_numero, formatar_valor
 
     # Usado pela macro `reais`: 1234.56 -> '1.234,56'.
     app.add_template_filter(formatar_valor, "moeda")
+    # Numero pt-BR com casas a escolher: 13.58 -> '13,6' com `| numero(1)`.
+    # Existe para percentual em tela nao sair com ponto decimal.
+    app.add_template_filter(formatar_numero, "numero")
 
     from freedom.cli import register_cli
 

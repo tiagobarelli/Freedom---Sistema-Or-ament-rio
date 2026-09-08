@@ -45,4 +45,55 @@
       </article>
     {% endfor %}
   </div>
+
+  {#
+    Os quatro graficos. Os numeros ja vem somados do servidor (inclusive o
+    acumulado): o JavaScript so desenha e formata. A estrutura viaja num
+    <script type="application/json">, que o navegador nao executa - o `tojson`
+    do Jinja escapa `<` e `&`, entao nao ha como fechar a tag por dentro.
+  #}
+  <script type="application/json" id="dados-graficos">{{ graficos | tojson }}</script>
+
+  <div class="painel-graficos">
+    <section class="card grafico">
+      <h2 class="card__titulo">Receitas &times; Despesas</h2>
+      <div class="grafico__area">
+        <canvas id="grafico-receitas-despesas"
+                aria-label="Receitas e despesas por mes"></canvas>
+      </div>
+    </section>
+
+    <section class="card grafico">
+      <h2 class="card__titulo">Despesas Essenciais &times; Não Essenciais</h2>
+      <div class="grafico__area">
+        <canvas id="grafico-essencialidade"
+                aria-label="Despesas essenciais, nao essenciais e total por mes"></canvas>
+      </div>
+    </section>
+
+    <section class="card grafico">
+      <h2 class="card__titulo">Poupança acumulada</h2>
+      <div class="grafico__area">
+        <canvas id="grafico-acumulado"
+                aria-label="Saldo acumulado mes a mes desde janeiro"></canvas>
+      </div>
+    </section>
+
+    <section class="card grafico">
+      <h2 class="card__titulo">Não essenciais por prioridade</h2>
+      <div class="grafico__area">
+        <canvas id="grafico-prioridades"
+                aria-label="Despesas nao essenciais por mes e prioridade"></canvas>
+      </div>
+    </section>
+  </div>
+{% endblock %}
+
+{#
+  So esta tela carrega o Chart.js. `defer` nos dois mantem a ordem: a
+  biblioteca acaba de carregar antes do nosso script rodar.
+#}
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/chart.umd.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/visao_anual.js') }}" defer></script>
 {% endblock %}

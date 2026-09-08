@@ -39,7 +39,7 @@
             <span class="resumo-item__preenchimento" style="width: {{ '%.2f' | format(r.pct) }}%"></span>
           </span>
           <span class="resumo-item__valor">{{ m.reais(r.total) }}</span>
-          <span class="resumo-item__pct">{{ '%.1f' | format(r.pct) }}%</span>
+          <span class="resumo-item__pct">{{ r.pct | numero(1) }}%</span>
         </li>
       {% endfor %}
     </ul>

@@ -3,30 +3,55 @@
 Sistema web pessoal de controle financeiro. Roda localmente; acesso de outros membros da casa via Tailscale (sem exposição de portas na nuvem). Banco de dados: **PostgreSQL 16**.
 
 > **Status**: schema implementado em `db/init/01_schema.sql` (idempotente). Este documento reflete exatamente o que está no banco. Se o SQL mudar, atualizar aqui; se este documento mudar, atualizar o SQL.
+>
+> Histórico do DDL: criado na rodada 1 e inalterado até a rodada 6. A **rodada 7 acrescentou a view `vw_receitas`** — única mudança de schema desde então, e nenhuma tabela foi tocada. A rodada 8 (configurações) não mexeu no schema. O que as rodadas 4 a 8 acrescentaram além disso está em **Regras da aplicação** e em **Padrões de acesso**.
 
 ## Decisões de projeto
 
 - **Sem parcelamento nem faturas de cartão**: despesa no cartão entra com a data da compra, como qualquer outra.
 - **Sem controle de saldo**: o sistema categoriza fluxos (entradas e saídas); não há saldo inicial nem transferências entre contas.
-- **Nada derivado é armazenado**: categoria e essencialidade vêm da subcategoria via JOIN; o mês vem da data (`vw_despesas`). Isso evita dados inconsistentes quando algo é renomeado.
+- **Nada derivado é armazenado**: categoria e essencialidade vêm da subcategoria via JOIN; categoria e subcategoria de receita vêm da fonte via JOIN; o mês vem da data (`vw_despesas`, `vw_receitas`). Isso evita dados inconsistentes quando algo é renomeado.
 - **Usuários no próprio Postgres** (não em SQLite separado): a segurança está no hash da senha (scrypt via `werkzeug.security`), não no arquivo. Isso permite chave estrangeira entre lançamentos e usuários.
 - **Toda tabela tem `id` como chave primária** (`GENERATED ALWAYS AS IDENTITY`). Nomes nunca são chave.
-- **Registros não são apagados**: tabelas de referência têm coluna `ativo`, para sumir dos formulários sem quebrar o histórico. Todas as FKs são `ON DELETE RESTRICT`.
+- **Registros de referência não são apagados**: tabelas de referência têm coluna `ativo`, para sumir dos formulários sem quebrar o histórico. Todas as FKs são `ON DELETE RESTRICT`.
+- **Movimento se exclui, referência se desativa** (decisão da rodada 4): `tb_despesas` e `tb_receitas` não têm coluna de situação e admitem `DELETE` físico, porque um lançamento digitado errado é lixo, não histórico. Nenhuma tabela de referência pode ser apagada, nem em teste.
 - **Configurações têm vigência**: mudar a TSR no futuro não altera relatórios do passado.
+- **Configuração é corrigível** (decisão da rodada 8): `tb_configuracoes` admite `UPDATE` e `DELETE` físico pela interface. Uma vigência digitada errada é lixo, como um lançamento errado; como nada derivado é armazenado, apagá-la só muda o que os relatórios calculam dali em diante. A **chave** não muda na edição — trocar de chave é apagar e lançar de novo.
+- **Leitura pela view, escrita na tabela**, para os dois movimentos: `vw_despesas` e `vw_receitas` são o que a aplicação consulta; `INSERT`, `UPDATE` e `DELETE` vão sempre nas tabelas base.
 
 ## Decisões de implementação (tomadas ao escrever o DDL)
 
 1. **Toda FK é `NOT NULL`.** Subcategoria sem categoria seria órfã; despesa sem conta, pessoa ou usuário sumiria dos relatórios agrupados. Consequência: lançar despesa ou receita exige que as tabelas de referência já tenham pelo menos um registro cada, incluindo um usuário. Despesas compartilhadas da casa (aluguel, luz) são atribuídas a uma pessoa chamada **Casa**.
-2. **`CHECK` de domínio em `tb_despesas.essencialidade` e `tb_contas.tipo`.** Sem o primeiro, o `COALESCE` da view poderia devolver texto arbitrário; o segundo existe porque `tipo` serve para agrupar relatórios e "outro" já é o escape. `tb_ativos.classe` fica **sem** CHECK de propósito (lista aberta).
+2. **`CHECK` de domínio em `tb_despesas.essencialidade` e `tb_contas.tipo`.** Sem o primeiro, o `COALESCE` da view poderia devolver texto arbitrário; o segundo existe porque `tipo` serve para agrupar relatórios e "outro" já é o escape. `tb_ativos.classe` fica **sem** CHECK de propósito (lista aberta), e `tb_configuracoes.chave` também (ver Regras da aplicação).
 3. **Regras de mês e sinal viraram `CHECK`.** `tb_ipca.mes` e `tb_orcamentos.ano_mes` exigem dia 1 (senão o JOIN por mês quebra em silêncio). `tb_orcamentos.valor_planejado` e `tb_patrimonio_snapshots.valor` aceitam zero, mas não negativo.
 4. **Booleanos são `NOT NULL` além do `DEFAULT`.** Evita um terceiro estado entre ativo e inativo. Mesmo para `criado_em`.
 5. **`atualizado_em` não tem `DEFAULT`.** Fica `NULL` até o primeiro `UPDATE`; assim o dado distingue registro nunca editado de editado.
 6. **`vw_despesas` expõe só a essencialidade efetiva.** As duas origens (despesa e subcategoria) não são repetidas, para não induzir uso errado.
+7. **`vw_receitas` expõe `ref_receita_ativo`** (rodada 7). A tela precisa marcar "fonte inativa" na lista, e trazer o `ativo` junto evita um JOIN extra em toda leitura.
 
 ## Regras da aplicação (deliberadamente **não** impostas pelo banco)
 
-- **Prioridade só se aplica a despesa não essencial.** O banco só garante a faixa 1–4. A interface exibe o campo apenas quando a essencialidade efetiva for "Não Essencial". Impor por trigger faria a reclassificação de uma subcategoria falhar ou zerar prioridades históricas.
+- **Prioridade só se aplica a despesa não essencial.** O banco só garante a faixa 1–4. A interface exibe o campo apenas quando a essencialidade efetiva for "Não Essencial", e a rota grava `prioridade = NULL` quando a efetiva for "Essencial", mesmo que o POST traga valor. Impor por trigger faria a reclassificação de uma subcategoria falhar ou zerar prioridades históricas.
+- **A interface nunca pré-seleciona subcategoria nem fonte de receita.** Os dois `<select>` têm opção em branco antes das demais, porque o navegador seleciona a primeira opção sozinho e a classificação exibida na tela passaria a discordar do que o servidor sabe.
+- **Receita pré-seleciona a pessoa do usuário logado** (rodada 7). Diverge da despesa de propósito: em despesa se paga por outro com frequência, em receita quem recebe é quase sempre quem digita. Continua editável.
+- **Autoria não muda na edição.** `usuario_id` vem sempre de `current_user` no lançamento e é preservado no `UPDATE`, em despesas e receitas.
+- **Referência desativada continua editável.** Nas telas de edição e nos filtros, categorias, subcategorias, contas, pessoas e fontes de receita inativas aparecem marcadas como tal; sem isso, o histórico ficaria inconsultável e ineditável. Nenhum id inativo é gravado em lançamento novo — o POST recusa.
+- **Regra de separador decimal (assimétrica, pt-BR).** A vírgula é sempre decimal: um ou dois dígitos depois dela são aceitos, três ou mais são erro (`10,999` é erro, não dez mil). O ponto sozinho segue heurística: seguido de exatamente três dígitos é milhar (`1.234` = 1234,00), de um ou dois dígitos é decimal (`1.5` = 1,50). Com os dois presentes, o separador mais à direita é o decimal (`1.234,56` e `1,234.56` = 1234,56). Prefixo `R$` e espaços ignorados; resultado sempre `Decimal` com 2 casas.
+- **Catálogo de chaves de configuração vive na aplicação** (rodada 8), num dicionário em `freedom/configuracoes/servico.py` — não em coluna nem em tabela nova. Ele diz o rótulo, a descrição e o **formato** de cada chave conhecida (`TSR`, `R`, `S`: percentual). O banco guarda sempre o número final em `NUMERIC(12,6)`.
+- **Entrada e exibição de configuração.** Chave de formato percentual: digita-se `4`, `4%` ou `4,5` e grava-se `0.04` / `0.045`; exibe-se `4,00%`. Chave livre (fora do catálogo): número puro — digita `0,03`, grava `0.030000`, exibe `0,03`. A tela avisa, enquanto se digita, quando a chave está fora do catálogo. A chave é normalizada para maiúsculas e sem espaços nas pontas antes de gravar.
+- **Configuração não aceita valor negativo** (regra da aplicação; o banco não tem `CHECK`). Nenhum dos três parâmetros iniciais admite negativo e `-4` é quase sempre `4` com um dedo a mais. *Reabrir se o dashboard precisar de um `R` real negativo.*
+- **Casas decimais em configuração**: percentual aceita até 4 casas digitadas (viram 6 ao dividir por 100, o limite de `NUMERIC(12,6)`); chave livre aceita 6. Acima disso, erro de campo — nunca arredondamento silencioso.
+- **Vigência futura não é o valor de hoje.** A tela mostra a série inteira por chave, marca as vigências futuras como tais e destaca o valor vigente na data corrente.
 - **Padronização de `tb_ativos.classe`**: dropdown alimentado pelos valores já usados.
+
+## Padrões de acesso (rodadas 5 a 8)
+
+- **Filtro mensal usa intervalo de datas, não o `ano_mes` derivado.** A consulta filtra `data >= primeiro dia do mês AND data < primeiro dia do mês seguinte`, com as bordas calculadas na aplicação. Filtrar pelo `ano_mes` da view força `Seq Scan`, porque a coluna é derivada; com o intervalo, o índice de `data` é usado. Vale para despesas (`ix_despesas_data`) e para receitas (`ix_receitas_data`, confirmado por `EXPLAIN` na rodada 7: `Bitmap Index Scan` com `Index Cond` sobre o intervalo). `ano_mes` continua servindo para exibir e agrupar, não para filtrar.
+- **Um índice de expressão sobre `(ano * 100 + mês)` foi avaliado e dispensado** — o intervalo de datas resolve com o índice que já existe. Só reconsiderar se algum relatório futuro precisar filtrar diretamente pelo `ano_mes`.
+- **Totais e agregados vêm de consultas próprias sobre o filtro completo**, nunca de soma em Python sobre a página exibida.
+- **Busca textual**: `ILIKE '%' || %s || '%'` sobre `descricao`, com os curingas `%` e `_` escapados na aplicação (`ESCAPE '\'`, em string Python *raw*). Sem `unaccent` e sem qualquer extensão do Postgres — a busca é sensível a acento por escolha. Vale para despesas e receitas.
+- **Sugestão de descrição** (só despesas): agrupa por `lower(descricao)`, ordena por número de usos e desempata pela mais recente, e traz `subcategoria_id`, `conta_id`, `pessoa_id` e o último valor do lançamento mais recente daquela descrição — tudo em **uma** consulta. Receitas não têm autocomplete (decisão da rodada 7: poucas fontes, o select resolve).
+- **Valor vigente de configuração** (rodada 8): o valor de uma chave numa data é o registro com maior `vigente_desde <= data`. Para todas as chaves de uma vez, `DISTINCT ON (chave) ... ORDER BY chave, vigente_desde DESC` — uma consulta só. As duas funções (`valor_vigente` de uma chave e a de todas) vivem em `freedom/configuracoes/servico.py` e são o que o dashboard deve usar.
 
 ## Convenções
 
@@ -65,7 +90,7 @@ Subcategorias de **despesa**. É a única coisa que o usuário escolhe ao lança
 
 ### `tb_ref_receitas`
 
-Classificação das fontes de **receita** (categoria + subcategoria numa só tabela, pois o volume é pequeno).
+Classificação das fontes de **receita** (categoria + subcategoria numa só tabela, pois o volume é pequeno). É a única classificação que o usuário escolhe ao lançar uma receita.
 
 | Coluna | Tipo | Função |
 |---|---|---|
@@ -87,7 +112,7 @@ Membros da família. **Pessoa ≠ usuário**: toda pessoa pode ter despesas atri
 
 ### `tb_usuarios`
 
-Quem pode entrar no sistema. Inicialmente só o usuário master.
+Quem pode entrar no sistema.
 
 | Coluna | Tipo | Função |
 |---|---|---|
@@ -95,7 +120,7 @@ Quem pode entrar no sistema. Inicialmente só o usuário master.
 | `login` | `TEXT NOT NULL UNIQUE` | Nome de acesso. |
 | `senha_hash` | `TEXT NOT NULL` | Hash da senha gerado pela aplicação com `werkzeug.security.generate_password_hash` (scrypt; formato `scrypt:N:r:p$salt$hash`). Criado pelo comando `flask create-user`. **Nunca** armazenar a senha em texto. |
 | `pessoa_id` | `INT NOT NULL FK → tb_pessoas` | Liga o usuário ao membro da família correspondente. |
-| `ativo` | `BOOLEAN NOT NULL DEFAULT TRUE` | Bloqueia o acesso sem apagar o registro (mantém a autoria dos lançamentos). |
+| `ativo` | `BOOLEAN NOT NULL DEFAULT TRUE` | Bloqueia o acesso sem apagar o registro (mantém a autoria dos lançamentos). Usuário de teste é **desativado**, nunca apagado. |
 | `criado_em` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Quando a conta foi criada. |
 
 ### `tb_contas`
@@ -123,17 +148,17 @@ Série histórica do IPCA, para deflacionar despesas e ver crescimento real. *(C
 
 ### `tb_configuracoes`
 
-Parâmetros do sistema com histórico de vigência.
+Parâmetros do sistema com histórico de vigência. Tela em `/configuracoes` desde a rodada 8; admite `UPDATE` e `DELETE` físico (ver Decisões de projeto).
 
 | Coluna | Tipo | Função |
 |---|---|---|
 | `id` | `INT IDENTITY PK` | Identificador único. |
-| `chave` | `TEXT NOT NULL` | Nome do parâmetro: `TSR`, `R`, `S` (outros no futuro). |
-| `valor` | `NUMERIC(12,6) NOT NULL` | Valor do parâmetro. Percentuais em fração (4% = `0.04`). |
-| `vigente_desde` | `DATE NOT NULL` | A partir de quando este valor vale. `UNIQUE (chave, vigente_desde)`. O valor vigente numa data é o registro com maior `vigente_desde ≤ data`. |
+| `chave` | `TEXT NOT NULL` | Nome do parâmetro. **Lista aberta, sem `CHECK`**: as chaves conhecidas estão no catálogo da aplicação, e qualquer chave nova pode ser cadastrada pela interface sem mexer no código. Gravada em maiúsculas, sem espaços nas pontas. |
+| `valor` | `NUMERIC(12,6) NOT NULL` | Valor do parâmetro, sempre já convertido. Percentuais em fração (4% = `0.04`). Sem `CHECK` de sinal; a aplicação recusa negativo. |
+| `vigente_desde` | `DATE NOT NULL` | A partir de quando este valor vale. `UNIQUE (chave, vigente_desde)`. O valor vigente numa data é o registro com maior `vigente_desde ≤ data`. Datas futuras são permitidas e ficam agendadas. |
 | `observacao` | `TEXT` | Motivo da alteração. |
 
-Parâmetros iniciais:
+Chaves do catálogo da aplicação (todas de formato percentual):
 
 | Chave | Significado |
 |---|---|
@@ -147,38 +172,40 @@ Parâmetros iniciais:
 
 ### `tb_despesas`
 
-Tabela principal.
+Tabela principal. **Movimento**: admite `DELETE` físico pela interface (ver Decisões de projeto). Leitura pela `vw_despesas`.
 
 | Coluna | Tipo | Função |
 |---|---|---|
 | `id` | `BIGINT IDENTITY PK` | Identificador único. |
-| `data` | `DATE NOT NULL` | Data da compra (também para cartão de crédito). Índice `ix_despesas_data`. |
-| `descricao` | `TEXT NOT NULL` | O que foi comprado. |
+| `data` | `DATE NOT NULL` | Data da compra (também para cartão de crédito). Índice `ix_despesas_data`, usado pelo filtro mensal por intervalo. |
+| `descricao` | `TEXT NOT NULL` | O que foi comprado. Fonte das sugestões do autocomplete. |
 | `valor` | `NUMERIC(12,2) NOT NULL` | Valor da despesa. `CHECK (valor > 0)`. |
 | `subcategoria_id` | `INT NOT NULL FK → tb_subcategorias` | Classificação. Categoria e essencialidade padrão vêm daqui via JOIN. Índice `ix_despesas_subcategoria_id`. |
 | `conta_id` | `INT NOT NULL FK → tb_contas` | Conta de onde o dinheiro saiu. |
 | `pessoa_id` | `INT NOT NULL FK → tb_pessoas` | Para quem foi a despesa. Índice `ix_despesas_pessoa_id`. |
-| `usuario_id` | `INT NOT NULL FK → tb_usuarios` | Quem fez o lançamento (autoria). |
+| `usuario_id` | `INT NOT NULL FK → tb_usuarios` | Quem fez o lançamento (autoria). Vem de `current_user` e não muda na edição. |
 | `essencialidade` | `TEXT` | **Nula por padrão.** Preencher só para sobrescrever a essencialidade da subcategoria nesta despesa específica. `CHECK` nos mesmos dois valores da subcategoria. Relatórios usam `COALESCE(despesa.essencialidade, subcategoria.essencialidade)`. |
 | `prioridade` | `SMALLINT` | 1 a 4, apenas para despesas não essenciais (1 = mais importante). `CHECK (prioridade BETWEEN 1 AND 4)`. Nula quando essencial — regra da aplicação, não do banco. |
 | `integra_ipca` | `BOOLEAN NOT NULL DEFAULT TRUE` | Se entra no agregado de despesas deflacionado. `FALSE` para gastos pontuais que distorceriam a série. |
 | `observacoes` | `TEXT` | Anotação livre. |
-| `criado_em` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Auditoria. |
+| `criado_em` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Auditoria. Ordena a lista de lançamentos recentes. |
 | `atualizado_em` | `TIMESTAMPTZ` | Auditoria. `NULL` até o primeiro `UPDATE`; preenchido pela trigger `tg_despesas_atualizado_em`. |
 
 ### `tb_receitas`
 
+**Movimento**, mesma regra de exclusão de `tb_despesas`. Tela única em `/lancamentos/receitas` desde a rodada 7 (lançamento, filtros, edição e exclusão na mesma página). Leitura pela `vw_receitas`.
+
 | Coluna | Tipo | Função |
 |---|---|---|
 | `id` | `BIGINT IDENTITY PK` | Identificador único. |
-| `data` | `DATE NOT NULL` | Data do recebimento. Índice `ix_receitas_data`. |
-| `descricao` | `TEXT NOT NULL` | Descrição da receita. |
+| `data` | `DATE NOT NULL` | Data do recebimento. Índice `ix_receitas_data`, usado pelo filtro mensal por intervalo. |
+| `descricao` | `TEXT NOT NULL` | Descrição da receita. Sem autocomplete, por decisão da rodada 7. |
 | `valor` | `NUMERIC(12,2) NOT NULL` | Valor recebido. `CHECK (valor > 0)`. |
 | `ref_receita_id` | `INT NOT NULL FK → tb_ref_receitas` | Classificação (categoria e subcategoria vêm daqui via JOIN). |
-| `pessoa_id` | `INT NOT NULL FK → tb_pessoas` | Quem recebeu. |
-| `usuario_id` | `INT NOT NULL FK → tb_usuarios` | Quem fez o lançamento. |
+| `pessoa_id` | `INT NOT NULL FK → tb_pessoas` | Quem recebeu. Pré-preenchida com a pessoa do usuário logado. |
+| `usuario_id` | `INT NOT NULL FK → tb_usuarios` | Quem fez o lançamento. Não muda na edição. |
 | `anotacoes` | `TEXT` | Anotação livre. |
-| `criado_em` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Auditoria. |
+| `criado_em` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Auditoria. Desempata a ordenação da lista. |
 | `atualizado_em` | `TIMESTAMPTZ` | Auditoria. `NULL` até o primeiro `UPDATE`; preenchido pela trigger `tg_receitas_atualizado_em`. |
 
 ---
@@ -230,16 +257,40 @@ Função `plpgsql` usada pelas triggers `BEFORE UPDATE` de `tb_despesas` e `tb_r
 
 ### `vw_despesas`
 
-View que a aplicação e os relatórios devem consultar em vez de `tb_despesas` diretamente. Nada aqui é armazenado.
+View que a aplicação e os relatórios devem consultar em vez de `tb_despesas` diretamente. Nada aqui é armazenado. Escrita (`INSERT`, `UPDATE`, `DELETE`) vai sempre em `tb_despesas`.
 
 | Coluna | Origem | Função |
 |---|---|---|
 | `id`, `data`, `descricao`, `valor`, `prioridade`, `integra_ipca`, `observacoes`, `criado_em`, `atualizado_em` | `tb_despesas` | Colunas da despesa, sem alteração. |
-| `ano_mes` | derivada de `data` | Mês de competência no formato `AAAAMM` (inteiro, ex.: `202609`). |
+| `ano_mes` | derivada de `data` | Mês de competência no formato `AAAAMM` (inteiro, ex.: `202609`). Para exibir e agrupar; **não** para filtrar (ver Padrões de acesso). |
 | `subcategoria_id`, `subcategoria` | `tb_subcategorias` | Id e nome da subcategoria. |
 | `categoria_id`, `categoria` | `tb_categorias` via subcategoria | Id e nome da categoria. |
-| `essencialidade` | `COALESCE(despesa, subcategoria)` | Essencialidade **efetiva**. É esta que os relatórios usam. |
+| `essencialidade` | `COALESCE(despesa, subcategoria)` | Essencialidade **efetiva**. É esta que os relatórios e os filtros usam. |
 | `conta_id`, `pessoa_id`, `usuario_id` | `tb_despesas` | FKs, sem JOIN de nome (fazer na aplicação quando necessário). |
+
+### `vw_receitas`
+
+Criada na rodada 7 — **única mudança de DDL desde a rodada 1**. Mesma regra: leitura por aqui, escrita em `tb_receitas`. `CREATE OR REPLACE VIEW`, `JOIN` simples com `tb_ref_receitas` (a FK é `NOT NULL`, então nenhum `LEFT JOIN` é necessário).
+
+| Coluna | Origem | Função |
+|---|---|---|
+| `id`, `data`, `descricao`, `valor`, `ref_receita_id`, `pessoa_id`, `usuario_id`, `anotacoes`, `criado_em`, `atualizado_em` | `tb_receitas` | Colunas da receita, sem alteração. |
+| `ano_mes` | derivada de `data` | Mês de competência `AAAAMM` (inteiro), mesma expressão de `vw_despesas`. Exibir e agrupar; **não** filtrar. |
+| `categoria`, `subcategoria` | `tb_ref_receitas` | Classificação da fonte. |
+| `ref_receita_ativo` | `tb_ref_receitas.ativo` | Se a fonte está ativa. A lista usa para marcar "fonte inativa" sem JOIN adicional. |
+
+Definição:
+
+```sql
+CREATE OR REPLACE VIEW vw_receitas AS
+SELECT r.id, r.data,
+       (EXTRACT(YEAR FROM r.data) * 100 + EXTRACT(MONTH FROM r.data))::INT AS ano_mes,
+       r.descricao, r.valor, r.ref_receita_id,
+       rr.categoria, rr.subcategoria, rr.ativo AS ref_receita_ativo,
+       r.pessoa_id, r.usuario_id, r.anotacoes, r.criado_em, r.atualizado_em
+FROM tb_receitas     r
+JOIN tb_ref_receitas rr ON rr.id = r.ref_receita_id;
+```
 
 ---
 
@@ -264,15 +315,20 @@ tb_configuracoes (sem FK; consultada por chave e data)
 
 | Indicador | Cálculo |
 |---|---|
-| Taxa de poupança do mês | `(receitas − despesas) / receitas` |
+| Taxa de poupança do mês | `(receitas − despesas) / receitas`, agregando `vw_receitas` e `vw_despesas` pelo mesmo intervalo de datas |
 | Patrimônio total | soma de `tb_patrimonio_snapshots` na última data disponível |
-| Número de independência | `despesas anuais / TSR` |
+| Número de independência | `despesas anuais / TSR`, com a TSR vigente na data de referência |
 | Despesa deflacionada | `valor × indice_base / indice_do_mes`, só para `integra_ipca = TRUE` |
 | Realizado vs. orçado | soma de `vw_despesas` por categoria e mês comparada a `tb_orcamentos` |
+| Total do período e divisão essencial × não essencial | agregados sobre `vw_despesas` no intervalo de datas filtrado (implementado na consulta de despesas) |
+| Total de receitas do período por categoria | agregados sobre `vw_receitas` no intervalo filtrado (implementado na tela de receitas) |
 
 ## Roteiro
 
 1. ~~DDL em `db/init/01_schema.sql`~~ — feito.
 2. ~~Criar o usuário master via `flask create-user`~~ — feito.
-3. Aplicação web: cadastro de categorias, subcategorias, contas, pessoas e fontes de receita pela interface; lançamento de despesas e receitas.
-4. Futuro: carga do IPCA (API SIDRA/IBGE, `INSERT ... ON CONFLICT (mes) DO UPDATE`), orçamento, patrimônio e indicadores.
+3. ~~Cadastro de categorias, subcategorias, contas, pessoas e fontes de receita pela interface~~ — feito.
+4. ~~Lançamento, consulta, edição e exclusão de **despesas**~~ — feito (rodadas 4 a 6).
+5. ~~Lançamento e visualização de **receitas** em página única, com `vw_receitas`~~ — feito (rodada 7).
+6. ~~**Configurações** com vigência (TSR, R, S e chaves livres)~~ — feito (rodada 8).
+7. Próximo: **dashboard** em `/` (totais do mês, por categoria, essencial × não essencial, taxa de poupança, número de independência), depois orçamento, patrimônio, carga do IPCA (API SIDRA/IBGE, `INSERT ... ON CONFLICT (mes) DO UPDATE`) e deploy via Tailscale.

@@ -1,13 +1,15 @@
 """Leituras e composição da Visão Anual.
 
-A tela é um painel de treze cards sobre um ano inteiro, e são três consultas:
-despesas agregadas por mês, receitas agregadas por mês e o maior lançamento
-individual do ano. Nenhuma delas devolve mais que doze linhas.
+A tela é um painel de treze cards mais quatro gráficos sobre um ano inteiro,
+e são quatro consultas: despesas agregadas por mês, receitas agregadas por mês,
+o maior lançamento individual do ano e — só para o gráfico de prioridades — as
+não essenciais agrupadas por mês e prioridade. Nenhuma delas devolve mais que
+doze linhas por mês.
 
-Os treze cards saem dessas linhas, em Python. É a única soma que a aplicação
-faz fora do banco, e existe porque somar doze números já lidos custa menos que
-treze idas ao banco para a mesma informação — o agrupamento por mês, que é o
-trabalho pesado, continua no SQL.
+Cards e gráficos saem das MESMAS linhas mensais: `painel_do_ano` lê uma vez e
+compõe os dois. É a única soma que a aplicação faz fora do banco, e existe
+porque somar doze números já lidos custa menos que uma ida ao banco por número
+— o agrupamento por mês, que é o trabalho pesado, continua no SQL.
 
 O filtro é sempre por intervalo de `data` (`>= 1º de janeiro` e `< 1º de
 janeiro do ano seguinte`), nunca por `ano_mes`: ano_mes é coluna derivada da
@@ -27,6 +29,24 @@ ZERO = Decimal("0.00")
 # Travessão: o card existe, o número não. Ano sem lançamento nenhum, receita
 # zero na taxa de poupança, ano que ainda não começou.
 SEM_VALOR = "—"
+
+# Rótulos do eixo X. Tupla irmã de util.MESES, derivada dela para não haver
+# duas listas de meses que possam divergir: "março" -> "Mar".
+MESES_CURTOS = tuple(mes[:3].capitalize() for mes in MESES)
+
+# Séries do gráfico de prioridades. O banco garante a faixa 1-4; os rótulos das
+# pontas explicam a escala e o meio fica curto, para a legenda não pesar.
+PRIORIDADES = (
+    (1, "P1 – mais importante"),
+    (2, "P2"),
+    (3, "P3"),
+    (4, "P4 – menos importante"),
+)
+
+# Prioridade é regra da aplicação, não do banco: despesa não essencial antiga
+# (ou lançada antes da regra) pode ter prioridade NULL. A série só aparece
+# quando existe alguma, para não poluir a legenda de quem sempre preenche.
+SEM_PRIORIDADE = "Sem prioridade"
 
 
 # --------------------------------------------------------------------------
@@ -139,6 +159,52 @@ def pico_de_despesa(ano):
     )
 
 
+def nao_essenciais_por_prioridade(ano):
+    """Não essenciais do ano, por mês e prioridade. Só os gráficos usam.
+
+    A essencialidade é a efetiva da view; `<> 'Essencial'` é o outro lado do
+    CHECK. Agrupar por prioridade no banco (no máximo cinco linhas por mês)
+    evita trazer lançamento a lançamento só para somar aqui.
+    """
+    inicio, fim = _intervalo(ano)
+    return query_all(
+        "SELECT EXTRACT(MONTH FROM v.data)::int AS mes,"
+        "       v.prioridade,"
+        "       SUM(v.valor) AS total"
+        "  FROM vw_despesas v"
+        " WHERE v.data >= %s AND v.data < %s"
+        "   AND v.essencialidade <> 'Essencial'"
+        " GROUP BY 1, 2 ORDER BY 1, 2",
+        (inicio, fim),
+    )
+
+
+# --------------------------------------------------------------------------
+# Leitura do ano: uma só, servindo cards e gráficos
+# --------------------------------------------------------------------------
+
+def _leitura_do_ano(ano, hoje):
+    """As linhas do ano, lidas uma vez. Cards e gráficos partem daqui."""
+    return {
+        "ano": ano,
+        "despesas": {l["mes"]: l for l in despesas_por_mes(ano)},
+        "receitas": {l["mes"]: l["total"] for l in receitas_por_mes(ano)},
+        "prioridades": nao_essenciais_por_prioridade(ano),
+        "pico": pico_de_despesa(ano),
+        "divisor": meses_transcorridos(ano, hoje),
+    }
+
+
+def meses_do_eixo(divisor):
+    """Meses que entram no eixo X dos gráficos.
+
+    Janeiro até o mês corrente no ano atual, janeiro a dezembro nos anteriores.
+    Ano futuro não tem meses transcorridos, mas um gráfico sem eixo não diz
+    nada: nesse caso o eixo mostra o ano inteiro, todo zerado.
+    """
+    return list(range(1, (divisor or 12) + 1))
+
+
 # --------------------------------------------------------------------------
 # Composição dos cards
 # --------------------------------------------------------------------------
@@ -166,18 +232,16 @@ def _nome_do_mes(mes):
     return MESES[mes - 1].capitalize()
 
 
-def cards_do_ano(ano, hoje=None):
+def _cards(leitura):
     """Os treze cards do ano, na ordem em que aparecem na tela.
 
     Ano sem lançamento nenhum não é caso de erro: os cards de dinheiro mostram
     R$ 0,00 e os de mês e pico mostram travessão.
     """
-    hoje = hoje or date.today()
-
-    despesas = {linha["mes"]: linha for linha in despesas_por_mes(ano)}
-    receitas = {linha["mes"]: linha["total"] for linha in receitas_por_mes(ano)}
-    pico = pico_de_despesa(ano)
-    divisor = meses_transcorridos(ano, hoje)
+    despesas = leitura["despesas"]
+    receitas = leitura["receitas"]
+    pico = leitura["pico"]
+    divisor = leitura["divisor"]
 
     despesa_anual = sum((l["total"] for l in despesas.values()), ZERO)
     essencial = sum((l["essencial"] for l in despesas.values()), ZERO)
@@ -236,3 +300,78 @@ def cards_do_ano(ano, hoje=None):
         _card("Meses no Azul",
               texto=f"{len(azuis)} de {divisor}" if divisor else SEM_VALOR),
     ]
+# --------------------------------------------------------------------------
+# Composição dos gráficos
+#
+# Cada gráfico é uma lista de séries {rotulo, valores}, com um valor por mês do
+# eixo. Os rótulos das séries vêm daqui, e não do JavaScript: o que a tela
+# escreve é conhecimento da aplicação, como o catálogo de configurações.
+# --------------------------------------------------------------------------
+
+def _serie(rotulo, valores):
+    """Uma série pronta para o JSON.
+
+    Único ponto do painel em que Decimal vira número de JavaScript. Tudo antes
+    daqui é Decimal; nada depois daqui volta a ser somado.
+    """
+    return {"rotulo": rotulo, "valores": [float(v) for v in valores]}
+
+
+def _graficos(leitura):
+    """Os quatro gráficos, montados das mesmas linhas mensais dos cards."""
+    despesas = leitura["despesas"]
+    receitas = leitura["receitas"]
+    meses = meses_do_eixo(leitura["divisor"])
+
+    def do_mes(mes, coluna):
+        """Valor do mês numa coluna das despesas. Mês sem lançamento vale 0."""
+        linha = despesas.get(mes)
+        return linha[coluna] if linha else ZERO
+
+    receita_mensal = [receitas.get(mes, ZERO) for mes in meses]
+    despesa_mensal = [do_mes(mes, "total") for mes in meses]
+
+    # Acumulado em Decimal, mês a mês desde janeiro: é a soma que o gráfico 3
+    # mostra, e ela não pode ser feita no JavaScript.
+    acumulado, corrente = [], ZERO
+    for recebido, gasto in zip(receita_mensal, despesa_mensal):
+        corrente += recebido - gasto
+        acumulado.append(corrente)
+
+    # (mês, prioridade) -> total, para a pilha do gráfico 4.
+    por_prioridade = {(l["mes"], l["prioridade"]): l["total"]
+                      for l in leitura["prioridades"]}
+    series_prioridade = [
+        _serie(rotulo, [por_prioridade.get((mes, p), ZERO) for mes in meses])
+        for p, rotulo in PRIORIDADES
+    ]
+    if any(p is None for _, p in por_prioridade):
+        series_prioridade.append(
+            _serie(SEM_PRIORIDADE,
+                   [por_prioridade.get((mes, None), ZERO) for mes in meses]))
+
+    return {
+        "meses": [MESES_CURTOS[mes - 1] for mes in meses],
+        "receitas_despesas": [
+            _serie("Receitas", receita_mensal),
+            _serie("Despesas", despesa_mensal),
+        ],
+        "essencialidade": [
+            _serie("Essenciais", [do_mes(mes, "essencial") for mes in meses]),
+            _serie("Não Essenciais",
+                   [do_mes(mes, "nao_essencial") for mes in meses]),
+            _serie("Total", despesa_mensal),
+        ],
+        "acumulado": [_serie("Saldo acumulado", acumulado)],
+        "prioridades": series_prioridade,
+    }
+
+
+# --------------------------------------------------------------------------
+# A tela inteira
+# --------------------------------------------------------------------------
+
+def painel_do_ano(ano, hoje=None):
+    """Cards e gráficos do ano, com uma leitura só do banco."""
+    leitura = _leitura_do_ano(ano, hoje or date.today())
+    return {"cards": _cards(leitura), "graficos": _graficos(leitura)}

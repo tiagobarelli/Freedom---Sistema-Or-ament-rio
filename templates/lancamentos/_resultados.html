@@ -22,12 +22,12 @@
       <div class="divisao-item">
         <span class="badge badge--essencial">Essencial</span>
         <strong>{{ m.reais(totais.essencial) }}</strong>
-        <span class="texto-fraco texto-p">{{ '%.1f' | format(totais.pct_essencial) }}%</span>
+        <span class="texto-fraco texto-p">{{ totais.pct_essencial | numero(1) }}%</span>
       </div>
       <div class="divisao-item">
         <span class="badge badge--naoessencial">Não Essencial</span>
         <strong>{{ m.reais(totais.nao_essencial) }}</strong>
-        <span class="texto-fraco texto-p">{{ '%.1f' | format(totais.pct_nao_essencial) }}%</span>
+        <span class="texto-fraco texto-p">{{ totais.pct_nao_essencial | numero(1) }}%</span>
       </div>
     </div>
   {% endif %}
@@ -53,7 +53,7 @@
             <span class="resumo-item__preenchimento" style="width: {{ '%.2f' | format(r.pct) }}%"></span>
           </span>
           <span class="resumo-item__valor">{{ m.reais(r.total) }}</span>
-          <span class="resumo-item__pct">{{ '%.1f' | format(r.pct) }}%</span>
+          <span class="resumo-item__pct">{{ r.pct | numero(1) }}%</span>
         </li>
       {% endfor %}
     </ul>

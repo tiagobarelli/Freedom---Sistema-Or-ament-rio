@@ -19,7 +19,7 @@
         5.10 Consulta de despesas (idem para a lista filtrada de receitas)
         5.11 Autocomplete de descricao
         5.12 Configuracoes (parametros com vigencia)
-        5.13 Visao anual (dashboard em cards)
+        5.13 Visao anual (cards e, em 5.13.1, os graficos do ano)
      6. Tela de login
      7. Responsivo (< 768px)
      8. Utilitarios
@@ -56,6 +56,25 @@
   --cor-aviso-fundo: rgba(154, 100, 20, 0.12);
   --cor-neutra: #5a5f7a;
   --cor-neutra-fundo: rgba(90, 95, 122, 0.10);
+
+  /* --- Graficos (secao 5.13): as cores das series moram aqui, e o
+         visao_anual.js as le por getComputedStyle. Nenhum hex no JS. --- */
+  --grafico-receita: #17795e;          /* mesma familia do --cor-sucesso */
+  --grafico-despesa: #c02b3f;          /* mesma familia do --cor-erro */
+  --grafico-essencial: #2f6fb5;
+  --grafico-nao-essencial: #d08324;
+  --grafico-total: #5a5f7a;
+  --grafico-saldo: #5b50e0;
+  --grafico-saldo-area: rgba(91, 80, 224, 0.16);
+  /* Prioridade e escala ordenada: rampa do escuro (P1) ao claro (P4), para a
+     pilha ser lida como ordem e nao como quatro assuntos diferentes. */
+  --grafico-p1: #3d33b8;
+  --grafico-p2: #6a5fe4;
+  --grafico-p3: #9a92ee;
+  --grafico-p4: #c6c1f6;
+  --grafico-sem-prioridade: #9aa0b8;
+  --grafico-grade: rgba(26, 27, 46, 0.10);
+  --grafico-zero: rgba(26, 27, 46, 0.38);
 
   /* --- Fundo da pagina --- */
   --fundo-de: #eef0fc;
@@ -1636,6 +1655,43 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* --- 5.13.1 Graficos do ano -------------------------------------------
+   Duas colunas acima de 1100px, uma abaixo. A moldura continua sendo o .card
+   de vidro; a area do grafico e superficie de leitura, quase opaca, como
+   tabela e formulario (regra de legibilidade do topo do arquivo).
+
+   A altura do canvas e fixada AQUI, e nao pelo Chart.js: com
+   maintainAspectRatio:false o canvas cresce ate o tamanho do pai, e um pai
+   sem altura cresceria a cada redimensionamento.
+*/
+
+.painel-graficos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--e-4);
+  margin-top: var(--e-4);
+}
+
+/* minmax(0, ...) tambem aqui: com `1fr` puro o minimo da coluna e o
+   min-content do conteudo, e o canvas ja desenhado no tamanho do desktop
+   segura a largura da coluna - a pagina ganha rolagem horizontal e o
+   Chart.js nunca fica sabendo que sobrou menos espaco. */
+@media (max-width: 1099px) {
+  .painel-graficos {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.grafico__area {
+  position: relative;      /* base do canvas responsivo do Chart.js */
+  height: 320px;
+  margin-top: var(--e-3);
+  padding: var(--e-3);
+  background: var(--solido);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-m);
+}
+
 /* ==========================================================================
    6. TELA DE LOGIN
    Sem sidebar: card unico centrado. Aqui o vidro e a moldura, e os campos
@@ -2062,6 +2118,13 @@ body {
 
   .filtro-ano .filtro-campo {
     flex: 1 1 auto;
+  }
+
+  /* Grafico mais baixo: em 390px, 320px de altura empurra o titulo do
+     proximo card para fora da primeira tela. */
+  .grafico__area {
+    height: 260px;
+    padding: var(--e-2);
   }
 
   /* --- Autocomplete no celular --- */

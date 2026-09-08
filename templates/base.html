@@ -20,5 +20,9 @@
   </div>
 
   {% block corpo %}{% endblock %}
+
+  {# Script de uma tela so (o Chart.js da Visao Anual). O que toda tela usa
+     fica no <head>; o que so uma usa entra aqui, para nao pesar as outras. #}
+  {% block scripts %}{% endblock %}
 </body>
 </html>

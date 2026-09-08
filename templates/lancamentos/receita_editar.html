@@ -1,0 +1,25 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{% block title %}Editar receita - Freedom{% endblock %}
+{% block titulo_pagina %}Editar receita{% endblock %}
+{% block subtitulo_pagina %}
+  <p class="pagina-subtitulo">
+    Lançada em {{ receita.data.strftime('%d/%m/%Y') }}. A autoria do lançamento original é preservada.
+  </p>
+{% endblock %}
+
+{% block content %}
+  <div class="card card--solido form-lancamento formulario-largo">
+    {# Mesma macro da tela de lançamento: a marcação não é copiada. #}
+    {# O retorno viaja na action para o POST voltar ao mesmo lugar, com os
+       filtros e a página de onde se veio. #}
+    <form id="form-receita" method="post" class="pilha" novalidate
+          action="{{ url_for('lancamentos.receitas_editar',
+                             receita_id=receita.id, retorno=retorno) }}">
+      {{ m.campos_receita(form) }}
+      {{ m.acoes_formulario(retorno or url_for('lancamentos.receitas_tela'),
+                            "Salvar alterações") }}
+    </form>
+  </div>
+{% endblock %}

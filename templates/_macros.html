@@ -266,3 +266,109 @@
     </div>
   </details>
 {% endmacro %}
+
+
+{# --- Campos do formulario de receita -------------------------------------
+   Macro propria, e nao a `campos_despesa` parametrizada: receita nao tem
+   subcategoria, conta, essencialidade, prioridade, IPCA nem o bloco "Mais
+   opcoes", e nada disso e opcional na despesa. Parametrizar encheria aquela
+   macro de `if` para os dois lados; o que da para reaproveitar de verdade
+   (as macros `campo` / `campo_area` e as classes de CSS) esta reaproveitado
+   aqui.
+
+   Os dois selects sao montados a mao, e nao pelo widget do WTForms, porque:
+   - a fonte precisa de uma opcao em branco no topo, nunca pre-selecionada,
+     senao o navegador escolheria a primeira da lista por conta propria;
+   - a edicao pode receber uma fonte (ou pessoa) desativada, que aparece
+     marcada como tal. Lancamento novo nunca oferece essas opcoes: a lista
+     que chega aqui ja vem so com o que esta ativo.
+#}
+{% macro campos_receita(form) %}
+  {{ form.hidden_tag() }}
+
+  <div class="grade-lancamento">
+    <div class="campo">
+      {{ form.data.label(class="campo__rotulo") }}
+      {{ form.data(class="entrada" ~ (" entrada--erro" if form.data.errors else ""),
+                   type="date") }}
+      {% for e in form.data.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
+    </div>
+
+    <div class="campo campo--valor">
+      {{ form.valor.label(class="campo__rotulo") }}
+      <div class="entrada-moeda">
+        <span class="entrada-moeda__prefixo" aria-hidden="true">R$</span>
+        {{ form.valor(class="entrada entrada--grande"
+                             ~ (" entrada--erro" if form.valor.errors else ""),
+                      inputmode="decimal", autocomplete="off",
+                      placeholder="0,00") }}
+      </div>
+      {% for e in form.valor.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
+    </div>
+  </div>
+
+  {# autofocus: depois de gravar, o HTMX devolve este formulario por swap e
+     repoe o cursor aqui, que e onde o proximo lancamento comeca. #}
+  {{ campo(form.descricao,
+           extra={"autocomplete": "off", "maxlength": 200, "autofocus": true}) }}
+
+  <div class="campo">
+    {{ form.ref_receita_id.label(class="campo__rotulo") }}
+    <select class="selecao{{ ' selecao--erro' if form.ref_receita_id.errors }}"
+            id="ref_receita_id" name="ref_receita_id" required>
+      <option value="">Escolha a fonte</option>
+      {% for f in form.fontes %}
+        <option value="{{ f.id }}"
+                {{ 'selected' if form.ref_receita_id.data == f.id }}>
+          {{ f.rotulo }}{{ ' (desativada)' if not f.ativo }}
+        </option>
+      {% endfor %}
+    </select>
+    {% for e in form.ref_receita_id.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
+  </div>
+
+  <div class="campo">
+    {{ form.pessoa_id.label(class="campo__rotulo") }}
+    <select class="selecao{{ ' selecao--erro' if form.pessoa_id.errors }}"
+            id="pessoa_id" name="pessoa_id" required>
+      {% for p in form.pessoas %}
+        <option value="{{ p.id }}" {{ 'selected' if form.pessoa_id.data == p.id }}>
+          {{ p.nome }}{{ ' (inativa)' if not p.ativo }}
+        </option>
+      {% endfor %}
+    </select>
+    {% for e in form.pessoa_id.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
+  </div>
+
+  {{ campo(form.anotacoes, classe="area-texto", extra={"rows": 3}) }}
+{% endmacro %}
+
+
+{# ==========================================================================
+   Configuracoes
+   ========================================================================== #}
+
+{# --- Combobox: sugere, mas aceita texto livre ----------------------------
+   <input list> + <datalist>: o navegador mostra as opcoes conhecidas e nao
+   impede nenhuma outra. Um <select> impediria; um <input> pelado nao ajudaria
+   a lembrar dos nomes ja usados.
+
+   Com `url_dica`, cada tecla pede ao servidor a explicacao daquela chave (o
+   catalogo mora na aplicacao, nao no JavaScript). O proprio campo se chama
+   `chave`, que e o nome do parametro da rota, entao nao ha hx-vals.
+#}
+{% macro combobox(f, opcoes, dica=None, url_dica=None, alvo_dica=None, extra={}) %}
+  {% set tem_erro = f.errors | length > 0 %}
+  {% set htmx = {"hx-get": url_dica, "hx-trigger": "keyup changed delay:300ms, change",
+                 "hx-target": alvo_dica, "hx-swap": "innerHTML"} if url_dica else {} %}
+  <div class="campo">
+    {{ f.label(class="campo__rotulo") }}
+    {{ f(class="entrada" ~ (" entrada--erro" if tem_erro else ""),
+         list=f.id ~ "-opcoes", **dict(extra, **htmx)) }}
+    <datalist id="{{ f.id }}-opcoes">
+      {% for o in opcoes %}<option value="{{ o }}"></option>{% endfor %}
+    </datalist>
+    {% if dica %}<p class="campo__dica">{{ dica }}</p>{% endif %}
+    {% for erro in f.errors %}<p class="campo__erro">{{ erro }}</p>{% endfor %}
+  </div>
+{% endmacro %}

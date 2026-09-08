@@ -418,3 +418,30 @@ COMMENT ON COLUMN vw_despesas.ano_mes        IS 'Mes de competencia derivado de 
 COMMENT ON COLUMN vw_despesas.subcategoria   IS 'Nome da subcategoria (tb_subcategorias.nome).';
 COMMENT ON COLUMN vw_despesas.categoria      IS 'Nome da categoria (tb_categorias.nome), obtido via subcategoria.';
 COMMENT ON COLUMN vw_despesas.essencialidade IS 'Essencialidade efetiva: COALESCE(despesa.essencialidade, subcategoria.essencialidade).';
+
+CREATE OR REPLACE VIEW vw_receitas AS
+SELECT
+    r.id,
+    r.data,
+    (EXTRACT(YEAR FROM r.data) * 100 + EXTRACT(MONTH FROM r.data))::INT AS ano_mes,
+    r.descricao,
+    r.valor,
+    r.ref_receita_id,
+    rr.categoria,
+    rr.subcategoria,
+    rr.ativo AS ref_receita_ativo,
+    r.pessoa_id,
+    r.usuario_id,
+    r.anotacoes,
+    r.criado_em,
+    r.atualizado_em
+FROM tb_receitas     r
+JOIN tb_ref_receitas rr ON rr.id = r.ref_receita_id;
+
+COMMENT ON VIEW vw_receitas IS
+    'Receitas ja com JOIN da fonte (tb_ref_receitas), trazendo categoria, subcategoria e a situacao da fonte, mais ano_mes no formato AAAAMM. Nada aqui e armazenado.';
+
+COMMENT ON COLUMN vw_receitas.ano_mes           IS 'Mes de competencia derivado de data, no formato AAAAMM (ex.: 202609).';
+COMMENT ON COLUMN vw_receitas.categoria         IS 'Categoria da fonte (tb_ref_receitas.categoria).';
+COMMENT ON COLUMN vw_receitas.subcategoria      IS 'Subcategoria da fonte (tb_ref_receitas.subcategoria).';
+COMMENT ON COLUMN vw_receitas.ref_receita_ativo IS 'Situacao da fonte (tb_ref_receitas.ativo). Exposta aqui para a tela marcar fonte desativada sem um JOIN extra.';

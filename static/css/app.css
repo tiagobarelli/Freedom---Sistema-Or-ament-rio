@@ -12,9 +12,10 @@
         5.2 Botao         5.6 Flash
         5.3 Formulario    5.7 Modal
         5.4 Tabela        5.8 Estado vazio
-        5.9 Lancamento de despesa
-        5.10 Consulta de despesas
+        5.9 Lancamento de despesa (a tela de receita reusa, por apelido)
+        5.10 Consulta de despesas (idem para a lista filtrada de receitas)
         5.11 Autocomplete de descricao
+        5.12 Configuracoes (parametros com vigencia)
      6. Tela de login
      7. Responsivo (< 768px)
      8. Utilitarios
@@ -957,20 +958,28 @@ body {
    nunca vidro (ver a regra de legibilidade no topo do arquivo).
 */
 
-/* Dois campos lado a lado que viram um por linha no celular. */
-.grade-despesa {
+/* Dois campos lado a lado que viram um por linha no celular.
+   A tela de receitas usa as mesmas regras desta secao: os seletores
+   .grade-lancamento / .form-lancamento / .tabela--receitas sao apelidos
+   acrescentados aqui, para nao copiar declaracao nenhuma. */
+.grade-despesa,
+.grade-lancamento {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--e-4);
 }
 
-.grade-despesa .campo + .campo {
+.grade-despesa .campo + .campo,
+.grade-lancamento .campo + .campo {
   margin-top: 0;
 }
 
 .form-despesa .campo + .campo,
 .form-despesa .campo + .grade-despesa,
-.form-despesa .grade-despesa + .campo {
+.form-despesa .grade-despesa + .campo,
+.form-lancamento .campo + .campo,
+.form-lancamento .campo + .grade-lancamento,
+.form-lancamento .grade-lancamento + .campo {
   margin-top: var(--e-4);
 }
 
@@ -1060,7 +1069,8 @@ body {
   padding-top: var(--e-2);
 }
 
-.form-despesa__acoes {
+.form-despesa__acoes,
+.form-lancamento__acoes {
   display: flex;
   align-items: center;
   gap: var(--e-3);
@@ -1146,14 +1156,18 @@ body {
   color: var(--cor-texto-fraco);
 }
 
-.tabela--despesas .col-valor {
+.tabela--despesas .col-valor,
+.tabela--receitas .col-valor,
+.tabela--config .col-valor {
   text-align: right;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.tabela--despesas .col-data {
+.tabela--despesas .col-data,
+.tabela--receitas .col-data,
+.tabela--config .col-data {
   white-space: nowrap;
 }
 
@@ -1208,6 +1222,20 @@ body {
 
 .filtros-extras__resumo {
   display: none;               /* no desktop os filtros ficam sempre abertos */
+}
+
+/*
+  ...e "sempre abertos" precisa ser dito para o <details>: sem a regra abaixo,
+  acima de 768px o <summary> some e o corpo de um <details> FECHADO continua
+  escondido, deixando os filtros extras inalcancaveis justamente quando nenhum
+  filtro esta aplicado. Nao adianta dar display ao corpo: quem esconde e o
+  ::details-content do navegador, e e nele que se mexe.
+*/
+@media (min-width: 768px) {
+  .filtros-extras::details-content {
+    content-visibility: visible;
+    block-size: auto;
+  }
 }
 
 .filtros-extras__corpo {
@@ -1474,6 +1502,107 @@ body {
   color: var(--cor-aviso);
 }
 
+/* --- 5.12 Configuracoes (parametros com vigencia) ----------------------
+   Uma secao por chave: identidade a esquerda, valor vigente hoje a direita e
+   o historico embaixo. Tudo o mais (card, tabela, badge, formulario) vem das
+   secoes anteriores; aqui so mora o que nao existia.
+*/
+
+.config-secao + .config-secao {
+  margin-top: var(--e-4);
+}
+
+.config-secao__cabecalho {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--e-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--e-3);
+}
+
+.config-secao__identidade {
+  min-width: 0;
+}
+
+.config-secao__chave {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.config-secao__rotulo {
+  margin-top: 2px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--cor-texto-suave);
+}
+
+/* O numero que vale hoje: e o que se vem conferir nesta tela. */
+.config-vigente {
+  display: flex;
+  align-items: baseline;
+  gap: var(--e-2);
+  flex-wrap: wrap;
+}
+
+.config-vigente__rotulo {
+  font-size: 13px;
+  color: var(--cor-texto-suave);
+}
+
+.config-vigente__valor {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabela--config .col-observacao {
+  width: 45%;
+}
+
+/* Linha em edicao: fundo de destaque para nao se perder no historico. */
+.linha-edicao > td {
+  background: var(--cor-destaque-fantasma);
+}
+
+.config-edicao__campos {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--e-3);
+  flex-wrap: wrap;
+}
+
+.config-edicao__campos .campo {
+  margin-top: 0;
+}
+
+.config-edicao__campos .entrada {
+  width: auto;
+  min-width: 150px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  font-size: 13.5px;
+}
+
+.config-edicao__observacao {
+  flex: 1 1 220px;
+}
+
+.config-edicao__observacao .entrada {
+  width: 100%;
+  resize: vertical;
+}
+
+.config-edicao__acoes {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  padding-bottom: 2px;
+}
+
 /* ==========================================================================
    6. TELA DE LOGIN
    Sem sidebar: card unico centrado. Aqui o vidro e a moldura, e os campos
@@ -1647,15 +1776,18 @@ body {
 
   /* --- Lancamento de despesa no celular --- */
 
-  .grade-despesa {
+  .grade-despesa,
+  .grade-lancamento {
     grid-template-columns: 1fr;
   }
 
-  .grade-despesa .campo + .campo {
+  .grade-despesa .campo + .campo,
+  .grade-lancamento .campo + .campo {
     margin-top: var(--e-4);
   }
 
-  .form-despesa__acoes .btn--grande {
+  .form-despesa__acoes .btn--grande,
+  .form-lancamento__acoes .btn--grande {
     width: 100%;
   }
 
@@ -1670,7 +1802,9 @@ body {
 
   /* A tabela de recentes nao rola na horizontal: as colunas secundarias
      somem e a classificacao passa a viver embaixo da descricao. */
-  .tabela--despesas {
+  .tabela--despesas,
+  .tabela--receitas,
+  .tabela--config {
     min-width: 0;
   }
 
@@ -1678,37 +1812,49 @@ body {
   .tabela--despesas .col-classificacao,
   .tabela--despesas .col-pessoa,
   .tabela--despesas .col-conta,
-  .tabela--despesas .col-essencialidade {
+  .tabela--despesas .col-essencialidade,
+  .tabela--receitas .col-data,
+  .tabela--receitas .col-classificacao,
+  .tabela--receitas .col-pessoa {
     display: none;
   }
 
   /* Sobram descricao, valor e acoes: cabe em 390px sem rolar de lado. */
-  .tabela--despesas .col-descricao {
+  .tabela--despesas .col-descricao,
+  .tabela--receitas .col-descricao {
     width: auto;
   }
 
-  .tabela--despesas .col-valor {
+  .tabela--despesas .col-valor,
+  .tabela--receitas .col-valor {
     width: 1%;
     padding-left: 0;
   }
 
   /* Botoes empilhados: alvo mais alto para o polegar e coluna mais estreita. */
-  .tabela--despesas .tabela__acoes {
+  .tabela--despesas .tabela__acoes,
+  .tabela--receitas .tabela__acoes {
     padding-left: var(--e-2);
   }
 
-  .tabela--despesas .tabela__acoes .btn {
+  .tabela--despesas .tabela__acoes .btn,
+  .tabela--receitas .tabela__acoes .btn,
+  .tabela--config .tabela__acoes .btn {
     display: block;
     width: 100%;
     padding: 7px 8px;
     text-align: center;
   }
 
-  .tabela--despesas .tabela__acoes .btn + .btn {
+  .tabela--despesas .tabela__acoes .btn + .btn,
+  .tabela--receitas .tabela__acoes .btn + .btn,
+  .tabela--config .tabela__acoes .btn + .btn {
     margin-top: var(--e-1);
   }
 
-  .tabela--despesas .linha-secundaria {
+  .tabela--despesas .linha-secundaria,
+  .tabela--receitas .linha-secundaria,
+  .tabela--config .linha-secundaria {
     display: block;
     margin-top: 2px;
     font-size: 12px;
@@ -1717,11 +1863,17 @@ body {
   }
 
   .tabela--despesas th,
-  .tabela--despesas td {
+  .tabela--despesas td,
+  .tabela--receitas th,
+  .tabela--receitas td,
+  .tabela--config th,
+  .tabela--config td {
     padding: var(--e-3) var(--e-2);
   }
 
-  .tabela--despesas .col-data {
+  .tabela--despesas .col-data,
+  .tabela--receitas .col-data,
+  .tabela--config .col-data {
     font-size: 12.5px;
     color: var(--cor-texto-suave);
   }
@@ -1823,6 +1975,39 @@ body {
 
   .paginacao__botoes {
     justify-content: space-between;
+  }
+
+  /* --- Configuracoes no celular --- */
+
+  /* A observacao desce para a linha secundaria, embaixo da data. */
+  .tabela--config .col-observacao {
+    display: none;
+  }
+
+  /* ...e por isso a coluna da data deixa de ser nowrap aqui: a observacao
+     mora dentro dela e, sem quebrar, esticaria a tabela para fora dos 390px.
+     A data em si nao tem espaco, entao continua inteira; o badge e que desce
+     para a linha de baixo quando falta espaco. */
+  .tabela--config .col-data {
+    white-space: normal;
+  }
+
+  .config-secao__cabecalho {
+    gap: var(--e-2);
+  }
+
+  .config-edicao__campos {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .config-edicao__campos .entrada {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .config-edicao__acoes .btn {
+    flex: 1 1 auto;
   }
 
   /* --- Autocomplete no celular --- */

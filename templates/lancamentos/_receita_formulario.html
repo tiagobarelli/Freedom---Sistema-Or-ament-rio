@@ -1,0 +1,25 @@
+{#
+  Formulário de lançamento de receita.
+
+  Ele é o próprio alvo do POST (hx-target="this" + outerHTML): a resposta de
+  sucesso e a de erro devolvem este mesmo fragmento, uma limpa e outra com os
+  erros de campo. Assim não há um segundo template de formulário para manter.
+
+  hx-include leva junto o formulário de filtros. É por isso que os filtros
+  viajam com nomes próprios (mes, pessoa, fonte, q) e não com os nomes dos
+  campos daqui (pessoa_id, ref_receita_id): nomes iguais se atropelariam no
+  corpo do POST. Com os filtros em mãos, a rota recalcula o bloco de
+  resultados e o devolve por swap out-of-band.
+#}
+{% import "_macros.html" as m %}
+<form id="form-receita" class="pilha"
+      hx-post="{{ url_for('lancamentos.receitas_gravar') }}"
+      hx-include="#filtros-receitas"
+      hx-target="this"
+      hx-swap="outerHTML">
+  {{ m.campos_receita(form) }}
+  <div class="form-lancamento__acoes">
+    <button type="submit" class="btn btn--primario btn--grande">Lançar receita</button>
+    <span class="htmx-indicator texto-fraco texto-p">gravando…</span>
+  </div>
+</form>

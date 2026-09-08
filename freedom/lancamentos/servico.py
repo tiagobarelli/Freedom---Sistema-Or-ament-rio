@@ -4,11 +4,12 @@ Leitura sai sempre de `vw_despesas` (que já traz categoria e essencialidade
 efetiva); INSERT, UPDATE e DELETE vão em `tb_despesas`.
 """
 
-import re
 from datetime import date
-from decimal import Decimal, InvalidOperation
+
+from flask import request
 
 from freedom.db import query_all, query_one
+from freedom.util import escapar_like
 
 ESSENCIAL = "Essencial"
 NAO_ESSENCIAL = "Não Essencial"
@@ -17,135 +18,6 @@ MESES = [
     "janeiro", "fevereiro", "março", "abril", "maio", "junho",
     "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
 ]
-
-
-# --------------------------------------------------------------------------
-# Valor monetário
-# --------------------------------------------------------------------------
-
-class ValorInvalido(Exception):
-    """Texto digitado que não vira um valor monetário aceitável."""
-
-
-# Agrupamento de milhar bem formado: 1-3 dígitos e depois grupos de 3.
-# Só existe para o ponto: vírgula repetida é erro, não milhar.
-_AGRUPAMENTO = {
-    ".": re.compile(r"\d{1,3}(\.\d{3})+"),
-}
-
-
-def _partir(bruto):
-    """Decide o que em `bruto` é milhar e o que é decimal.
-
-    Devolve (parte_inteira, casas_decimais) já sem separadores.
-
-    A regra NÃO é simétrica entre `,` e `.`, porque em português a vírgula é
-    sempre decimal e o ponto é ambíguo:
-
-      - vírgula sem ponto: a vírgula é o decimal, ponto final. 10,99 = 10,99;
-        1,5 = 1,50; 10, = 10,00; e 1,234 ou 10,999 são ERRO — quem escreve
-        assim quase sempre errou a digitação, e gravar dez mil no lugar de dez
-        é caro demais para adivinhar;
-      - ponto sem vírgula: aí sim há heurística, porque o teclado numérico do
-        celular costuma oferecer só o ponto. Ponto único com 3 dígitos depois é
-        milhar (1.234 = 1234,00); com 1 ou 2 é decimal (1.5 = 1,50); com 4 ou
-        mais é erro; ponto repetido é tudo milhar (1.234.567);
-      - os dois presentes: o mais à direita é o decimal e o outro é milhar
-        (1.234,56 e 1,234.56 dão os dois 1234,56).
-
-    Quem passar de 2 casas decimais cai no teste de tamanho em converter_valor.
-    """
-    tem_virgula, tem_ponto = "," in bruto, "." in bruto
-
-    if tem_virgula and tem_ponto:
-        decimal_sep = "," if bruto.rfind(",") > bruto.rfind(".") else "."
-        milhar_sep = "." if decimal_sep == "," else ","
-        if bruto.count(decimal_sep) > 1:
-            raise ValorInvalido(
-                "Valor inválido: há mais de um separador decimal."
-            )
-        inteiro, _, decimais = bruto.rpartition(decimal_sep)
-        return inteiro.replace(milhar_sep, ""), decimais
-
-    if tem_virgula:
-        # Vírgula é decimal, sempre. Nada de heurística de milhar aqui.
-        if bruto.count(",") > 1:
-            raise ValorInvalido("Valor inválido. Use apenas uma vírgula.")
-        inteiro, _, decimais = bruto.partition(",")
-        return inteiro, decimais
-
-    if not tem_ponto:
-        return bruto, ""
-
-    if bruto.count(".") > 1:
-        # Repetido: só pode ser milhar, e o agrupamento tem que fechar.
-        if not _AGRUPAMENTO["."].fullmatch(bruto):
-            raise ValorInvalido("Valor inválido. Escreva como 1.234.567,89.")
-        return bruto.replace(".", ""), ""
-
-    inteiro, _, depois = bruto.partition(".")
-    if len(depois) == 3:
-        return inteiro + depois, ""      # 1.234 -> milhar
-    if len(depois) <= 2:
-        return inteiro, depois           # 1.5 / 10. -> decimal
-    raise ValorInvalido("Use no máximo 2 casas decimais.")
-
-
-def converter_valor(texto):
-    """Converte o texto digitado em Decimal com 2 casas.
-
-    Única função de conversão do sistema: lançamento e edição passam por aqui.
-    Levanta ValorInvalido com mensagem pronta para virar erro de campo — nunca
-    deixa estourar o CHECK (valor > 0) do banco.
-    """
-    if texto is None:
-        raise ValorInvalido("Informe o valor.")
-
-    bruto = str(texto).strip()
-    for lixo in ("R$", " ", "\xa0", " "):  # inclui espaços finos de colagem
-        bruto = bruto.replace(lixo, "")
-    if not bruto:
-        raise ValorInvalido("Informe o valor.")
-
-    if not re.fullmatch(r"-?[\d.,]+", bruto):
-        raise ValorInvalido("Valor inválido. Use apenas números, como 1234,56.")
-
-    negativo = bruto.startswith("-")
-    bruto = bruto.lstrip("-")
-    if not bruto:
-        raise ValorInvalido("Informe o valor.")
-
-    inteiro, decimais = _partir(bruto)
-
-    inteiro = inteiro or "0"
-    if not inteiro.isdigit() or (decimais and not decimais.isdigit()):
-        raise ValorInvalido("Valor inválido. Use apenas números, como 1234,56.")
-    # Vale para todos os ramos de _partir: dinheiro não é arredondado em
-    # silêncio, quem digitou 3 casas vê o erro.
-    if len(decimais) > 2:
-        raise ValorInvalido("Use no máximo 2 casas decimais.")
-
-    try:
-        valor = Decimal(f"{inteiro}.{decimais or '0'}")
-    except InvalidOperation:
-        raise ValorInvalido("Valor inválido.") from None
-
-    if negativo:
-        valor = -valor
-    if valor <= 0:
-        raise ValorInvalido("O valor deve ser maior que zero.")
-    if valor >= Decimal("10000000000"):
-        raise ValorInvalido("Valor alto demais.")
-
-    return valor.quantize(Decimal("0.01"))
-
-
-def formatar_valor(valor):
-    """Decimal -> '1.234,56' (sem o prefixo R$, que fica no template)."""
-    if valor is None:
-        return ""
-    return f"{Decimal(valor):,.2f}".replace(",", "\x00").replace(".", ",") \
-                                   .replace("\x00", ".")
 
 
 # --------------------------------------------------------------------------
@@ -313,16 +185,39 @@ ORDENS = {
 }
 
 
-def escapar_like(texto):
-    """Neutraliza os curingas do ILIKE dentro do que a pessoa digitou.
+# --------------------------------------------------------------------------
+# Estado da tela vindo do request
+#
+# As tres funcoes abaixo nasceram privadas em consulta.py e passaram a ser
+# importadas por receitas.py. Subiram para ca, sem underscore: sao a regra
+# comum das duas telas de lista, e cada copia extra seria um lugar a mais
+# para elas divergirem.
+# --------------------------------------------------------------------------
 
-    Sem isso, buscar por `%` casa com tudo e a busca por texto vira uma
-    listagem aberta; `_` casaria com qualquer caractere. A barra invertida
-    vem primeiro, senão escaparíamos as barras que acabamos de inserir.
+def id_valido(args, chave, existentes):
+    """Id de filtro que nao existe cai no padrao (sem filtro), nao em erro."""
+    valor = args.get(chave, type=int)
+    if valor and any(o["id"] == valor for o in existentes):
+        return valor
+    return None
+
+
+def pagina_pedida(args):
+    pagina = args.get("pagina", type=int)
+    return pagina if pagina and pagina >= 1 else 1
+
+
+def so_fragmento():
+    """True quando o HTMX quer apenas o bloco de resultados.
+
+    A excecao e a restauracao de historico: quando o cache do HTMX nao tem a
+    tela, ele refaz o GET com HX-History-Restore-Request e espera a pagina
+    inteira de volta. Devolver o fragmento ali quebraria o botao voltar.
     """
-    return (texto.replace("\\", "\\\\")
-                 .replace("%", "\\%")
-                 .replace("_", "\\_"))
+    return bool(
+        request.headers.get("HX-Request")
+        and not request.headers.get("HX-History-Restore-Request")
+    )
 
 
 def mes_valido(ano_mes):

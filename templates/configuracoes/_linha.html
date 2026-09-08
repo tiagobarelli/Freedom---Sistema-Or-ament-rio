@@ -1,0 +1,26 @@
+{# Uma vigência do histórico, em leitura. #}
+<tr id="config-{{ item.id }}">
+  <td class="col-data">
+    {{ item.vigente_desde.strftime('%d/%m/%Y') }}
+    {% if item.futura %}
+      <span class="badge badge--neutro">Futura</span>
+    {% elif item.e_vigente %}
+      <span class="badge badge--ativo">Vigente</span>
+    {% endif %}
+    {# Só aparece abaixo de 768px, onde a coluna de observação some. #}
+    <span class="linha-secundaria">{{ item.observacao or 'sem observação' }}</span>
+  </td>
+  <td class="col-valor">{{ item.texto }}</td>
+  <td class="tabela__suave col-observacao">{{ item.observacao or '—' }}</td>
+  <td class="tabela__acoes">
+    <button type="button" class="btn btn--discreto btn--pequeno"
+            hx-get="{{ url_for('configuracoes.configuracoes_editar_form', config_id=item.id) }}"
+            hx-target="#config-{{ item.id }}"
+            hx-swap="outerHTML">Editar</button>
+    <button type="button" class="btn btn--secundario btn--pequeno"
+            hx-post="{{ url_for('configuracoes.configuracoes_excluir', config_id=item.id) }}"
+            hx-confirm="Excluir a vigência de {{ item.vigente_desde.strftime('%d/%m/%Y') }}? Isso não pode ser desfeito."
+            hx-target="#lista-configuracoes"
+            hx-swap="innerHTML">Excluir</button>
+  </td>
+</tr>

@@ -16,27 +16,22 @@ from freedom.lancamentos.servico import (
     ORDENS,
     POR_PAGINA,
     deslocar_mes,
+    id_valido,
     mes_corrente,
     mes_valido,
     meses_com_lancamento,
     opcoes_de_filtro,
     pagina_de_despesas,
+    pagina_pedida,
     resumo_por_categoria,
     rotulo_mes,
+    so_fragmento,
     totais_do_filtro,
 )
 
 # Parâmetros que compõem o estado da tela e viajam na URL.
 PARAMETROS = ("mes", "pessoa_id", "categoria_id", "conta_id",
               "essencialidade", "q", "ordem", "pagina")
-
-
-def _id_valido(args, chave, existentes):
-    """Id de filtro que não existe cai no padrão (sem filtro), não em erro."""
-    valor = args.get(chave, type=int)
-    if valor and any(o["id"] == valor for o in existentes):
-        return valor
-    return None
 
 
 def ler_filtros(args, opcoes):
@@ -48,9 +43,9 @@ def ler_filtros(args, opcoes):
     mes = args.get("mes")
     filtros = {
         "mes": (mes if mes_valido(mes) else mes_corrente()),
-        "pessoa_id": _id_valido(args, "pessoa_id", opcoes["pessoas"]),
-        "categoria_id": _id_valido(args, "categoria_id", opcoes["categorias"]),
-        "conta_id": _id_valido(args, "conta_id", opcoes["contas"]),
+        "pessoa_id": id_valido(args, "pessoa_id", opcoes["pessoas"]),
+        "categoria_id": id_valido(args, "categoria_id", opcoes["categorias"]),
+        "conta_id": id_valido(args, "conta_id", opcoes["contas"]),
         "essencialidade": (
             args.get("essencialidade")
             if args.get("essencialidade") in (ESSENCIAL, NAO_ESSENCIAL)
@@ -63,17 +58,19 @@ def ler_filtros(args, opcoes):
     return filtros
 
 
-def _pagina_pedida(args):
-    pagina = args.get("pagina", type=int)
-    return pagina if pagina and pagina >= 1 else 1
-
-
 def query_string(filtros, pagina=None, **troca):
     """Monta a query string desta tela, para links e para o parâmetro retorno."""
     dados = dict(filtros)
     dados["pagina"] = pagina or 1
     dados.update(troca)
-    return {k: v for k, v in dados.items() if v not in (None, "", 1) or k == "mes"}
+    # O mês viaja sempre (a tela é sempre de um mês) e a página 1, por ser o
+    # padrão, fica fora. O `== 1` é testado só na página, pelo nome: um filtro
+    # de pessoa, categoria ou conta de id 1 também vale 1 e sumiria da URL.
+    return {
+        k: v for k, v in dados.items()
+        if k == "mes" or (v not in (None, "")
+                          and not (k == "pagina" and v == 1))
+    }
 
 
 def _contexto(args):
@@ -87,7 +84,7 @@ def _contexto(args):
 
     # Página além do fim volta para a última: pagina=9999 não pode dar erro
     # nem tela em branco.
-    pagina = min(_pagina_pedida(args), paginas)
+    pagina = min(pagina_pedida(args), paginas)
 
     linhas = pagina_de_despesas(filtros, pagina) if quantidade else []
     primeiro = (pagina - 1) * POR_PAGINA + 1 if quantidade else 0
@@ -115,24 +112,11 @@ def _contexto(args):
     }
 
 
-def _so_fragmento():
-    """True quando o HTMX quer apenas o bloco de resultados.
-
-    A exceção é a restauração de histórico: quando o cache do HTMX não tem a
-    tela, ele refaz o GET com HX-History-Restore-Request e espera a página
-    inteira de volta. Devolver o fragmento ali quebraria o botão voltar.
-    """
-    return (
-        request.headers.get("HX-Request")
-        and not request.headers.get("HX-History-Restore-Request")
-    )
-
-
 @bp.route("/despesas/consulta")
 @login_required
 def despesas_consulta():
     contexto = _contexto(request.args)
-    modelo = ("lancamentos/_resultados.html" if _so_fragmento()
+    modelo = ("lancamentos/_resultados.html" if so_fragmento()
               else "lancamentos/consulta.html")
     return render_template(modelo, **contexto)
 

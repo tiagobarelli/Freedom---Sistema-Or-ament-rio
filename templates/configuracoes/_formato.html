@@ -1,0 +1,24 @@
+{#
+  Dica de formato da chave digitada. Vem do servidor (HTMX) a cada tecla:
+  o catálogo de chaves conhecidas vive em configuracoes/servico.py e não é
+  copiado para o JavaScript.
+#}
+{% if formato == 'percentual' %}
+  <p class="campo__dica" role="status">
+    <strong class="texto-mono">{{ chave_atual }}</strong> — {{ info.rotulo }}.
+    {{ info.descricao }}
+    Digite em porcentagem: <strong>4</strong> ou <strong>4,5</strong>
+    (o banco guarda 0,04 e 0,045).
+  </p>
+{% elif chave_atual %}
+  <p class="campo__apoio campo__apoio--aviso" role="status">
+    <strong class="texto-mono">{{ chave_atual }}</strong> não está no catálogo:
+    o valor entra como <strong>número puro</strong>, do jeito que for digitado
+    — <strong>0,04</strong> grava 0,04, e não 0,0004.
+  </p>
+{% else %}
+  <p class="campo__dica" role="status">
+    TSR, R e S são percentuais (digite 4 para 4%). Qualquer outra chave é
+    tratada como número puro.
+  </p>
+{% endif %}

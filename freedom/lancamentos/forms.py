@@ -1,6 +1,6 @@
-"""Formulário de despesa.
+"""Formulários de lançamento: despesa e receita.
 
-O valor chega como texto (pt-BR aceita vírgula) e é convertido por
+Em ambos o valor chega como texto (pt-BR aceita vírgula) e é convertido por
 `converter_valor`; o Decimal validado fica em `form.valor_decimal`.
 """
 
@@ -17,12 +17,8 @@ from wtforms import (
 )
 from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
-from freedom.lancamentos.servico import (
-    ESSENCIAL,
-    NAO_ESSENCIAL,
-    ValorInvalido,
-    converter_valor,
-)
+from freedom.lancamentos.servico import ESSENCIAL, NAO_ESSENCIAL
+from freedom.util import ValorInvalido, converter_valor
 
 # Vazio = herdar da subcategoria (grava NULL). Os outros dois são as strings
 # exatas do CHECK ck_despesas_essencialidade.
@@ -133,3 +129,96 @@ class DespesaForm(FlaskForm):
         if self.mais_opcoes.data == "1":
             return True
         return bool(self.essencialidade.errors or self.observacoes.errors)
+
+
+# ==========================================================================
+# Receita
+# ==========================================================================
+
+def _id_ou_none(valor):
+    """Coerce dos selects de receita: opção em branco vira None, não erro.
+
+    O coerce=int do WTForms estoura em "" e a mensagem que sobra é em inglês
+    ("Invalid Choice: could not coerce"). Devolvendo None, quem reclama é o
+    DataRequired do campo, com o texto que a tela deve mostrar.
+    """
+    if valor in (None, "", "None"):
+        return None
+    try:
+        return int(valor)
+    except (TypeError, ValueError):
+        return None
+
+
+class ReceitaForm(FlaskForm):
+    """Receita: mais simples que a despesa — não há essencialidade nem conta."""
+
+    data = DateField(
+        "Data",
+        default=date.today,
+        validators=[DataRequired(message="Informe a data.")],
+    )
+    descricao = StringField(
+        "Descrição",
+        validators=[DataRequired(message="Informe a descrição."), Length(max=200)],
+    )
+    valor = StringField(
+        "Valor",
+        validators=[DataRequired(message="Informe o valor.")],
+    )
+    # validate_choice=False: a checagem de existência é feita abaixo, contra
+    # as opções carregadas, para a mensagem sair em português.
+    ref_receita_id = SelectField(
+        "Fonte",
+        coerce=_id_ou_none,
+        validate_choice=False,
+        validators=[DataRequired(message="Escolha a fonte da receita.")],
+    )
+    pessoa_id = SelectField(
+        "Pessoa",
+        coerce=_id_ou_none,
+        validate_choice=False,
+        validators=[DataRequired(message="Escolha a pessoa.")],
+    )
+    anotacoes = TextAreaField(
+        "Anotações", validators=[Optional(), Length(max=1000)]
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.valor_decimal = None
+        # Rótulo e situação de cada fonte, para o <select> montado no template.
+        self.fontes = []
+        self.pessoas = []
+
+    def validate_valor(self, field):
+        """Texto -> Decimal. Erro vira mensagem de campo, nunca 500."""
+        try:
+            self.valor_decimal = converter_valor(field.data)
+        except ValorInvalido as exc:
+            raise ValidationError(str(exc)) from None
+
+    def validate_ref_receita_id(self, field):
+        """Fonte inexistente ou desativada não passa em lançamento novo.
+
+        A edição carrega a fonte original mesmo desativada (ver `carregar_opcoes`),
+        então lá ela é aceita; aqui só entra o que o select ofereceu.
+        """
+        if field.data not in [f["id"] for f in self.fontes]:
+            raise ValidationError("Escolha uma fonte válida.")
+
+    def validate_pessoa_id(self, field):
+        if field.data not in [p["id"] for p in self.pessoas]:
+            raise ValidationError("Escolha uma pessoa válida.")
+
+    def carregar_opcoes(self, fontes, pessoas):
+        """Preenche os selects.
+
+        As choices existem para o WTForms validar; a marcação do <select> de
+        fonte é montada no template, que precisa da opção em branco no topo e
+        da marca de fonte desativada — coisas que o widget padrão não faz.
+        """
+        self.fontes = list(fontes)
+        self.pessoas = list(pessoas)
+        self.ref_receita_id.choices = [(f["id"], f["rotulo"]) for f in self.fontes]
+        self.pessoa_id.choices = [(p["id"], p["nome"]) for p in self.pessoas]

@@ -1,0 +1,23 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{% block title %}Configurações - Freedom{% endblock %}
+{% block titulo_pagina %}Configurações{% endblock %}
+{% block subtitulo_pagina %}
+  <p class="pagina-subtitulo">
+    Parâmetros com histórico de vigência: mudar um valor hoje não altera o que
+    os relatórios já disseram sobre o passado.
+  </p>
+{% endblock %}
+
+{% block content %}
+  <div class="card card--solido form-lancamento">
+    {% include "configuracoes/_formulario.html" %}
+  </div>
+  {# Preenchido pelo swap out-of-band depois de gravar. #}
+  <div id="aviso-configuracao" class="aviso-inline" role="status"></div>
+
+  <div id="lista-configuracoes" class="mt-5">
+    {% include "configuracoes/_lista.html" %}
+  </div>
+{% endblock %}

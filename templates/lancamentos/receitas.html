@@ -1,0 +1,158 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{% block title %}Receitas - Freedom{% endblock %}
+{% block titulo_pagina %}Receitas{% endblock %}
+{% block subtitulo_pagina %}
+  <p class="pagina-subtitulo">Lançar e conferir o que entrou, na mesma tela.</p>
+{% endblock %}
+
+{% set url_receitas = url_for('lancamentos.receitas_tela') %}
+
+{% block content %}
+
+  {# --- a) formulário de lançamento ------------------------------------- #}
+  {% if pendencias %}
+    <div class="card card--solido">
+      {{ m.vazio("Falta cadastro antes de lançar",
+                 "Uma receita precisa de fonte e pessoa. Ainda falta:") }}
+      <ul class="pendencias">
+        {% for texto, url, rotulo in pendencias %}
+          <li>
+            <span>{{ texto }}</span>
+            <a class="btn btn--secundario btn--pequeno" href="{{ url }}">{{ rotulo }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% else %}
+    <div class="card card--solido form-lancamento">
+      {% include "lancamentos/_receita_formulario.html" %}
+    </div>
+    {# Preenchido pelo swap out-of-band depois de gravar. #}
+    <div id="aviso-receita" class="aviso-inline" role="status"></div>
+  {% endif %}
+
+  {# --- b) filtros ------------------------------------------------------
+    Ficam FORA de #resultados-receitas: o hx-get troca só o bloco de baixo,
+    então o estado dos campos sobrevive a cada consulta. hx-push-url mantém a
+    URL em dia, o que faz a tela ser reproduzível por link e o botão voltar
+    desfazer o último filtro.
+  #}
+  <form id="filtros-receitas" class="filtros-consulta mt-5"
+        hx-get="{{ url_receitas }}"
+        hx-target="#resultados-receitas"
+        hx-swap="innerHTML"
+        hx-push-url="true"
+        hx-trigger="change">
+
+    {# O mês fica sempre visível, inclusive no celular. #}
+    <div class="filtro-mes">
+      <button type="button" class="btn btn--secundario btn--icone"
+              aria-label="Mês anterior"
+              hx-get="{{ url_for('lancamentos.receitas_tela',
+                                 **query_string(filtros, 1, mes=mes_anterior)) }}"
+              hx-target="#resultados-receitas" hx-swap="innerHTML" hx-push-url="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+
+      <select class="selecao" name="mes" aria-label="Mês">
+        {% for mm in meses %}
+          <option value="{{ mm }}" {{ 'selected' if mm == filtros.mes }}>
+            {{ rotulo_mes if mm == filtros.mes else
+               (mm | string)[4:6] ~ '/' ~ (mm | string)[0:4] }}
+          </option>
+        {% endfor %}
+      </select>
+
+      <button type="button" class="btn btn--secundario btn--icone"
+              aria-label="Mês seguinte"
+              hx-get="{{ url_for('lancamentos.receitas_tela',
+                                 **query_string(filtros, 1, mes=mes_seguinte)) }}"
+              hx-target="#resultados-receitas" hx-swap="innerHTML" hx-push-url="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+
+    {# No celular o resto dos filtros recolhe; o mês acima fica de fora. #}
+    <details class="filtros-extras" {{ 'open' if filtros.pessoa or filtros.fonte
+                                       or filtros.q }}>
+      <summary class="filtros-extras__resumo">Filtros</summary>
+      <div class="filtros-extras__corpo">
+
+        <label class="filtro-campo">
+          <span class="filtro-campo__rotulo">Pessoa</span>
+          <select class="selecao" name="pessoa">
+            <option value="">Todas</option>
+            {% for p in opcoes.pessoas %}
+              <option value="{{ p.id }}" {{ 'selected' if p.id == filtros.pessoa }}>
+                {{ p.nome }}{{ ' (inativa)' if not p.ativo }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label class="filtro-campo">
+          <span class="filtro-campo__rotulo">Fonte</span>
+          <select class="selecao" name="fonte">
+            <option value="">Todas</option>
+            {% for f in opcoes.fontes %}
+              <option value="{{ f.id }}" {{ 'selected' if f.id == filtros.fonte }}>
+                {{ f.rotulo }}{{ ' (desativada)' if not f.ativo }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label class="filtro-campo filtro-campo--busca">
+          <span class="filtro-campo__rotulo">Descrição contém</span>
+          {# Digitar não pode disparar uma consulta por tecla. #}
+          <input class="entrada" type="search" name="q" value="{{ filtros.q or '' }}"
+                 placeholder="ex.: salário" autocomplete="off"
+                 hx-get="{{ url_receitas }}"
+                 hx-target="#resultados-receitas" hx-swap="innerHTML" hx-push-url="true"
+                 hx-include="#filtros-receitas"
+                 hx-trigger="keyup changed delay:400ms, search">
+        </label>
+
+        <div class="filtro-campo filtro-campo--acao">
+          <a class="btn btn--discreto btn--pequeno"
+             href="{{ url_for('lancamentos.receitas_tela', mes=filtros.mes) }}"
+             hx-get="{{ url_for('lancamentos.receitas_tela', mes=filtros.mes) }}"
+             hx-target="#resultados-receitas" hx-swap="innerHTML" hx-push-url="true">
+            Limpar filtros
+          </a>
+        </div>
+
+      </div>
+    </details>
+
+    {# A página volta para 1 sempre que um filtro muda. #}
+    <input type="hidden" name="pagina" value="1">
+  </form>
+
+  {# --- c) e d) totais, resumo e lista ---------------------------------- #}
+  <div id="resultados-receitas">
+    {% include "lancamentos/_receitas_resultados.html" %}
+  </div>
+
+  <script>
+    // Limpar filtros troca o bloco por HTMX; os campos do formulario ficam
+    // fora dele, entao precisam ser zerados na mao.
+    document.body.addEventListener('htmx:afterRequest', function (e) {
+      var alvo = e.detail && e.detail.pathInfo && e.detail.pathInfo.requestPath;
+      var form = document.getElementById('filtros-receitas');
+      if (!form || !alvo || alvo.indexOf('/receitas') === -1) return;
+      if (e.detail.elt && e.detail.elt.textContent.trim() === 'Limpar filtros') {
+        ['pessoa', 'fonte'].forEach(function (n) {
+          var c = form.querySelector('[name="' + n + '"]'); if (c) c.value = '';
+        });
+        var q = form.querySelector('[name="q"]'); if (q) q.value = '';
+      }
+    });
+  </script>
+{% endblock %}

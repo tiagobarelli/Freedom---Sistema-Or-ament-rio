@@ -1,0 +1,54 @@
+{#
+  Formulário de nova vigência.
+
+  Ele é o próprio alvo do POST (hx-target="this" + outerHTML): a resposta de
+  sucesso e a de erro devolvem este mesmo fragmento, uma limpa e outra com os
+  erros de campo — mesmo desenho da tela de receitas.
+#}
+{% import "_macros.html" as m %}
+<form id="form-configuracao" class="pilha"
+      hx-post="{{ url_for('configuracoes.configuracoes_gravar') }}"
+      hx-target="this"
+      hx-swap="outerHTML">
+  {{ form.hidden_tag() }}
+
+  {# O combobox sugere as chaves conhecidas e as já usadas, mas aceita
+     qualquer texto: parâmetro novo não deve exigir mudança de código. #}
+  {{ m.combobox(form.chave, form.sugestoes,
+                url_dica=url_for('configuracoes.configuracoes_formato'),
+                alvo_dica="#formato-chave",
+                extra={"autofocus": true, "maxlength": 60,
+                       "placeholder": "TSR", "autocomplete": "off"}) }}
+
+  <div id="formato-chave">
+    {% include "configuracoes/_formato.html" %}
+  </div>
+
+  <div class="grade-lancamento">
+    <div class="campo">
+      {{ form.valor.label(class="campo__rotulo") }}
+      {{ form.valor(class="entrada entrada--grande"
+                           ~ (" entrada--erro" if form.valor.errors else ""),
+                    inputmode="decimal", autocomplete="off",
+                    placeholder="4" if formato == 'percentual' else "0,04") }}
+      {% for e in form.valor.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
+    </div>
+
+    <div class="campo">
+      {{ form.vigente_desde.label(class="campo__rotulo") }}
+      {{ form.vigente_desde(class="entrada"
+                                   ~ (" entrada--erro" if form.vigente_desde.errors else ""),
+                            type="date") }}
+      <p class="campo__dica">A partir de quando este valor vale.</p>
+      {% for e in form.vigente_desde.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
+    </div>
+  </div>
+
+  {{ m.campo(form.observacao, classe="area-texto", extra={"rows": 2},
+             dica="Motivo da alteração. Opcional.") }}
+
+  <div class="form-lancamento__acoes">
+    <button type="submit" class="btn btn--primario btn--grande">Salvar valor</button>
+    <span class="htmx-indicator texto-fraco texto-p">gravando…</span>
+  </div>
+</form>

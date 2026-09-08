@@ -1,0 +1,17 @@
+{#
+  Resposta de sucesso do POST, num único response.
+
+  O alvo principal é o próprio formulário, então a resposta começa com <form>
+  e o parser do navegador não está em contexto de tabela: os swaps
+  out-of-band abaixo dispensam <template> (as tabelas vão dentro do div de
+  lista, não soltas no primeiro nível).
+#}
+{% include "configuracoes/_formulario.html" %}
+
+<div id="aviso-configuracao" class="aviso-inline" hx-swap-oob="true" role="status">
+  Valor gravado.
+</div>
+
+<div id="lista-configuracoes" class="mt-5" hx-swap-oob="true">
+  {% include "configuracoes/_lista.html" %}
+</div>

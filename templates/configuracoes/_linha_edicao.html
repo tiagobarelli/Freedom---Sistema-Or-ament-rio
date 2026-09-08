@@ -1,0 +1,55 @@
+{#
+  A mesma linha, virada formulário.
+
+  O <form> vive dentro de um único <td colspan>: <form> solto entre <td>s é
+  marcação inválida e o navegador o expulsa da tabela. A chave não aparece —
+  ela não muda na edição.
+
+  O alvo declarado é a própria linha, que é o que a resposta de erro precisa
+  trocar. No sucesso a rota responde com HX-Retarget para a lista inteira,
+  porque mudar a data reordena a seção e pode trocar o valor vigente hoje.
+#}
+<tr id="config-{{ item.id }}" class="linha-edicao">
+  <td colspan="4">
+    <form class="config-edicao"
+          hx-post="{{ url_for('configuracoes.configuracoes_editar', config_id=item.id) }}"
+          hx-target="#config-{{ item.id }}"
+          hx-swap="outerHTML">
+      {{ form.hidden_tag() }}
+
+      <div class="config-edicao__campos">
+        <div class="campo">
+          {{ form.vigente_desde.label(class="campo__rotulo") }}
+          {{ form.vigente_desde(class="entrada"
+                                       ~ (" entrada--erro" if form.vigente_desde.errors else ""),
+                                type="date") }}
+        </div>
+        <div class="campo">
+          {{ form.valor.label(class="campo__rotulo") }}
+          {{ form.valor(class="entrada"
+                               ~ (" entrada--erro" if form.valor.errors else ""),
+                        inputmode="decimal", autocomplete="off", autofocus=true) }}
+        </div>
+        <div class="campo config-edicao__observacao">
+          {{ form.observacao.label(class="campo__rotulo") }}
+          {{ form.observacao(class="entrada", rows=1) }}
+        </div>
+        <div class="config-edicao__acoes">
+          <button type="submit" class="btn btn--primario btn--pequeno">Salvar</button>
+          <button type="button" class="btn btn--secundario btn--pequeno"
+                  hx-get="{{ url_for('configuracoes.configuracoes_linha', config_id=item.id) }}"
+                  hx-target="#config-{{ item.id }}"
+                  hx-swap="outerHTML">Cancelar</button>
+        </div>
+      </div>
+
+      <p class="campo__dica">
+        Chave <strong class="texto-mono">{{ item.chave }}</strong> — a chave não
+        muda na edição; para trocá-la, apague e lance de novo.
+      </p>
+      {% for campo in [form.vigente_desde, form.valor, form.observacao] %}
+        {% for e in campo.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
+      {% endfor %}
+    </form>
+  </td>
+</tr>

@@ -1,0 +1,11 @@
+{#
+  Resposta de erro de validação: o mesmo formulário de volta, com os erros de
+  campo e tudo que já estava digitado. A lista e os totais não são tocados —
+  nada foi gravado.
+
+  O aviso volta vazio de propósito: se o lançamento anterior tinha dado certo,
+  a confirmação dele ainda estaria na tela, mentindo sobre este.
+#}
+{% include "lancamentos/_receita_formulario.html" %}
+
+<div id="aviso-receita" class="aviso-inline" hx-swap-oob="true" role="status"></div>

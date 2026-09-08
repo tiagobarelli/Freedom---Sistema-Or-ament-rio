@@ -1,0 +1,33 @@
+{% import "_macros.html" as m %}
+<tr id="receita-{{ item.id }}">
+  <td class="col-data">{{ item.data.strftime('%d/%m/%Y') }}</td>
+  <td class="tabela__principal col-descricao">
+    {{ item.descricao }}
+    {# Só aparece abaixo de 768px: recebe o que as colunas escondidas diriam,
+       para a tabela caber sem rolagem horizontal no celular. #}
+    <span class="linha-secundaria">
+      {{ item.data.strftime('%d/%m/%Y') }} · {{ item.categoria }} › {{ item.subcategoria }}
+      · {{ item.pessoa_nome }}
+    </span>
+  </td>
+  <td class="tabela__suave col-classificacao">
+    {{ item.categoria }} › {{ item.subcategoria }}
+    {% if not item.ref_receita_ativo %}
+      <span class="badge badge--inativo">Fonte inativa</span>
+    {% endif %}
+  </td>
+  <td class="tabela__suave col-pessoa">{{ item.pessoa_nome }}</td>
+  <td class="col-valor">{{ m.reais(item.valor) }}</td>
+  <td class="tabela__acoes">
+    <a class="btn btn--discreto btn--pequeno"
+       href="{{ url_for('lancamentos.receitas_editar', receita_id=item.id, retorno=retorno) }}">Editar</a>
+    {# Excluir devolve o bloco inteiro: sumir com a <tr> e deixar total,
+       resumo e paginação para trás seria pior que recarregar os quatro. #}
+    <button type="button" class="btn btn--secundario btn--pequeno"
+            hx-post="{{ url_for('lancamentos.receitas_excluir', receita_id=item.id,
+                                **query_string(filtros, pagina)) }}"
+            hx-confirm="Excluir a receita &quot;{{ item.descricao }}&quot;? Isso não pode ser desfeito."
+            hx-target="#resultados-receitas"
+            hx-swap="innerHTML">Excluir</button>
+  </td>
+</tr>

@@ -1,0 +1,21 @@
+{#
+  Resposta de sucesso do POST de receita, num único response.
+
+  O alvo principal é o próprio formulário, então a resposta começa com <form>
+  e o parser do navegador não está em contexto de tabela — por isso os dois
+  swaps out-of-band abaixo dispensam <template> (a tabela vai DENTRO do div
+  de resultados, não solta no primeiro nível).
+
+  O bloco de resultados vem recalculado com os filtros vigentes: receita
+  gravada fora do mês filtrado não aparece na lista, e o total continua
+  batendo com o filtro.
+#}
+{% include "lancamentos/_receita_formulario.html" %}
+
+<div id="aviso-receita" class="aviso-inline" hx-swap-oob="true" role="status">
+  Receita lançada.
+</div>
+
+<div id="resultados-receitas" hx-swap-oob="true">
+  {% include "lancamentos/_receitas_resultados.html" %}
+</div>

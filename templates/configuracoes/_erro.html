@@ -1,0 +1,10 @@
+{#
+  Erro de validação: o mesmo formulário de volta, com os erros de campo e tudo
+  que já estava digitado. A lista não é tocada — nada foi gravado.
+
+  O aviso volta vazio de propósito: se a gravação anterior tinha dado certo, a
+  confirmação dela ainda estaria na tela, mentindo sobre esta.
+#}
+{% include "configuracoes/_formulario.html" %}
+
+<div id="aviso-configuracao" class="aviso-inline" hx-swap-oob="true" role="status"></div>

@@ -247,30 +247,40 @@ def meses_do_eixo(divisor):
 # Composição dos cards
 # --------------------------------------------------------------------------
 
-def _card(rotulo, valor=None, texto=None, apoio=None, negativo=False):
+def card(rotulo, valor=None, texto=None, apoio=None, negativo=False):
     """Um card do painel.
 
     `valor` é dinheiro (Decimal) e o template o passa pela macro `reais`;
     `texto` já vem pronto (percentual, contagem ou travessão). Um dos dois,
     nunca os dois.
+
+    Sem underscore porque a Visão Mensal monta os cards dela com esta mesma
+    função: o formato que o template lê é um só, e não dois parecidos.
     """
     return {"rotulo": rotulo, "valor": valor, "texto": texto,
             "apoio": apoio, "negativo": negativo}
 
 
-def _fracao(parte, total):
+def fracao(parte, total):
     """Fatia sobre o total, em pontos percentuais (Decimal), ou None.
 
     None quando não há denominador: percentual sem base não é zero por cento,
     é uma conta que não existe. Quem exibe troca por travessão.
+
+    Compartilhada com a Visão Mensal (barras das tabelas por categoria e por
+    pessoa), por isso sem underscore.
     """
     return parte / total * 100 if total else None
 
 
-def _percentual(parte, total):
-    """`_fracao` já em texto pt-BR, para os cards. Travessão quando não há."""
-    fracao = _fracao(parte, total)
-    return SEM_VALOR if fracao is None else formatar_numero(fracao, 1) + "%"
+def percentual(parte, total):
+    """`fracao` já em texto pt-BR, para os cards. Travessão quando não há.
+
+    Compartilhada com a Visão Mensal: a taxa de poupança do mês é a mesma
+    conta da do ano, e o travessão de receita zero também.
+    """
+    parcela = fracao(parte, total)
+    return SEM_VALOR if parcela is None else formatar_numero(parcela, 1) + "%"
 
 
 def _nome_do_mes(mes):
@@ -312,39 +322,39 @@ def _cards(leitura, totais):
              if divisor and m <= divisor and saldo_do_mes(m) > 0]
 
     return [
-        _card("Receita Anual", valor=receita_anual),
-        _card("Despesa Anual", valor=despesa_anual),
-        _card("Saldo Anual", valor=saldo, negativo=saldo < 0),
+        card("Receita Anual", valor=receita_anual),
+        card("Despesa Anual", valor=despesa_anual),
+        card("Saldo Anual", valor=saldo, negativo=saldo < 0),
         # O vermelho acompanha o percentual, nao o saldo: com receita zero o
         # card mostra travessao, e travessao vermelho nao quer dizer nada.
-        _card("Taxa de Poupança",
-              texto=_percentual(saldo, receita_anual),
-              negativo=saldo < 0 and receita_anual > 0),
-        _card("Despesas Essenciais", valor=essencial),
-        _card("Despesas Não Essenciais", valor=nao_essencial),
-        _card("Despesa Média / Mês",
-              valor=(despesa_anual / divisor).quantize(ZERO) if divisor else None,
-              texto=None if divisor else SEM_VALOR,
-              apoio=f"em {divisor} {'mês' if divisor == 1 else 'meses'}"
+        card("Taxa de Poupança",
+             texto=percentual(saldo, receita_anual),
+             negativo=saldo < 0 and receita_anual > 0),
+        card("Despesas Essenciais", valor=essencial),
+        card("Despesas Não Essenciais", valor=nao_essencial),
+        card("Despesa Média / Mês",
+             valor=(despesa_anual / divisor).quantize(ZERO) if divisor else None,
+             texto=None if divisor else SEM_VALOR,
+             apoio=f"em {divisor} {'mês' if divisor == 1 else 'meses'}"
                     if divisor else None),
-        _card("Melhor Mês (Saldo)",
-              valor=saldo_do_mes(melhor) if melhor else None,
-              texto=None if melhor else SEM_VALOR,
-              apoio=_nome_do_mes(melhor) if melhor else None,
-              negativo=bool(melhor) and saldo_do_mes(melhor) < 0),
-        _card("Mês de Maior Gasto",
-              valor=despesas[maior_gasto]["total"] if maior_gasto else None,
-              texto=None if maior_gasto else SEM_VALOR,
-              apoio=_nome_do_mes(maior_gasto) if maior_gasto else None),
-        _card("Pico de Despesa",
-              valor=pico["valor"] if pico else None,
-              texto=None if pico else SEM_VALOR,
-              apoio=f"{pico['descricao']} · {pico['data']:%d/%m/%Y}"
+        card("Melhor Mês (Saldo)",
+             valor=saldo_do_mes(melhor) if melhor else None,
+             texto=None if melhor else SEM_VALOR,
+             apoio=_nome_do_mes(melhor) if melhor else None,
+             negativo=bool(melhor) and saldo_do_mes(melhor) < 0),
+        card("Mês de Maior Gasto",
+             valor=despesas[maior_gasto]["total"] if maior_gasto else None,
+             texto=None if maior_gasto else SEM_VALOR,
+             apoio=_nome_do_mes(maior_gasto) if maior_gasto else None),
+        card("Pico de Despesa",
+             valor=pico["valor"] if pico else None,
+             texto=None if pico else SEM_VALOR,
+             apoio=f"{pico['descricao']} · {pico['data']:%d/%m/%Y}"
                     if pico else None),
-        _card("% Essencial", texto=_percentual(essencial, despesa_anual)),
-        _card("% Não Essencial", texto=_percentual(nao_essencial, despesa_anual)),
-        _card("Meses no Azul",
-              texto=f"{len(azuis)} de {divisor}" if divisor else SEM_VALOR),
+        card("% Essencial", texto=percentual(essencial, despesa_anual)),
+        card("% Não Essencial", texto=percentual(nao_essencial, despesa_anual)),
+        card("Meses no Azul",
+             texto=f"{len(azuis)} de {divisor}" if divisor else SEM_VALOR),
     ]
 # --------------------------------------------------------------------------
 # Composição dos gráficos
@@ -455,7 +465,7 @@ def _tabela_mensal(leitura, totais):
                                if despesa_do_mes else ZERO),
             "saldo": saldo,
             "acumulado": None if ainda_nao_chegou else acumulado,
-            "taxa": None if ainda_nao_chegou else _fracao(saldo, receita),
+            "taxa": None if ainda_nao_chegou else fracao(saldo, receita),
         })
 
     return {
@@ -470,7 +480,7 @@ def _tabela_mensal(leitura, totais):
             "nao_essenciais": totais["nao_essencial"],
             "saldo": totais["saldo"],
             "acumulado": totais["saldo"],
-            "taxa": _fracao(totais["saldo"], totais["receita"]),
+            "taxa": fracao(totais["saldo"], totais["receita"]),
         },
     }
 
@@ -486,13 +496,13 @@ def _tabela_categorias(leitura, totais):
     linhas = [
         {"categoria": l["categoria"],
          "total": l["total"],
-         "pct": _fracao(l["total"], despesa_anual)}
+         "pct": fracao(l["total"], despesa_anual)}
         for l in leitura["categorias"]
     ]
     return {
         "linhas": linhas,
         "total": {"total": despesa_anual,
-                  "pct": _fracao(despesa_anual, despesa_anual)},
+                  "pct": fracao(despesa_anual, despesa_anual)},
     }
 
 

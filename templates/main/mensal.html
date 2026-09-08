@@ -1,0 +1,191 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{#
+  Celula de participacao: a barra e o numero na mesma celula, do mesmo jeito
+  que na tabela por categoria da Visao Anual. As duas tabelas do mes (por
+  categoria e por pessoa) sao a MESMA tabela sobre dimensoes diferentes, entao
+  a linha e o rodape sao macro - escrever quatro vezes seria quatro chances de
+  divergir.
+#}
+{% macro celula_pct(pct) %}
+  <td class="col-pct">
+    <span class="pct-celula">
+      {{ m.barra_pct(pct) }}
+      <span class="pct-celula__numero">{{ pct | numero(1) }}%</span>
+    </span>
+  </td>
+{% endmacro %}
+
+{% macro tabela_participacao(titulo, rotulo_coluna, campo, tabela) %}
+  <section class="card">
+    <h2 class="card__titulo">{{ titulo }}</h2>
+    <div class="tabela-caixa">
+      <table class="tabela tabela--mes">
+        <thead>
+          <tr>
+            <th>{{ rotulo_coluna }}</th>
+            <th class="col-num">Total no mês</th>
+            <th class="col-pct">% do total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in tabela.linhas %}
+            <tr>
+              <td class="tabela__principal">{{ l[campo] }}</td>
+              <td class="col-num">{{ m.reais(l.total) }}</td>
+              {{ celula_pct(l.pct) }}
+            </tr>
+          {% endfor %}
+        </tbody>
+        {# Sem barra no rodape: uma barra cheia de 100% nao informa nada. #}
+        <tfoot>
+          <tr>
+            <td>Total</td>
+            <td class="col-num">{{ m.reais(tabela.total.total) }}</td>
+            <td class="col-pct">
+              <span class="pct-celula__numero">{{ tabela.total.pct | numero(1) }}%</span>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
+{% endmacro %}
+
+{% block title %}Visão Mensal - Freedom{% endblock %}
+{% block titulo_pagina %}Visão Mensal{% endblock %}
+{% block subtitulo_pagina %}
+  <p class="pagina-subtitulo">Onde o dinheiro foi em {{ periodo }}, por categoria e por pessoa.</p>
+{% endblock %}
+{% block acoes_pagina %}
+  <a class="btn btn--primario" href="{{ url_for('lancamentos.despesas_tela') }}">
+    Lançar despesa
+  </a>
+{% endblock %}
+
+{% block content %}
+  {#
+    Mesma barra de filtros da Visao Anual (o bloco chama-se `.filtro-ano` desde
+    quando so havia o ano; o modificador acrescenta o que tres campos pedem).
+    GET com recarga da pagina inteira, sem HTMX: trocar de mes troca a tela
+    toda, entao nao ha fragmento a trocar.
+  #}
+  <form class="filtro-ano filtro-ano--mensal" method="get"
+        action="{{ url_for('main.mensal') }}">
+    <label class="filtro-campo">
+      <span class="filtro-campo__rotulo">Ano</span>
+      <select class="selecao" name="ano" onchange="this.form.submit()">
+        {% for a in anos %}
+          <option value="{{ a }}" {{ 'selected' if a == ano }}>{{ a }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    {#
+      Os doze meses sempre, e nao so os que tiveram lancamento: o mes vazio e
+      uma resposta legitima desta tela ("nao gastei nada em dezembro"), ao
+      contrario do ano vazio, que nao tem o que mostrar.
+    #}
+    <label class="filtro-campo">
+      <span class="filtro-campo__rotulo">Mês</span>
+      <select class="selecao" name="mes" onchange="this.form.submit()">
+        {% for nome in meses %}
+          <option value="{{ loop.index }}" {{ 'selected' if loop.index == mes }}>
+            {{ nome | capitalize }}
+          </option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label class="filtro-campo">
+      <span class="filtro-campo__rotulo">Ordem</span>
+      <select class="selecao" name="ordem" onchange="this.form.submit()">
+        <option value="total" {{ 'selected' if ordem == 'total' }}>Maior gasto</option>
+        <option value="nome" {{ 'selected' if ordem == 'nome' }}>Nome</option>
+      </select>
+    </label>
+  </form>
+
+  {#
+    Seis cards na grade de quatro da Visao Anual: 4 + 2 no desktop, 2 + 2 + 2
+    no tablet, um por linha no celular. Card de dinheiro traz `valor` (Decimal,
+    formatado aqui pela macro `reais`); a taxa traz `texto` ja pronto.
+  #}
+  <div class="painel-grade">
+    {% for c in cards %}
+      <article class="card painel-card">
+        <p class="painel-card__rotulo">{{ c.rotulo }}</p>
+        <p class="painel-card__valor{{ ' painel-card__valor--negativo' if c.negativo }}">
+          {%- if c.valor is not none %}{{ m.reais(c.valor) }}{% else %}{{ c.texto }}{% endif -%}
+        </p>
+      </article>
+    {% endfor %}
+  </div>
+
+  {#
+    As tres tabelas. Tudo ja vem somado de servico_mensal.py - totais,
+    percentuais e cada celula da matriz. Aqui nao se soma nada: o Jinja so
+    escolhe o formato (macro `reais`, filtro `numero`) e o que atenuar.
+  #}
+  <div class="painel-tabelas">
+    {% if tem_despesa %}
+      {{ tabela_participacao("Despesas por categoria", "Categoria",
+                             "categoria", tabelas.categorias) }}
+      {{ tabela_participacao("Total por pessoa", "Pessoa",
+                             "pessoa", tabelas.pessoas) }}
+
+      <section class="card">
+        <h2 class="card__titulo">Pessoa &times; Categoria</h2>
+        {#
+          Excecao deliberada ao padrao da app: esta tabela rola na horizontal
+          por dentro da caixa em qualquer largura em que nao caiba, porque o
+          numero de colunas depende de quantas pessoas gastaram no mes e nao ha
+          coluna secundaria a esconder - todas sao a mesma informacao. A
+          primeira coluna fica fixa para a categoria nao sumir ao rolar.
+        #}
+        <div class="tabela-caixa tabela-caixa--fixa-primeira">
+          <table class="tabela tabela--mes tabela--matriz">
+            <thead>
+              <tr>
+                <th>Categoria</th>
+                {% for p in tabelas.matriz.pessoas %}
+                  <th class="col-num">{{ p }}</th>
+                {% endfor %}
+                <th class="col-num">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for l in tabelas.matriz.linhas %}
+                <tr>
+                  <td class="tabela__principal">{{ l.categoria }}</td>
+                  {% for v in l.celulas %}
+                    {# Zero atenuado: e informacao (nao gastou), mas quem tem
+                       que saltar aos olhos e o valor de verdade. #}
+                    <td class="col-num{{ ' celula-zero' if not v }}">{{ m.reais(v) }}</td>
+                  {% endfor %}
+                  <td class="col-num col-total">{{ m.reais(l.total) }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>Total</td>
+                {% for v in tabelas.matriz.rodape.celulas %}
+                  <td class="col-num{{ ' celula-zero' if not v }}">{{ m.reais(v) }}</td>
+                {% endfor %}
+                <td class="col-num col-total">{{ m.reais(tabelas.matriz.rodape.total) }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
+    {% else %}
+      {# Mes sem despesa: uma linha no lugar das tres tabelas. Tres tabelas
+         vazias diriam a mesma coisa tres vezes. #}
+      <section class="card">
+        <p class="tabela__vazio">Nenhuma despesa em {{ periodo }}</p>
+      </section>
+    {% endif %}
+  </div>
+{% endblock %}

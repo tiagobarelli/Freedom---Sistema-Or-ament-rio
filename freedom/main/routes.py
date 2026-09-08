@@ -14,8 +14,8 @@ def index():
     """Painel do ano. O ano vem por GET (`/?ano=2026`) e nunca gera erro.
 
     A rota só orquestra: a lista de anos, a validação do que veio na URL e a
-    composição de cards e gráficos moram em `servico.py`, que lê o ano uma vez
-    só para os dois.
+    composição de cards, gráficos e tabelas moram em `servico.py`, que lê o ano
+    uma vez só para os três.
     """
     anos = servico.anos_com_lancamento()
     ano = servico.ano_valido(request.args.get("ano"), anos)
@@ -26,4 +26,5 @@ def index():
         anos=anos,
         cards=painel["cards"],
         graficos=painel["graficos"],
+        tabelas=painel["tabelas"],
     )

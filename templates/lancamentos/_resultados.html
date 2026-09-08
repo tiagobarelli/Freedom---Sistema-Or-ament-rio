@@ -49,9 +49,7 @@
       {% for r in resumo %}
         <li class="resumo-item">
           <span class="resumo-item__nome">{{ r.categoria }}</span>
-          <span class="resumo-item__barra" aria-hidden="true">
-            <span class="resumo-item__preenchimento" style="width: {{ '%.2f' | format(r.pct) }}%"></span>
-          </span>
+          {{ m.barra_pct(r.pct) }}
           <span class="resumo-item__valor">{{ m.reais(r.total) }}</span>
           <span class="resumo-item__pct">{{ r.pct | numero(1) }}%</span>
         </li>

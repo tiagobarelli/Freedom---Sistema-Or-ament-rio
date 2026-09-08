@@ -11,7 +11,9 @@
         5.1 Card          5.5 Badge
         5.2 Botao         5.6 Flash
         5.3 Formulario    5.8 Estado vazio
-        5.4 Tabela
+        5.4 Tabela (+ barra proporcional, componente sem numero logo depois:
+            e usada pela consulta e pela Visao Anual, nao pertence a nenhuma
+            das duas)
         (5.7 era o modal; removido por nao ter uso em template nenhum. Os
          numeros seguintes ficaram como estavam, para o resto do arquivo
          nao mudar de nome de uma vez so.)
@@ -784,6 +786,29 @@ body {
   font-weight: 500;
 }
 
+/* --- Barra proporcional (macro `barra_pct`) -----------------------------
+   Participacao percentual em CSS puro, sem biblioteca. Usada no resumo por
+   categoria da consulta (dentro da grade do .resumo-item) e na tabela por
+   categoria da Visao Anual (dentro de uma celula). Por isso ela nao tem
+   largura propria: ocupa o que o contexto der.
+*/
+
+.barra {
+  display: block;
+  height: 8px;
+  border-radius: var(--raio-pill);
+  background: rgba(26, 27, 46, 0.06);
+  overflow: hidden;
+}
+
+.barra__preenchimento {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: var(--raio-pill);
+  background: var(--cor-destaque);
+}
+
 /* --- 5.5 Badge --------------------------------------------------------- */
 
 .badge {
@@ -1332,21 +1357,8 @@ body {
   white-space: nowrap;
 }
 
-.resumo-item__barra {
-  display: block;
-  height: 8px;
-  border-radius: var(--raio-pill);
-  background: rgba(26, 27, 46, 0.06);
-  overflow: hidden;
-}
-
-.resumo-item__preenchimento {
-  display: block;
-  height: 100%;
-  min-width: 2px;
-  border-radius: var(--raio-pill);
-  background: var(--cor-destaque);
-}
+/* A barra em si mora na secao 5.4-bis (componente `barra`, logo abaixo da
+   tabela); aqui fica so onde ela se encaixa na grade do resumo. */
 
 .resumo-item__valor {
   text-align: right;
@@ -1690,6 +1702,99 @@ body {
   background: var(--solido);
   border: 1px solid var(--linha);
   border-radius: var(--raio-m);
+}
+
+/* --- 5.13.2 Tabelas do ano --------------------------------------------
+   Duas tabelas empilhadas, cada uma dentro do .card de vidro; a tabela em si e
+   superficie de leitura (.tabela-caixa, quase opaca), como nas demais telas.
+
+   Sem grade aqui de proposito: as duas ocupam a largura toda, e uma grade de
+   uma coluna so daria a chance de repetir o problema do `1fr` com filho largo
+   (a tabela mensal tem oito colunas e usa a rolagem interna da .tabela-caixa
+   entre 768px e ~1100px).
+*/
+
+.painel-tabelas {
+  margin-top: var(--e-4);
+}
+
+.painel-tabelas > .card + .card {
+  margin-top: var(--e-4);
+}
+
+.painel-tabelas .tabela-caixa {
+  margin-top: var(--e-3);
+  box-shadow: none;          /* a sombra ja e a do card que a envolve */
+}
+
+/* Numeros alinhados a direita e com digito de largura fixa: em doze linhas, a
+   virgula precisa cair sempre na mesma coluna. */
+.tabela--mensal .col-num,
+.tabela--categorias .col-num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabela--mensal .col-mes {
+  white-space: nowrap;
+}
+
+/* No desktop o mes vai por extenso; a abreviacao entra no celular (secao 7). */
+.tabela--mensal .mes-curto,
+.tabela--mensal .linha-apoio {
+  display: none;
+}
+
+/* Vermelho so no numero, nunca no travessao: quem pinta e o <span> que a
+   macro `dinheiro` do template emite apenas quando ha valor negativo. */
+.tabela--mensal .negativo {
+  color: var(--cor-erro);
+}
+
+.tabela--mensal tfoot td,
+.tabela--categorias tfoot td {
+  font-weight: 700;
+  background: rgba(26, 27, 46, 0.025);
+  border-top: 1px solid var(--linha-forte);
+  border-bottom: none;
+}
+
+/* --- tabela por categoria: numero e barra na mesma celula --- */
+
+.tabela--categorias .col-pct {
+  width: 38%;
+}
+
+.pct-celula {
+  display: flex;
+  align-items: center;
+  gap: var(--e-3);
+}
+
+/* A barra (componente da secao 5.4) nao tem largura propria: aqui ela toma o
+   que sobra da celula, e por isso encolhe junto no celular. */
+.pct-celula .barra {
+  flex: 1 1 auto;
+  min-width: 30px;
+}
+
+.pct-celula__numero {
+  flex: 0 0 46px;
+  text-align: right;
+  font-size: 13px;
+  color: var(--cor-texto-suave);
+  font-variant-numeric: tabular-nums;
+}
+
+.tabela--categorias tfoot .pct-celula__numero {
+  color: inherit;
+}
+
+.tabela__vazio {
+  padding: var(--e-6) var(--e-4);
+  text-align: center;
+  color: var(--cor-texto-suave);
 }
 
 /* ==========================================================================
@@ -2050,7 +2155,7 @@ body {
     grid-template-columns: 1fr auto 44px;
   }
 
-  .resumo-item__barra {
+  .resumo-item .barra {
     grid-column: 1 / -1;
     grid-row: 2;
     margin-top: 2px;
@@ -2125,6 +2230,82 @@ body {
   .grafico__area {
     height: 260px;
     padding: var(--e-2);
+  }
+
+  /* --- Tabelas do ano no celular ---
+     Na mensal sobram Mes, Receitas, Despesas e Saldo; as outras quatro descem
+     para a linha de apoio. A de categorias cabe inteira. */
+
+  .tabela--mensal,
+  .tabela--categorias {
+    min-width: 0;
+  }
+
+  .tabela--mensal .col-essenciais,
+  .tabela--mensal .col-nao-essenciais,
+  .tabela--mensal .col-acumulado,
+  .tabela--mensal .col-taxa,
+  .tabela--mensal .mes-longo {
+    display: none;
+  }
+
+  .tabela--mensal .mes-curto {
+    display: inline;
+  }
+
+  .tabela--mensal .linha-apoio {
+    display: table-row;
+  }
+
+  /* Quatro colunas de dinheiro em 390px: o respiro sai do padding lateral,
+     nao do tamanho da fonte, que precisa continuar legivel. */
+  .tabela--mensal th,
+  .tabela--mensal td,
+  .tabela--categorias th,
+  .tabela--categorias td {
+    padding: var(--e-2) 5px;
+    font-size: 12.5px;
+  }
+
+  .tabela--mensal th,
+  .tabela--categorias th {
+    font-size: 10.5px;
+    letter-spacing: 0.03em;
+  }
+
+  /* Mes e apoio sao um bloco so: a borda fica embaixo do par, nao entre os
+     dois. */
+  .tabela--mensal tbody tr:not(.linha-apoio) td,
+  .tabela--mensal tfoot tr:not(.linha-apoio) td {
+    border-bottom: none;
+  }
+
+  .tabela--mensal .linha-apoio td {
+    padding-top: 0;
+    padding-bottom: var(--e-2);
+    font-size: 11.5px;
+    color: var(--cor-texto-fraco);
+    border-bottom: 1px solid var(--linha);
+    white-space: normal;
+  }
+
+  .tabela--mensal tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  /* A barra encolhe com a celula; o numero mantem largura fixa para nao
+     dancar de linha em linha. */
+  .tabela--categorias .col-pct {
+    width: 42%;
+  }
+
+  .pct-celula {
+    gap: var(--e-2);
+  }
+
+  .pct-celula__numero {
+    flex-basis: 40px;
+    font-size: 12px;
   }
 
   /* --- Autocomplete no celular --- */

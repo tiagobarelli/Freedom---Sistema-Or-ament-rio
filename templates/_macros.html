@@ -107,6 +107,22 @@
 {%- endmacro %}
 
 
+{# --- Barra proporcional --------------------------------------------------
+   Barrinha de participacao percentual, em CSS puro. Nasceu duplicada no
+   resumo por categoria da consulta de despesas e no de receitas; virou macro
+   quando a Visao Anual passou a precisar da mesma barra numa tabela.
+
+   A largura vai em `style` com PONTO decimal: e CSS, nao texto de tela - o
+   percentual visivel ao lado usa o filtro `numero`, com virgula.
+   aria-hidden porque o numero ja esta escrito na celula vizinha.
+#}
+{% macro barra_pct(pct) -%}
+  <span class="barra" aria-hidden="true">
+    <span class="barra__preenchimento" style="width: {{ '%.2f' | format(pct) }}%"></span>
+  </span>
+{%- endmacro %}
+
+
 {# --- Badge de essencialidade efetiva, com a prioridade junto -------------- #}
 {% macro badge_essencialidade(essencialidade, prioridade=None) %}
   {% if essencialidade == 'Essencial' %}

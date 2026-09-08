@@ -1,13 +1,13 @@
 """Leituras e composição da Visão Anual.
 
-A tela é um painel de treze cards mais quatro gráficos sobre um ano inteiro,
-e são quatro consultas: despesas agregadas por mês, receitas agregadas por mês,
-o maior lançamento individual do ano e — só para o gráfico de prioridades — as
-não essenciais agrupadas por mês e prioridade. Nenhuma delas devolve mais que
-doze linhas por mês.
+A tela é um painel de treze cards, quatro gráficos e duas tabelas sobre um ano
+inteiro, e são cinco consultas: despesas agregadas por mês, receitas agregadas
+por mês, o maior lançamento individual do ano, as não essenciais agrupadas por
+mês e prioridade (gráfico 4) e as despesas agrupadas por categoria (tabela 2).
+Nenhuma delas devolve mais que doze linhas por mês.
 
-Cards e gráficos saem das MESMAS linhas mensais: `painel_do_ano` lê uma vez e
-compõe os dois. É a única soma que a aplicação faz fora do banco, e existe
+Cards, gráficos e a tabela mensal saem das MESMAS linhas mensais:
+`painel_do_ano` lê uma vez e compõe os três. É a única soma que a aplicação faz fora do banco, e existe
 porque somar doze números já lidos custa menos que uma ida ao banco por número
 — o agrupamento por mês, que é o trabalho pesado, continua no SQL.
 
@@ -179,19 +179,57 @@ def nao_essenciais_por_prioridade(ano):
     )
 
 
+def despesas_por_categoria(ano):
+    """Total de cada categoria que teve despesa no ano, da maior para a menor.
+
+    Só a tabela por categoria usa. Categoria sem despesa no ano não aparece —
+    é o GROUP BY sobre o intervalo que garante isso, sem filtro extra. O nome
+    desempata os totais iguais, para a ordem não depender do banco.
+    """
+    inicio, fim = _intervalo(ano)
+    return query_all(
+        "SELECT v.categoria, SUM(v.valor) AS total"
+        "  FROM vw_despesas v"
+        " WHERE v.data >= %s AND v.data < %s"
+        " GROUP BY v.categoria"
+        " ORDER BY SUM(v.valor) DESC, v.categoria",
+        (inicio, fim),
+    )
+
+
 # --------------------------------------------------------------------------
-# Leitura do ano: uma só, servindo cards e gráficos
+# Leitura do ano: uma só, servindo cards, gráficos e tabelas
 # --------------------------------------------------------------------------
 
 def _leitura_do_ano(ano, hoje):
-    """As linhas do ano, lidas uma vez. Cards e gráficos partem daqui."""
+    """As linhas do ano, lidas uma vez. Tudo na tela parte daqui."""
     return {
         "ano": ano,
         "despesas": {l["mes"]: l for l in despesas_por_mes(ano)},
         "receitas": {l["mes"]: l["total"] for l in receitas_por_mes(ano)},
         "prioridades": nao_essenciais_por_prioridade(ano),
+        "categorias": despesas_por_categoria(ano),
         "pico": pico_de_despesa(ano),
         "divisor": meses_transcorridos(ano, hoje),
+    }
+
+
+def _totais_do_ano(leitura):
+    """Os cinco totais do ano, somados uma vez só.
+
+    Cards e linha de totais da tabela mensal leem daqui, e não cada um da sua
+    conta: é o que garante que "Saldo Anual" no card e no rodapé da tabela
+    sejam o mesmo número, e não dois números que por acaso coincidem.
+    """
+    despesas = leitura["despesas"].values()
+    receita = sum(leitura["receitas"].values(), ZERO)
+    despesa = sum((l["total"] for l in despesas), ZERO)
+    return {
+        "receita": receita,
+        "despesa": despesa,
+        "essencial": sum((l["essencial"] for l in despesas), ZERO),
+        "nao_essencial": sum((l["nao_essencial"] for l in despesas), ZERO),
+        "saldo": receita - despesa,
     }
 
 
@@ -220,11 +258,19 @@ def _card(rotulo, valor=None, texto=None, apoio=None, negativo=False):
             "apoio": apoio, "negativo": negativo}
 
 
+def _fracao(parte, total):
+    """Fatia sobre o total, em pontos percentuais (Decimal), ou None.
+
+    None quando não há denominador: percentual sem base não é zero por cento,
+    é uma conta que não existe. Quem exibe troca por travessão.
+    """
+    return parte / total * 100 if total else None
+
+
 def _percentual(parte, total):
-    """Fatia sobre o total, em texto pt-BR. Travessão quando o total é zero."""
-    if not total:
-        return SEM_VALOR
-    return formatar_numero(parte / total * 100, 1) + "%"
+    """`_fracao` já em texto pt-BR, para os cards. Travessão quando não há."""
+    fracao = _fracao(parte, total)
+    return SEM_VALOR if fracao is None else formatar_numero(fracao, 1) + "%"
 
 
 def _nome_do_mes(mes):
@@ -232,7 +278,7 @@ def _nome_do_mes(mes):
     return MESES[mes - 1].capitalize()
 
 
-def _cards(leitura):
+def _cards(leitura, totais):
     """Os treze cards do ano, na ordem em que aparecem na tela.
 
     Ano sem lançamento nenhum não é caso de erro: os cards de dinheiro mostram
@@ -243,11 +289,11 @@ def _cards(leitura):
     pico = leitura["pico"]
     divisor = leitura["divisor"]
 
-    despesa_anual = sum((l["total"] for l in despesas.values()), ZERO)
-    essencial = sum((l["essencial"] for l in despesas.values()), ZERO)
-    nao_essencial = sum((l["nao_essencial"] for l in despesas.values()), ZERO)
-    receita_anual = sum(receitas.values(), ZERO)
-    saldo = receita_anual - despesa_anual
+    despesa_anual = totais["despesa"]
+    essencial = totais["essencial"]
+    nao_essencial = totais["nao_essencial"]
+    receita_anual = totais["receita"]
+    saldo = totais["saldo"]
 
     def saldo_do_mes(mes):
         despesa = despesas[mes]["total"] if mes in despesas else ZERO
@@ -368,10 +414,101 @@ def _graficos(leitura):
 
 
 # --------------------------------------------------------------------------
+# Composição das tabelas
+#
+# Célula que pode não existir vem como None, e não como zero nem como texto:
+# quem decide que "sem valor" se desenha como travessão é o template, do mesmo
+# jeito que é ele quem põe o "R$" na frente do dinheiro.
+# --------------------------------------------------------------------------
+
+def _tabela_mensal(leitura, totais):
+    """Doze linhas (janeiro a dezembro) e a linha de totais.
+
+    Nenhuma consulta a mais: sai das mesmas linhas mensais dos cards. Mês sem
+    lançamento vale zero — a tabela é do ano inteiro, não só do que aconteceu.
+    """
+    despesas = leitura["despesas"]
+    receitas = leitura["receitas"]
+    divisor = leitura["divisor"]
+
+    linhas, acumulado = [], ZERO
+    for mes in range(1, 13):
+        despesa_do_mes = despesas.get(mes)
+        receita = receitas.get(mes, ZERO)
+        despesa = despesa_do_mes["total"] if despesa_do_mes else ZERO
+        saldo = receita - despesa
+        acumulado += saldo
+
+        # Mês que ainda não chegou não tem acumulado nem taxa: o número
+        # existiria (zero), mas descreveria um mês que não começou. As colunas
+        # de valor continuam mostrando o que houver — lançamento com data
+        # futura é raro, mas escondê-lo seria pior que exibi-lo.
+        ainda_nao_chegou = divisor is not None and mes > divisor
+
+        linhas.append({
+            "mes": MESES[mes - 1].capitalize(),
+            "mes_curto": MESES_CURTOS[mes - 1],
+            "receitas": receita,
+            "despesas": despesa,
+            "essenciais": despesa_do_mes["essencial"] if despesa_do_mes else ZERO,
+            "nao_essenciais": (despesa_do_mes["nao_essencial"]
+                               if despesa_do_mes else ZERO),
+            "saldo": saldo,
+            "acumulado": None if ainda_nao_chegou else acumulado,
+            "taxa": None if ainda_nao_chegou else _fracao(saldo, receita),
+        })
+
+    return {
+        "linhas": linhas,
+        # O acumulado do ano é o saldo do ano, e vem do mesmo lugar do card.
+        "total": {
+            "mes": "Total",
+            "mes_curto": "Total",
+            "receitas": totais["receita"],
+            "despesas": totais["despesa"],
+            "essenciais": totais["essencial"],
+            "nao_essenciais": totais["nao_essencial"],
+            "saldo": totais["saldo"],
+            "acumulado": totais["saldo"],
+            "taxa": _fracao(totais["saldo"], totais["receita"]),
+        },
+    }
+
+
+def _tabela_categorias(leitura, totais):
+    """Categorias com despesa no ano, da maior para a menor, com o percentual.
+
+    Ano sem despesa devolve lista vazia e total None: a tela troca a tabela por
+    uma linha só dizendo que não houve despesa, em vez de mostrar 0,0% em toda
+    parte.
+    """
+    despesa_anual = totais["despesa"]
+    linhas = [
+        {"categoria": l["categoria"],
+         "total": l["total"],
+         "pct": _fracao(l["total"], despesa_anual)}
+        for l in leitura["categorias"]
+    ]
+    return {
+        "linhas": linhas,
+        "total": {"total": despesa_anual,
+                  "pct": _fracao(despesa_anual, despesa_anual)},
+    }
+
+
+# --------------------------------------------------------------------------
 # A tela inteira
 # --------------------------------------------------------------------------
 
 def painel_do_ano(ano, hoje=None):
-    """Cards e gráficos do ano, com uma leitura só do banco."""
+    """Cards, gráficos e tabelas do ano, com uma leitura só do banco."""
     leitura = _leitura_do_ano(ano, hoje or date.today())
-    return {"cards": _cards(leitura), "graficos": _graficos(leitura)}
+    totais = _totais_do_ano(leitura)
+    return {
+        "cards": _cards(leitura, totais),
+        "graficos": _graficos(leitura),
+        "tabelas": {
+            "mensal": _tabela_mensal(leitura, totais),
+            "categorias": _tabela_categorias(leitura, totais),
+        },
+    }

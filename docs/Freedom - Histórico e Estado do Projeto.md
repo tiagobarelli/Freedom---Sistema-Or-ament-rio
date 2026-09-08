@@ -1,6 +1,6 @@
 # Freedom — Histórico e Estado do Projeto
 
-Documento de contexto para o projeto orquestrador. Resume o que foi decidido, o que existe e o que falta. Consolidado após a rodada 8 (07/09/2026).
+Documento de contexto para o projeto orquestrador e para o agente. Resume o que foi decidido, o que existe e o que falta. Consolidado após a rodada 10 (07/09/2026). Fica em `docs/` no repositório e na base de conhecimento do orquestrador; se um muda, o outro muda.
 
 ## 1. O que é o Freedom
 
@@ -13,7 +13,7 @@ Objetivo de longo prazo: além de registrar despesas e receitas, medir crescimen
 Três papéis:
 
 - **Tiago** (dono do projeto): decide, cadastra dados pela interface, executa comandos, cola aqui as saídas do agente.
-- **Orquestrador** (este projeto no Claude web): escreve os prompts de cada rodada, revisa as entregas do agente, responde às dúvidas técnicas que ele levanta, mantém a documentação alinhada.
+- **Orquestrador** (projeto no Claude web): escreve os prompts de cada rodada, revisa as entregas do agente, responde às dúvidas técnicas que ele levanta, mantém a documentação alinhada.
 - **Agente** (Claude Opus 5 no VS Code): implementa. Recebe um prompt por rodada, executa, valida de verdade e devolve um relatório com "pontos que precisei interpretar".
 
 O ciclo que funcionou: orquestrador faz poucas perguntas de decisão antes do prompt → prompt fechado por rodada → agente pergunta quando há ambiguidade → entrega com validação executada → orquestrador revisa as interpretações e ajusta docs → próxima rodada.
@@ -29,25 +29,28 @@ O ciclo que funcionou: orquestrador faz poucas perguntas de decisão antes do pr
 - **Configuração também se exclui** (rodada 8): `tb_configuracoes` admite `UPDATE` e `DELETE` físico — uma vigência digitada errada é lixo, não histórico. A chave não muda na edição.
 - Consulta de despesas é **tela separada** da de lançamento: uma é digitação rápida, a outra é leitura e conferência.
 - **Receitas são tela única** (rodada 7): formulário no topo, filtros e lista abaixo, na mesma página. O volume é baixo e ver o que entrou tem valor imediato; separar seria cerimônia. A assimetria com despesas é intencional.
+- **A página inicial é a Visão Anual** (rodadas 9 e 10), não um painel mensal como o roteiro original previa. Seleciona-se o ano; os cards e gráficos são do ano inteiro. O detalhamento mensal fica para o orçamento e para a consulta.
+- **Ano inválido na URL cai no ano corrente**, sem erro e sem tela vazia. Só anos com pelo menos um lançamento aparecem no seletor (rodada 9, mantida na 10 por decisão do Tiago).
 
 ## 4. Banco de dados
 
-Fonte da verdade: `docs/Freedom - Estrutura do Banco de Dados.md` (está na base de conhecimento) e `db/init/01_schema.sql`. Regra: se um muda, o outro muda. **O DDL mudou uma única vez desde a rodada 1**: a view `vw_receitas`, na rodada 7. As rodadas 4 a 6 e a 8 não tocaram no schema.
+Fonte da verdade: `docs/Freedom - Estrutura do Banco de Dados.md` e `db/init/01_schema.sql`. Regra: se um muda, o outro muda. **O DDL mudou uma única vez desde a rodada 1**: a view `vw_receitas`, na rodada 7. As rodadas 4 a 6 e 8 a 10 não tocaram no schema.
 
 Resumo do que importa para escrever prompts:
 
 - PostgreSQL 16 em Docker (`docker-compose.yml`, serviço `postgres`, container `freedom_postgres`), pgAdmin em `localhost:5050`. Credenciais e `DATABASE_URL` no `.env`.
 - 13 tabelas: `tb_categorias`, `tb_subcategorias`, `tb_ref_receitas`, `tb_pessoas`, `tb_usuarios`, `tb_contas`, `tb_ipca`, `tb_configuracoes`, `tb_despesas`, `tb_receitas`, `tb_orcamentos`, `tb_ativos`, `tb_patrimonio_snapshots`. Duas views: `vw_despesas` e `vw_receitas`.
-- `vw_despesas`: despesa + subcategoria + categoria + **essencialidade efetiva** (`COALESCE(despesa, subcategoria)`) + `ano_mes` inteiro `AAAAMM`.
-- `vw_receitas`: receita + categoria + subcategoria da fonte + `ref_receita_ativo` + `ano_mes`. Leitura sempre pelas views; escrita nas tabelas base.
-- **`ano_mes` serve para exibir e agrupar, não para filtrar**: o filtro mensal usa `data >= início AND data < início do mês seguinte`, o que faz `ix_despesas_data` / `ix_receitas_data` serem usados. Índice de expressão sobre o mês foi avaliado e dispensado.
+- `vw_despesas`: despesa + subcategoria + categoria + **essencialidade efetiva** (`COALESCE(despesa, subcategoria)`) + `prioridade` + `ano_mes` inteiro `AAAAMM`.
+- `vw_receitas`: receita + categoria + subcategoria da fonte + `ref_receita_ativo` + `ano_mes`. Leitura sempre pelas views; escrita nas tabelas base. Vale inclusive para listas auxiliares (ex.: anos com lançamento).
+- **`ano_mes` serve para exibir e agrupar, não para filtrar**: o filtro mensal e o anual usam `data >= início AND data < início do período seguinte`, o que faz `ix_despesas_data` / `ix_receitas_data` serem usados. Índice de expressão sobre o mês foi avaliado e dispensado.
 - Nada derivado é armazenado. Toda FK é `NOT NULL` e `ON DELETE RESTRICT`. Referência não é apagada: tem `ativo` (em `tb_contas`, `ativa`).
 - CHECKs: essencialidade em `Essencial` / `Não Essencial` (subcategoria e despesa); `tb_contas.tipo` em `corrente, cartao, dinheiro, outro`; `prioridade` 1–4; `valor > 0` em despesas e receitas; dia 1 em `tb_ipca.mes` e `tb_orcamentos.ano_mes`; `>= 0` em orçamento e patrimônio. `tb_ativos.classe` e `tb_configuracoes.chave` sem CHECK, de propósito (listas abertas).
+- `prioridade` é **nula** quando a despesa é essencial e pode ser nula em não essencial antiga; o banco não impede. A Visão Anual trata NULL em não essencial como faixa "Sem prioridade", exibida só se existir.
 - `tb_configuracoes` tem `vigente_desde`; o valor vigente numa data é o registro com maior `vigente_desde ≤ data`, e todas as chaves de uma vez saem com `DISTINCT ON (chave)`.
 - Trigger `fn_set_atualizado_em()` em despesas e receitas; `atualizado_em` fica NULL até o primeiro UPDATE.
 - **Regras da aplicação, não do banco**: prioridade só quando a essencialidade efetiva é "Não Essencial" (grava NULL quando essencial); autoria nunca muda na edição; referência inativa continua visível na edição e nos filtros, marcada como tal, mas nunca é gravada em lançamento novo; receita pré-seleciona a pessoa do usuário logado; configuração não aceita negativo e tem limite de casas decimais; catálogo de chaves de configuração vive num dicionário Python, não no banco.
 
-Estado dos dados: **725 despesas reais**, 1 receita real, 24 categorias, 82 subcategorias, 3 contas, 5 pessoas, 8 fontes de receita, `tb_configuracoes` vazia (os valores reais de TSR, R e S ainda serão cadastrados). Usuário `tiago` ativo, `zz_consulta` desativado, `zz_teste` criado na rodada 8 para o agente validar em navegador. **Há dado real em produção: nenhuma rodada pode apagar linha que não tenha criado, e a faxina de teste é sempre por id.**
+Estado dos dados: **725 despesas reais e 61 receitas reais, todas de 2026**; 24 categorias, 82 subcategorias, 3 contas, 5 pessoas, 8 fontes de receita. `tb_configuracoes` tem **TSR, S e R cadastrados** — a Visão Anual ainda não os lê. Usuário `tiago` ativo, `zz_consulta` desativado, `zz_teste` ativo para o agente validar em navegador (senha no `.env`). **Há dado real em produção: nenhuma rodada pode apagar linha que não tenha criado, e a faxina de teste é sempre por id.**
 
 ## 5. Stack da aplicação (fechada, não reabrir)
 
@@ -57,24 +60,30 @@ Estado dos dados: **725 despesas reais**, 1 receita real, 24 categorias, 82 subc
 | Banco | psycopg 3 + `psycopg_pool`, SQL direto parametrizado, `row_factory=dict_row`. **Sem ORM, sem migrações** |
 | Auth | Flask-Login; hash com `werkzeug.security` (scrypt) |
 | Formulários | Flask-WTF (CSRF em todo POST) |
-| Interatividade | HTMX 2.0.4, arquivo local em `static/js/`, mais JS próprio pontual (menu, limpar filtros, autocomplete) |
-| Gráficos (futuro) | Chart.js, arquivo local em `static/` |
+| Interatividade | HTMX 2.0.4, arquivo local em `static/js/`, mais JS próprio pontual (menu, limpar filtros, autocomplete, gráficos) |
+| Gráficos | **Chart.js 4.5.1**, build UMD local em `static/js/chart.umd.js`, carregado só na Visão Anual via `{% block scripts %}`. Núcleo apenas, sem plugins. Versão registrada no README |
 | CSS | Escrito à mão, variáveis CSS, Glassmorphism tema claro. Sem Tailwind, sem bibliotecas de ícones |
+| Dinheiro | `Decimal` em todo cálculo; `float` só na serialização final para JSON de gráfico |
 | Ambiente | Windows, PowerShell, venv em `venv/`, Python 3.14 |
 
 ## 6. Estrutura atual do código
 
 ```
 freedom/
-  __init__.py      create_app: CSRF, pool, Flask-Login, blueprints, CLI, filtro Jinja `moeda`
-                   (agora vindo de util.py)
+  __init__.py      create_app: CSRF, pool, Flask-Login, blueprints, CLI, filtros Jinja
+                   `moeda` e `numero` (ambos de util.py)
   config.py        lê .env; template_folder/static_folder apontam para a raiz
   db.py            ConnectionPool, dict_row, get_connection(), executar()
   util.py          destino_interno(); parser e formatação de número: ValorInvalido, converter_valor,
-                   converter_numero(percentual=), formatar_valor, formatar_numero, escapar_like
+                   converter_numero(percentual=), formatar_valor, formatar_numero, escapar_like;
+                   MESES (nomes dos meses em português — nunca `locale`)
   cli.py           flask create-user, flask set-password
   auth/            forms.py, models.py, routes.py (/login, /logout)
-  main/            routes.py (/ "Início" — lugar reservado ao dashboard)
+  main/            routes.py  ("/" Visão Anual: lista de anos → ano válido → painel; só orquestra)
+                   servico.py painel_do_ano: consultas mensais (despesas por essencialidade,
+                              receitas, não essenciais por prioridade), pico, meses_do_eixo,
+                              composição dos 13 cards e dos 4 gráficos; _serie é o único
+                              ponto onde Decimal vira número JSON
   cadastros/       um módulo por entidade + servico.py (alternar_ativo, UniqueViolation → mensagem)
   lancamentos/     __init__.py (blueprint, prefixo /lancamentos)
                    despesas.py  lançar, editar, excluir, classificação reativa, sugestões
@@ -83,17 +92,20 @@ freedom/
                    servico_receitas.py  leituras sobre vw_receitas
                    forms.py     inclui ReceitaForm
                    servico.py   consultas e agregados de despesa, sugestões; helpers compartilhados
-                                id_valido, pagina_pedida, so_fragmento (promovidos na rodada 8)
+                                id_valido, pagina_pedida, so_fragmento
   configuracoes/   __init__.py (blueprint, prefixo /configuracoes)
                    rotas.py, forms.py
                    servico.py   CATALOGO de chaves, valor_vigente(), valores vigentes de todas
 templates/
-  base.html, layout_app.html (3 grupos de menu: Painel, Lançamentos, Cadastros;
-                              "Configurações" no fim de Cadastros)
+  base.html        inclui `{% block scripts %}` para script por tela
+  layout_app.html  3 grupos de menu: Painel ("Visão Anual"), Lançamentos, Cadastros
+                   ("Configurações" no fim de Cadastros)
   _macros.html     campo, campo_area, badge, ações, `reais`, `badge_essencialidade`,
                    `campos_despesa` (com url_sugestoes), `campos_receita`, `combobox`
-                   (escrita na rodada 8: <input list> + <datalist>)
-  auth/, main/, cadastros/
+                   (<input list> + <datalist>)
+  auth/, cadastros/
+  main/index.html  seletor de ano (GET), grade de 13 cards, ilha JSON `#dados-graficos`,
+                   4 cards com canvas, bloco scripts
   lancamentos/     despesas.html, despesa_editar.html, consulta.html, receitas.html,
                    receita_editar.html, _linha_despesa.html, _linha_consulta.html,
                    _linha_receita.html, _resultados.html, _receitas_resultados.html,
@@ -103,12 +115,14 @@ templates/
   configuracoes/   configuracoes.html, _formulario.html, _formato.html, _lista.html,
                    _linha.html, _linha_edicao.html, _gravada.html, _erro.html
 static/
-  css/app.css      seções 1–8 + 5.9 (lançamento), 5.10 (consulta), 5.11 (autocomplete),
-                   5.12 (configurações)
-  js/htmx.min.js
+  css/app.css      seção 1 (variáveis, inclusive paleta --grafico-*), seções 2–8;
+                   5.9 lançamento, 5.10 consulta, 5.11 autocomplete, 5.12 configurações,
+                   5.13 Visão Anual (5.13.1 gráficos). Seção 5.7 (modal) foi removida e a
+                   lacuna na numeração é intencional
+  js/htmx.min.js, js/chart.umd.js, js/visao_anual.js
 db/init/01_schema.sql
-docs/
-run.py, requirements.txt, .gitignore, README.md, .env, .flaskenv
+docs/            Freedom - Estrutura do Banco de Dados.md, Freedom - Histórico e Estado do Projeto.md
+run.py, requirements.txt, .gitignore, README.md (seção "Dependências de front-end"), .env, .flaskenv
 ```
 
 Padrões já estabelecidos no código (o agente deve mantê-los):
@@ -118,17 +132,20 @@ Padrões já estabelecidos no código (o agente deve mantê-los):
 - Lançamento em série: grava por HTMX sem recarregar, limpa os campos que mudam a cada lançamento, mantém os que se repetem, devolve o foco ao primeiro campo variável e atualiza lista e agregados por swap out-of-band.
 - **Swap out-of-band em contexto de tabela vai dentro de `<template>`** — e a regra vale quando a resposta **começa** com `<tr>`. Resposta que começa com `<form>` não precisa.
 - Estado de UI que precisa sobreviver ao re-render (o `open` do `<details>`) vai em `<input type="hidden">`; filtros que vivem fora do formulário vão por `hx-include`, não por campo oculto.
-- Filtros são GET na URL, com `hx-push-url`; a mesma rota devolve página inteira ou fragmento conforme `HX-Request`, com exceção explícita para `HX-History-Restore-Request`.
+- Filtros são GET na URL, com `hx-push-url`; a mesma rota devolve página inteira ou fragmento conforme `HX-Request`, com exceção explícita para `HX-History-Restore-Request`. **Exceção deliberada: o seletor de ano da Visão Anual recarrega a página inteira, sem HTMX** — a tela tem gráficos que reinicializam mais limpo num load completo.
 - Quando gravar ou excluir pode reordenar a lista ou mudar a paginação, devolver o bloco de resultados inteiro em vez da linha isolada — se necessário, redirecionando o swap com `HX-Retarget`.
-- Agregados vêm de consulta própria sobre o filtro inteiro, nunca de soma em Python sobre a página.
+- Agregados vêm de consulta própria sobre o filtro inteiro, nunca de soma em Python sobre a página. A única composição em Python admitida é a dos cards e séries da Visão Anual a partir das (no máximo) 12 linhas mensais que o SQL já agregou — e é feita com `Decimal`.
+- **Gráficos**: o servidor entrega séries prontas (inclusive acumulados) em JSON dentro do template (`<script type="application/json">` via `tojson`); o JS só desenha. Rótulos de série, nomes de mês e qualquer texto vêm do servidor. Cores vêm das variáveis CSS lidas por `getComputedStyle`, nunca hex no JS. Cada canvas fica num contêiner com altura fixa em CSS e `maintainAspectRatio: false`; a grade que contém canvas usa `minmax(0, 1fr)`, não `1fr`. Eixo Y sem centavos, tooltip com centavos, ambos por `Intl.NumberFormat('pt-BR')`.
 - Busca textual escapa `%` e `_` (`ESCAPE '\'` em string *raw*), sem `unaccent`.
 - `UniqueViolation` vira erro de campo legível, pendurado no campo que a pessoa vai corrigir, nunca 500. Transação por request, rollback em erro.
 - Mensagem de login única para login inexistente / inativo / senha errada. Redirecionamento sempre por `destino_interno`. Logout via POST com CSRF.
 - Selects com valores de CHECK exibem rótulo amigável, mas gravam o valor exato. Subcategoria e fonte de receita têm opção em branco e nunca vêm pré-selecionadas.
-- Conhecimento que a tela precisa (catálogo de formatos, por exemplo) fica no servidor e chega por fragmento HTMX, sem cópia em JavaScript.
+- Conhecimento que a tela precisa (catálogo de formatos, por exemplo) fica no servidor e chega por fragmento HTMX ou por JSON embutido, sem cópia em JavaScript.
+- **Formatação**: dinheiro pelo filtro `moeda`; percentual visível pelo filtro `numero` (vírgula, uma casa); largura de barra em `style=` continua com ponto porque é CSS. Percentual sem denominador exibe "—", nunca "0%". Valor negativo em vermelho; travessão nunca é vermelho. Nome de mês com inicial maiúscula quando é rótulo solto ("Janeiro"), minúscula dentro de frase ("janeiro de 2026").
+- Script só de uma tela entra pelo `{% block scripts %}` do `base.html`, não em `layout_app.html`.
 - Destaque do item de menu vence pelo caminho mais específico (`/despesas` × `/despesas/consulta`).
-- Responsivo: abaixo de 768px a sidebar vira barra superior; nas tabelas, colunas secundárias são escondidas e realocadas numa linha de apoio, sem rolagem horizontal.
-- Validação de entrega inclui **navegador real**, não só requisições HTTP.
+- Responsivo: abaixo de 768px a sidebar vira barra superior; nas tabelas, colunas secundárias são escondidas e realocadas numa linha de apoio, sem rolagem horizontal. Grades de cards: 1 coluna até 767px, 2 até 1099px, 4 acima; grade de gráficos: 1 coluna até 1099px, 2 acima.
+- Validação de entrega inclui **navegador real com login**, não só requisições HTTP nem headless com tempo virtual.
 
 ## 7. Rodadas concluídas
 
@@ -143,30 +160,32 @@ Padrões já estabelecidos no código (o agente deve mantê-los):
 | 6 | Regra de vírgula corrigida, filtro mensal por intervalo de datas (Index Scan), autocomplete de descrição com preenchimento de subcategoria/conta/pessoa | ✅ |
 | 7 | Receitas em página única (lançamento em série, filtros, total, resumo por categoria, edição, exclusão), view `vw_receitas`, parser de valor promovido a `util.py` | ✅ |
 | 8 | Configurações com vigência (chave livre + catálogo na aplicação, percentual digitado como 4 → 0.04, edição em linha, exclusão física), promoção dos helpers compartilhados, `formatar_valor` para `util.py`, correção do `query_string` e do `<details>` no desktop | ✅ |
+| 9 | **Visão Anual** (`/`): seletor de ano por GET, 13 cards (receita, despesa, saldo, taxa de poupança, essenciais, não essenciais, média mensal, melhor mês, mês de maior gasto, pico, % essencial, % não essencial, meses no azul), `main/servico.py`, `MESES` em `util.py`, remoção de `.modal` e `.card--sem-padding` | ✅ |
+| 10 | **Gráficos** da Visão Anual com Chart.js local: receitas × despesas (barras), essenciais × não essenciais × total (linhas), saldo acumulado (área), não essenciais por prioridade (barras empilhadas); `{% block scripts %}`; filtro `numero`; percentuais de consulta e receitas com vírgula; correção de `1fr` → `minmax(0, 1fr)` | ✅ |
 
 ## 8. Roteiro (ordem sugerida)
 
-1. **Dashboard** (`/`): totais do mês, por categoria, essencial × não essencial, taxa de poupança (receitas × despesas do mesmo intervalo), número de independência com a TSR vigente. O resumo por categoria da consulta de despesas e o de receitas são os primeiros cartões prontos; `configuracoes/servico.py` já entrega os parâmetros vigentes.
-2. **Orçamento** mensal por categoria e realizado × planejado.
+1. **Melhorias da Visão Anual**: usar os parâmetros vigentes (TSR, R, S de `configuracoes/servico.py`) — número de independência, comparação da taxa de poupança realizada com a meta S; despesas por categoria no ano; possíveis links dos cards para a consulta filtrada. Escopo a fechar rodada a rodada.
+2. **Orçamento** mensal por categoria e realizado × planejado. As linhas mensais de `main/servico.py` servem como realizado.
 3. **Patrimônio**: ativos e snapshots; número de independência com dado real.
 4. **IPCA**: script de carga (API SIDRA/IBGE, `INSERT ... ON CONFLICT (mes) DO UPDATE`) e gráficos deflacionados.
 5. **Deploy**: serviço `app` no `docker-compose` com gunicorn; acesso via Tailscale; segundo usuário.
 
-Backlog consciente (adiado, não esquecido): exportação CSV/Excel, duplicar lançamento, edição em lote, filtro por intervalo livre de datas, ordenação por cabeçalho de coluna, sugestão que preencha valor, aprendizado de descrição por usuário, autocomplete de descrição em receitas.
+Backlog consciente (adiado, não esquecido): exportação CSV/Excel, duplicar lançamento, edição em lote, filtro por intervalo livre de datas, ordenação por cabeçalho de coluna, sugestão que preencha valor, aprendizado de descrição por usuário, autocomplete de descrição em receitas, comparação entre anos na Visão Anual, exportação de gráfico como imagem, animação dos gráficos (hoje no padrão do Chart.js, nem pedida nem proibida).
 
 ## 9. Pendências e lembretes
 
-- **Rodadas 4 a 8 não foram commitadas** — o working tree acumula as cinco.
-- Existe **dado real** no banco (725 despesas, 1 receita). Toda faxina de teste é por id; nenhuma rodada apaga o que não criou.
-- Usuários: `tiago` ativo, `zz_consulta` desativado, `zz_teste` criado na rodada 8 para validação em navegador (credencial no `.env`). Usuário de teste se desativa, nunca se apaga.
-- `so_fragmento` mora em `lancamentos/servico.py` e por isso o módulo agora importa `flask.request`. Se uma terceira tela precisar dele, o lugar certo passa a ser `util.py`.
+- **Rodada 10 não foi commitada** (as rodadas 4 a 9 já foram).
+- Existe **dado real** no banco (725 despesas, 61 receitas). Toda faxina de teste é por id; nenhuma rodada apaga o que não criou. Ramo condicional que não tem dado real (ex.: "Sem prioridade") se exercita com leitura sintética sobre função pura, sem escrever no banco.
+- Usuários: `tiago` ativo, `zz_consulta` desativado, `zz_teste` ativo para validação em navegador. A senha está no `.env`; **todo prompt deve dizer o nome da variável**, senão o agente cai no cookie assinado e a validação de layout perde valor. Usuário de teste se desativa, nunca se apaga.
+- `tb_configuracoes` já tem TSR, S e R, mas nada os lê ainda. Configuração recusa valor negativo por regra da aplicação; se um `R` real negativo (cenário pessimista) for necessário, é uma linha em `converter_numero` — decisão a reabrir, não bug.
+- `so_fragmento` mora em `lancamentos/servico.py` e por isso o módulo importa `flask.request`. A Visão Anual não precisou dele (recarrega a página inteira). Se uma terceira tela precisar, o lugar certo passa a ser `util.py`.
 - A correção do `<details>` no desktop usa `::details-content { content-visibility: visible }`, que exige Chromium 131+ ou Firefox 139+. Em navegador mais antigo a regra é ignorada e os filtros extras voltam a ficar inacessíveis quando fechados. Se isso aparecer no celular de alguém da casa, trocar por uma abordagem sem `::details-content`.
-- Configuração recusa valor negativo por regra da aplicação. Se o dashboard precisar de um `R` real negativo (cenário pessimista), é uma linha em `converter_numero` — decisão a reabrir, não bug.
 - Autocomplete: com `hx-trigger ... changed`, escolher uma sugestão e redigitar exatamente o mesmo trecho não reabre a lista, porque o HTMX compara com o último valor que ele viu digitado. Digitação normal não esbarra nisso.
 - O JS do autocomplete ficou em ~75 linhas. Se crescer de novo, avaliar extrair para `static/js/`.
+- Ano futuro só aparece no seletor se houver lançamento com data futura; nesse caso os cards de média e "meses no azul" mostram "—" (sem divisor) e os gráficos mostram 12 meses zerados.
 - `SECRET_KEY` está no `.env`, documentada no README.
 - Python 3.14 é recente; se um pacote não tiver wheel, recriar o venv com 3.12 em vez de compilar.
-- Componentes CSS `modal` e `.card--sem-padding` continuam sem uso (a confirmação de exclusão usa `hx-confirm`).
 - Documentar em `docs/` qualquer decisão nova de schema — e conferir o que este documento afirma sobre o código antes de citá-lo num prompt (ver lições).
 
 ## 10. Lições aprendidas (para não repetir)
@@ -183,6 +202,8 @@ Backlog consciente (adiado, não esquecido): exportação CSV/Excel, duplicar la
 - Comentário `{# #}` dentro de uma expressão Jinja quebra o arquivo inteiro — e como o login importa `_macros.html`, derrubou a tela de login junto.
 - `{% include %}` dentro de macro enxerga o contexto do template, não os argumentos da macro; nesses casos, macro chamando macro.
 - Helper com underscore importado de outro módulo é contradição: se vai ser compartilhado, promover e tirar o underscore na mesma rodada.
+- Função de `util.py` não é filtro Jinja até ser registrada no factory; `formatar_numero` existia desde a rodada 8 e só virou `numero` na 10.
+- `locale` no Windows não é confiável para nome de mês; tupla em Python resolve.
 
 **HTMX**
 - Swap out-of-band depois de um `<tr>` só sobrevive dentro de `<template>` — mas a regra é sobre a resposta *começar* com `<tr>`; começando com `<form>`, não é necessário.
@@ -193,16 +214,20 @@ Backlog consciente (adiado, não esquecido): exportação CSV/Excel, duplicar la
 - `HX-History-Restore-Request` vem junto com `HX-Request` e espera a página inteira; devolver fragmento quebra o botão voltar.
 - Destaque de menu por prefixo de caminho acende dois itens quando uma rota é prefixo da outra.
 
-**CSS**
+**CSS e Chart.js**
 - `flex-basis` fixo vira altura quando o container passa a `column` no responsivo.
 - `<details>` fechado esconde o conteúdo mesmo com o `<summary>` em `display:none` — foi assim que os filtros extras ficaram inacessíveis no desktop por duas rodadas sem ninguém notar.
 - `nowrap` herdado numa coluna de data estica a tabela inteira no celular quando outra coluna tem texto longo.
+- Coluna de grade `1fr` tem mínimo `min-content`: um canvas já desenhado no tamanho do desktop segura a coluna aberta ao estreitar a janela, a página ganha rolagem horizontal e o Chart.js nunca encolhe. `minmax(0, 1fr)` deixa a coluna ceder primeiro.
+- Chart.js precisa de contêiner com altura fixa e `maintainAspectRatio: false`, senão cresce sem limite. Eixo Y com centavos faz o Chart.js esconder marcações; formatar o eixo sem casas e deixar os centavos no tooltip.
+- Remover uma seção numerada do CSS deixa lacuna; manter a lacuna e registrá-la no sumário é melhor que renumerar tudo.
 
 **Processo**
-- Suíte só de HTTP passa com bug de parser de tabela de pé; **validar no navegador real** pegou os piores bugs até agora (o OOB expulso da tabela, o vão branco no celular, os filtros extras inacessíveis).
-- Sem credencial de teste, o agente cai no test client e a validação de layout perde valor. Manter um usuário de teste ativo com senha no `.env` durante a rodada.
-- Prompts que funcionaram: escopo fechado ("SOMENTE isto"), lista de regras negativas, pedido explícito de validação executada e de relatório de interpretações, e sempre "se algo estiver ambíguo, pergunte antes de decidir".
+- Suíte só de HTTP passa com bug de parser de tabela de pé; **validar no navegador real** pegou os piores bugs até agora (o OOB expulso da tabela, o vão branco no celular, os filtros extras inacessíveis, o canvas travado no `1fr`).
+- Edge headless com `--virtual-time-budget` congela o `requestAnimationFrame`, e o Chart.js adia o `resize()` para o próximo desenho — o canvas nunca redimensiona e a validação de responsivo dá falso negativo. Rodar o navegador em tempo real, com login de verdade.
+- Sem credencial de teste, o agente cai no test client ou em cookie assinado e a validação de layout perde valor. Manter `zz_teste` ativo com senha no `.env` e **nomear a variável no prompt**.
+- Prompts que funcionaram: escopo fechado ("SOMENTE isto"), lista de regras negativas, pedido explícito de validação executada e de relatório de interpretações, e sempre "se algo estiver ambíguo, pergunte antes de decidir". Pedir os números que devem bater (soma das barras = card) transforma a validação de gráfico em conferência objetiva.
 - Deixar o agente propor opções quando há ambiguidade e decidir aqui com justificativa produz melhor resultado do que antecipar tudo no prompt.
 - Regra escrita simétrica quando o domínio é assimétrico gera erro silencioso: a primeira versão do parser tratava `.` e `,` igual, e `10,999` virava dez mil sem aviso. Ao escrever regra de formato, escrever também o que deve **falhar**.
-- Documentação que afirma coisas sobre o código precisa ser conferida: a estrutura listava as macros `combobox` e `tabela` como existentes, e o agente descobriu na rodada 8 que nenhuma das duas existia. Citar arquivo ou macro num prompt sem conferir custa uma rodada de retrabalho.
+- Documentação que afirma coisas sobre o código precisa ser conferida: a estrutura listava as macros `combobox` e `tabela` como existentes, e o agente descobriu na rodada 8 que nenhuma das duas existia. Na rodada 9, o próprio histórico não estava em `docs/` — o agente trabalhou sem ele. Citar arquivo ou macro num prompt sem conferir custa uma rodada de retrabalho.
 - Rodada boa mistura entrega nova com duas ou três limpezas pendentes já identificadas; a dívida não sobrevive a três rodadas assim.

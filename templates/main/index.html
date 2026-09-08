@@ -1,6 +1,68 @@
 {% extends "layout_app.html" %}
 {% import "_macros.html" as m %}
 
+{#
+  Celula de valor das tabelas do ano. Tres regras num lugar so:
+  - sem numero (None) vira travessao;
+  - numero negativo vai em vermelho;
+  - o travessao NUNCA e vermelho, porque a classe so entra quando ha numero.
+  Por isso a cor mora no <span> e nao no <td>: um <td class="negativo"> pintaria
+  tambem o mes que ainda nao chegou.
+#}
+{% macro dinheiro(valor) -%}
+  {%- if valor is none -%}
+    &mdash;
+  {%- elif valor < 0 -%}
+    <span class="negativo">{{ m.reais(valor) }}</span>
+  {%- else -%}
+    {{ m.reais(valor) }}
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro percentual(valor) -%}
+  {%- if valor is none -%}
+    &mdash;
+  {%- elif valor < 0 -%}
+    <span class="negativo">{{ valor | numero(1) }}%</span>
+  {%- else -%}
+    {{ valor | numero(1) }}%
+  {%- endif -%}
+{%- endmacro %}
+
+{#
+  Uma linha da tabela mensal, usada pelo <tbody> e pelo <tfoot>: os totais tem
+  exatamente as mesmas oito colunas, e escrever duas vezes seria duas chances
+  de divergir.
+
+  A segunda <tr> so aparece no celular (secao 7 do CSS) e carrega as quatro
+  colunas escondidas. Aqui a linha de apoio e uma LINHA, e nao um <span> dentro
+  da celula principal como nas tabelas de lancamento: la a celula principal e a
+  descricao, larga; aqui e o mes, estreito demais para caber o texto de apoio
+  sem espremer as colunas de dinheiro.
+#}
+{% macro linha_mensal(l) %}
+  <tr>
+    <td class="tabela__principal col-mes">
+      <span class="mes-longo">{{ l.mes }}</span> <span class="mes-curto">{{ l.mes_curto }}</span>
+    </td>
+    <td class="col-num">{{ dinheiro(l.receitas) }}</td>
+    <td class="col-num">{{ dinheiro(l.despesas) }}</td>
+    <td class="col-num col-essenciais">{{ dinheiro(l.essenciais) }}</td>
+    <td class="col-num col-nao-essenciais">{{ dinheiro(l.nao_essenciais) }}</td>
+    <td class="col-num">{{ dinheiro(l.saldo) }}</td>
+    <td class="col-num col-acumulado">{{ dinheiro(l.acumulado) }}</td>
+    <td class="col-num col-taxa">{{ percentual(l.taxa) }}</td>
+  </tr>
+  <tr class="linha-apoio">
+    <td colspan="8">
+      Ess. {{ dinheiro(l.essenciais) }} &middot;
+      Não ess. {{ dinheiro(l.nao_essenciais) }} &middot;
+      Acum. {{ dinheiro(l.acumulado) }} &middot;
+      Taxa {{ percentual(l.taxa) }}
+    </td>
+  </tr>
+{% endmacro %}
+
 {% block title %}Visão Anual - Freedom{% endblock %}
 {% block titulo_pagina %}Visão Anual{% endblock %}
 {% block subtitulo_pagina %}
@@ -84,6 +146,86 @@
       <div class="grafico__area">
         <canvas id="grafico-prioridades"
                 aria-label="Despesas nao essenciais por mes e prioridade"></canvas>
+      </div>
+    </section>
+  </div>
+
+  {#
+    As duas tabelas. Tudo ja vem somado de servico.py - inclusive o acumulado,
+    os totais e os percentuais. Aqui nao se soma nada: o Jinja so escolhe o
+    formato (macro `reais`, filtro `numero`) e onde pintar de vermelho.
+  #}
+  <div class="painel-tabelas">
+    <section class="card">
+      <h2 class="card__titulo">Mês a mês</h2>
+      <div class="tabela-caixa">
+        <table class="tabela tabela--mensal">
+          <thead>
+            <tr>
+              <th class="col-mes">Mês</th>
+              <th class="col-num">Receitas</th>
+              <th class="col-num">Despesas</th>
+              <th class="col-num col-essenciais">Essenciais</th>
+              <th class="col-num col-nao-essenciais">Não Essenciais</th>
+              <th class="col-num">Saldo</th>
+              <th class="col-num col-acumulado">Saldo Acumulado</th>
+              <th class="col-num col-taxa">Taxa de Poupança</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for l in tabelas.mensal.linhas %}{{ linha_mensal(l) }}{% endfor %}
+          </tbody>
+          <tfoot>
+            {{ linha_mensal(tabelas.mensal.total) }}
+          </tfoot>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="card__titulo">Despesas por categoria</h2>
+      <div class="tabela-caixa">
+        <table class="tabela tabela--categorias">
+          <thead>
+            <tr>
+              <th class="col-categoria">Categoria</th>
+              <th class="col-num">Total</th>
+              <th class="col-pct">% das despesas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for l in tabelas.categorias.linhas %}
+              <tr>
+                <td class="tabela__principal col-categoria">{{ l.categoria }}</td>
+                <td class="col-num">{{ m.reais(l.total) }}</td>
+                <td class="col-pct">
+                  <span class="pct-celula">
+                    {{ m.barra_pct(l.pct) }}
+                    <span class="pct-celula__numero">{{ l.pct | numero(1) }}%</span>
+                  </span>
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td class="tabela__vazio" colspan="3">Nenhuma despesa em {{ ano }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+          {% if tabelas.categorias.linhas %}
+            {# Sem barra no rodape: uma barra cheia de 100% nao informa nada. #}
+            <tfoot>
+              <tr>
+                <td class="col-categoria">Total</td>
+                <td class="col-num">{{ m.reais(tabelas.categorias.total.total) }}</td>
+                <td class="col-pct">
+                  <span class="pct-celula__numero">
+                    {{ tabelas.categorias.total.pct | numero(1) }}%
+                  </span>
+                </td>
+              </tr>
+            </tfoot>
+          {% endif %}
+        </table>
       </div>
     </section>
   </div>

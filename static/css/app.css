@@ -10,12 +10,16 @@
      5. Componentes
         5.1 Card          5.5 Badge
         5.2 Botao         5.6 Flash
-        5.3 Formulario    5.7 Modal
-        5.4 Tabela        5.8 Estado vazio
+        5.3 Formulario    5.8 Estado vazio
+        5.4 Tabela
+        (5.7 era o modal; removido por nao ter uso em template nenhum. Os
+         numeros seguintes ficaram como estavam, para o resto do arquivo
+         nao mudar de nome de uma vez so.)
         5.9 Lancamento de despesa (a tela de receita reusa, por apelido)
         5.10 Consulta de despesas (idem para a lista filtrada de receitas)
         5.11 Autocomplete de descricao
         5.12 Configuracoes (parametros com vigencia)
+        5.13 Visao anual (dashboard em cards)
      6. Tela de login
      7. Responsivo (< 768px)
      8. Utilitarios
@@ -451,11 +455,6 @@ body {
   border-color: var(--linha);
 }
 
-.card--sem-padding {
-  padding: 0;
-  overflow: hidden;
-}
-
 .card__titulo {
   margin-bottom: var(--e-2);
   font-size: 16px;
@@ -886,52 +885,6 @@ body {
   background: linear-gradient(var(--cor-destaque-fantasma),
                               var(--cor-destaque-fantasma)),
               var(--solido-sutil);
-}
-
-/* --- 5.7 Modal --------------------------------------------------------- */
-
-.modal-fundo {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: grid;
-  place-items: center;
-  padding: var(--e-4);
-  background: rgba(26, 27, 46, 0.30);
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
-}
-
-.modal-fundo[hidden] {
-  display: none;
-}
-
-.modal {
-  width: 100%;
-  max-width: 460px;
-  padding: var(--e-5);
-  /* Conteudo de leitura: quase opaco, nao vidro. */
-  background: var(--solido-sutil);
-  border: 1px solid var(--vidro-borda);
-  border-radius: var(--raio-g);
-  box-shadow: var(--sombra-g);
-}
-
-.modal__titulo {
-  margin-bottom: var(--e-2);
-  font-size: 17px;
-  font-weight: 650;
-}
-
-.modal__texto {
-  color: var(--cor-texto-suave);
-}
-
-.modal__acoes {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--e-2);
-  margin-top: var(--e-5);
 }
 
 /* --- 5.8 Estado vazio -------------------------------------------------- */
@@ -1603,6 +1556,86 @@ body {
   padding-bottom: 2px;
 }
 
+/* --- 5.13 Visao anual (dashboard em cards) -----------------------------
+   Grade de cards de moldura: 4 colunas no desktop, 2 no tablet, 1 no celular
+   (a de celular fica na secao 7, com o resto do responsivo). O vidro esta so
+   na moldura do .card, que ja vem da secao 5.1; aqui mora o miolo - rotulo
+   pequeno em cima, numero grande embaixo, linha de apoio quando houver.
+*/
+
+.filtro-ano {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--e-3);
+  padding: var(--e-3) var(--e-4);
+  margin-bottom: var(--e-4);
+  background: var(--solido);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-m);
+  box-shadow: var(--sombra-p);
+}
+
+.filtro-ano .selecao {
+  width: auto;
+  min-width: 130px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  font-size: 13.5px;
+}
+
+.painel-grade {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--e-4);
+}
+
+/* Entre 768px e ~1100px cabem duas colunas: com quatro, um valor como
+   R$ 100.836,00 quebraria em duas linhas em quase todos os cards. */
+@media (max-width: 1099px) {
+  .painel-grade {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.painel-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-1);
+  padding: var(--e-4) var(--e-5);
+}
+
+/* Mesmo rotulo em versalete dos filtros da consulta: e o que diz o que o
+   numero significa, sem competir com ele. */
+.painel-card__rotulo {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--cor-texto-fraco);
+}
+
+.painel-card__valor {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  color: var(--cor-texto);
+}
+
+/* Saldo negativo e taxa de poupanca negativa: o sinal sozinho passa batido. */
+.painel-card__valor--negativo {
+  color: var(--cor-erro);
+}
+
+/* Nome do mes, divisor da media, descricao e data do pico. A descricao vem do
+   que a pessoa digitou e pode ser longa: quebra em vez de esticar a grade. */
+.painel-card__apoio {
+  font-size: 12.5px;
+  color: var(--cor-texto-suave);
+  overflow-wrap: anywhere;
+}
+
 /* ==========================================================================
    6. TELA DE LOGIN
    Sem sidebar: card unico centrado. Aqui o vidro e a moldura, e os campos
@@ -2007,6 +2040,27 @@ body {
   }
 
   .config-edicao__acoes .btn {
+    flex: 1 1 auto;
+  }
+
+  /* --- Visao anual no celular --- */
+
+  /* Uma coluna: quatro numeros grandes lado a lado nao cabem em 390px sem
+     rolagem horizontal. Vem depois da regra de 1099px da secao 5.13 e por
+     isso vence abaixo de 768px, onde as duas casam. */
+  .painel-grade {
+    grid-template-columns: 1fr;
+  }
+
+  .painel-card {
+    padding: var(--e-4);
+  }
+
+  .filtro-ano .selecao {
+    width: 100%;
+  }
+
+  .filtro-ano .filtro-campo {
     flex: 1 1 auto;
   }
 

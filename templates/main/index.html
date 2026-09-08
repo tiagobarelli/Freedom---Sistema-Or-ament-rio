@@ -1,7 +1,11 @@
 {% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
 
-{% block title %}Início - Freedom{% endblock %}
-{% block titulo_pagina %}Início{% endblock %}
+{% block title %}Visão Anual - Freedom{% endblock %}
+{% block titulo_pagina %}Visão Anual{% endblock %}
+{% block subtitulo_pagina %}
+  <p class="pagina-subtitulo">O ano inteiro num relance. Para o detalhe do mês, use Consultar despesas.</p>
+{% endblock %}
 {% block acoes_pagina %}
   <a class="btn btn--primario" href="{{ url_for('lancamentos.despesas_tela') }}">
     Lançar despesa
@@ -9,23 +13,36 @@
 {% endblock %}
 
 {% block content %}
-  {# Reservado ao painel de indicadores. Sem numeros nem graficos por enquanto:
-     o dashboard e de outra rodada. #}
-  <div class="card">
-    <h2 class="card__titulo">Bem-vindo, {{ usuario.pessoa_nome }}</h2>
-    <p class="card__texto">
-      Os cadastros de categorias, subcategorias, contas, pessoas e fontes de
-      receita já estão disponíveis na barra lateral, e o lançamento de despesas
-      já funciona. O painel com taxa de poupança, patrimônio e número de
-      independência entra numa próxima etapa.
-    </p>
-    <div class="card__rodape">
-      <a class="btn btn--primario" href="{{ url_for('lancamentos.despesas_tela') }}">
-        Lançar despesa
-      </a>
-      <a class="btn btn--secundario" href="{{ url_for('cadastros.subcategorias_lista') }}">
-        Ver subcategorias
-      </a>
-    </div>
+  {#
+    GET com recarga da pagina inteira, sem HTMX: trocar de ano troca os treze
+    cards de uma vez, entao nao ha fragmento a trocar. O select submete no
+    onchange - mesmo padrao do filtro "Mostrar inativos" dos cadastros.
+  #}
+  <form class="filtro-ano" method="get" action="{{ url_for('main.index') }}">
+    <label class="filtro-campo">
+      <span class="filtro-campo__rotulo">Ano</span>
+      <select class="selecao" name="ano" onchange="this.form.submit()">
+        {% for a in anos %}
+          <option value="{{ a }}" {{ 'selected' if a == ano }}>{{ a }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </form>
+
+  {#
+    Os treze cards vem montados de servico.py, na ordem em que aparecem: card
+    de dinheiro traz `valor` (Decimal, formatado aqui pela macro `reais`), os
+    demais trazem `texto` ja pronto.
+  #}
+  <div class="painel-grade">
+    {% for c in cards %}
+      <article class="card painel-card">
+        <p class="painel-card__rotulo">{{ c.rotulo }}</p>
+        <p class="painel-card__valor{{ ' painel-card__valor--negativo' if c.negativo }}">
+          {%- if c.valor is not none %}{{ m.reais(c.valor) }}{% else %}{{ c.texto }}{% endif -%}
+        </p>
+        {% if c.apoio %}<p class="painel-card__apoio">{{ c.apoio }}</p>{% endif %}
+      </article>
+    {% endfor %}
   </div>
 {% endblock %}

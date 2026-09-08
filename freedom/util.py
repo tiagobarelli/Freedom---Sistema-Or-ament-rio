@@ -1,14 +1,22 @@
 """Utilidades pequenas compartilhadas entre blueprints.
 
-Além do destino seguro de redirecionamento, mora aqui o que despesas e
-receitas usam em comum: o parser de valor monetário e o escape de curingas
-do LIKE. Os dois nasceram em `lancamentos/servico.py`, quando só havia uma
-tela de lançamento; passaram a servir duas e subiram para cá.
+Além do destino seguro de redirecionamento, mora aqui o que despesas, receitas
+e o painel usam em comum: os nomes dos meses, o parser de valor monetário e o
+escape de curingas do LIKE. Todos nasceram em `lancamentos/servico.py`, quando
+só havia uma tela de lançamento; passaram a servir mais de uma e subiram para cá.
 """
 
 import re
 from decimal import Decimal, InvalidOperation
 from urllib.parse import urlparse
+
+# Nomes de mês em português vindos do Python, e não de `locale`: locale depende
+# do que está instalado no sistema operacional, e a mesma aplicação mudaria de
+# idioma conforme a máquina em que roda.
+MESES = (
+    "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+    "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+)
 
 
 def destino_interno(valor):

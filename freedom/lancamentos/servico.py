@@ -9,15 +9,13 @@ from datetime import date
 from flask import request
 
 from freedom.db import query_all, query_one
-from freedom.util import escapar_like
+# MESES morava aqui; subiu para util.py quando a Visão Anual passou a precisar
+# dos mesmos nomes. Continua importado com o nome de sempre, para quem já o
+# lia daqui não mudar de lugar.
+from freedom.util import MESES, escapar_like
 
 ESSENCIAL = "Essencial"
 NAO_ESSENCIAL = "Não Essencial"
-
-MESES = [
-    "janeiro", "fevereiro", "março", "abril", "maio", "junho",
-    "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
-]
 
 
 # --------------------------------------------------------------------------

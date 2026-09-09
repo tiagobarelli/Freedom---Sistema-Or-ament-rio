@@ -21,8 +21,11 @@
         5.10 Consulta de despesas (idem para a lista filtrada de receitas)
         5.11 Autocomplete de descricao
         5.12 Configuracoes (parametros com vigencia)
-        5.13 Visao anual (cards e, em 5.13.1, os graficos do ano)
-        5.14 Visao mensal (so o que a Anual nao cobre: as tres tabelas do mes,
+        5.13 Paineis: o que a Visao Anual e a Visao Mensal compartilham -
+            .filtro-barra, .painel-grade e .painel-card; em 5.13.1 os graficos
+            (so da Anual) e em 5.13.2 o empilhamento .painel-tabelas mais a
+            .tabela--resumo, visual comum das seis tabelas dos dois paineis
+        5.14 Visao mensal (so o que a Anual nao tem: .tabela--resumo--estreita,
             a matriz Pessoa x Categoria e a primeira coluna fixa, esta ultima
             um modificador reutilizavel da .tabela-caixa; em 5.14.1, o detalhe
             da categoria em linha expansivel)
@@ -1591,16 +1594,26 @@ body {
   padding-bottom: 2px;
 }
 
-/* --- 5.13 Visao anual (dashboard em cards) -----------------------------
+/* --- 5.13 Paineis: o que a Anual e a Mensal compartilham ---------------
+   Nasceu com a Visao Anual e hoje serve as duas telas de painel: a barra de
+   seletores (.filtro-barra), a grade de cards (.painel-grade), o miolo do
+   card (.painel-card), o empilhamento das tabelas (.painel-tabelas, em
+   5.13.2) e o visual comum delas (.tabela--resumo, tambem em 5.13.2). O que e
+   so da Anual (graficos) fica em 5.13.1; o que e so da Mensal, em 5.14.
+
    Grade de cards de moldura: 4 colunas no desktop, 2 no tablet, 1 no celular
    (a de celular fica na secao 7, com o resto do responsivo). O vidro esta so
    na moldura do .card, que ja vem da secao 5.1; aqui mora o miolo - rotulo
    pequeno em cima, numero grande embaixo, linha de apoio quando houver.
 */
 
-.filtro-ano {
+/* Barra de seletores dos dois paineis: um campo na Anual (ano), tres na
+   Mensal (ano, mes, ordem). Ate a rodada 14 levava o nome do unico campo que
+   tinha, e por isso mudou de nome quando a Mensal chegou com mais dois. */
+.filtro-barra {
   display: flex;
   align-items: flex-end;
+  flex-wrap: wrap;
   gap: var(--e-3);
   padding: var(--e-3) var(--e-4);
   margin-bottom: var(--e-4);
@@ -1610,7 +1623,7 @@ body {
   box-shadow: var(--sombra-p);
 }
 
-.filtro-ano .selecao {
+.filtro-barra .selecao {
   width: auto;
   min-width: 130px;
   padding-top: 6px;
@@ -1708,14 +1721,20 @@ body {
   border-radius: var(--raio-m);
 }
 
-/* --- 5.13.2 Tabelas do ano --------------------------------------------
-   Duas tabelas empilhadas, cada uma dentro do .card de vidro; a tabela em si e
+/* --- 5.13.2 Tabelas dos paineis ---------------------------------------
+   Tabelas empilhadas, cada uma dentro do .card de vidro; a tabela em si e
    superficie de leitura (.tabela-caixa, quase opaca), como nas demais telas.
 
-   Sem grade aqui de proposito: as duas ocupam a largura toda, e uma grade de
+   Sem grade aqui de proposito: elas ocupam a largura toda, e uma grade de
    uma coluna so daria a chance de repetir o problema do `1fr` com filho largo
    (a tabela mensal tem oito colunas e usa a rolagem interna da .tabela-caixa
    entre 768px e ~1100px).
+
+   `.tabela--resumo` e o visual comum das SEIS tabelas dos dois paineis: mes a
+   mes e por categoria na Anual, por categoria, por pessoa e a matriz na
+   Mensal, mais a do detalhe expansivel. O que e de uma so vira modificador
+   com nome proprio (.tabela--mensal, .tabela--resumo--estreita,
+   .tabela--matriz em 5.14, .tabela--detalhe em 5.14.1).
 */
 
 .painel-tabelas {
@@ -1732,12 +1751,20 @@ body {
 }
 
 /* Numeros alinhados a direita e com digito de largura fixa: em doze linhas, a
-   virgula precisa cair sempre na mesma coluna. */
-.tabela--mensal .col-num,
-.tabela--categorias .col-num {
+   virgula precisa cair sempre na mesma coluna - e na matriz isso vale para a
+   grade inteira. */
+.tabela--resumo .col-num {
   text-align: right;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+/* Linha de totais: pesa mais que as de cima e fecha a tabela por baixo. */
+.tabela--resumo tfoot td {
+  font-weight: 700;
+  background: rgba(26, 27, 46, 0.025);
+  border-top: 1px solid var(--linha-forte);
+  border-bottom: none;
 }
 
 .tabela--mensal .col-mes {
@@ -1756,17 +1783,12 @@ body {
   color: var(--cor-erro);
 }
 
-.tabela--mensal tfoot td,
-.tabela--categorias tfoot td {
-  font-weight: 700;
-  background: rgba(26, 27, 46, 0.025);
-  border-top: 1px solid var(--linha-forte);
-  border-bottom: none;
-}
+/* --- coluna de participacao: numero e barra na mesma celula ---
+   Da tabela por categoria da Anual e das duas de participacao da Mensal; a
+   mensal e a matriz nao tem esta coluna, e para elas as duas regras abaixo
+   nao encontram nada. */
 
-/* --- tabela por categoria: numero e barra na mesma celula --- */
-
-.tabela--categorias .col-pct {
+.tabela--resumo .col-pct {
   width: 38%;
 }
 
@@ -1791,7 +1813,8 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.tabela--categorias tfoot .pct-celula__numero {
+/* No rodape o numero e total, nao apoio: acompanha o peso da linha. */
+.tabela--resumo tfoot .pct-celula__numero {
   color: inherit;
 }
 
@@ -1802,53 +1825,26 @@ body {
 }
 
 /* --- 5.14 Visao mensal --------------------------------------------------
-   A tela do mes reaproveita quase tudo da Anual: .card, .painel-grade (a
-   grade de quatro, com 4 + 2 nos seis cards), .painel-card, .painel-tabelas,
-   .tabela-caixa, .barra, .pct-celula e a barra de filtros - cujo bloco ainda
-   se chama .filtro-ano, de quando so havia o seletor de ano.
+   A tela do mes reaproveita o que a 5.13 e a 5.13.2 tem de comum aos dois
+   paineis: .card, .painel-grade (a grade de quatro, com 4 + 2 nos seis
+   cards), .painel-card, .painel-tabelas, .tabela--resumo, .tabela-caixa,
+   .barra, .pct-celula e a .filtro-barra.
 
-   Aqui mora so o que a Anual nao cobre: o modificador das tres tabelas do mes
-   (as da Anual estao presas as classes delas), a matriz Pessoa x Categoria e,
-   como componente reutilizavel, a primeira coluna fixa da .tabela-caixa.
+   Aqui mora so o que a Anual nao tem: o modificador de largura das duas
+   tabelas de participacao, a matriz Pessoa x Categoria e, como componente
+   reutilizavel, a primeira coluna fixa da .tabela-caixa.
 */
 
-/* Tres campos na barra em vez de um: se a janela apertar, eles quebram de
-   linha em vez de espremer os selects. */
-.filtro-ano--mensal {
-  flex-wrap: wrap;
-}
-
-/* --- as tres tabelas do mes --- */
-
-/* Numeros a direita e com digito de largura fixa: a virgula precisa cair
-   sempre na mesma coluna, e na matriz isso vale para a grade inteira. */
-.tabela--mes .col-num {
-  text-align: right;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-.tabela--mes tfoot td {
-  font-weight: 700;
-  background: rgba(26, 27, 46, 0.025);
-  border-top: 1px solid var(--linha-forte);
-  border-bottom: none;
-}
-
-.tabela--mes .col-pct {
-  width: 38%;
-}
-
-/* No rodape o numero e total, nao apoio: acompanha o peso da linha. */
-.tabela--mes tfoot .pct-celula__numero {
-  color: inherit;
-}
-
 /* Tres colunas cabem em qualquer largura, entao as duas tabelas de
-   participacao largam o min-width de 560px da .tabela: nome de categoria longo
-   quebra em duas linhas, o que e melhor que uma barra de rolagem de 30px. A
-   matriz e a excecao desta tela e esta logo abaixo. */
-.tabela--mes:not(.tabela--matriz) {
+   participacao do mes largam o min-width de 560px da .tabela: nome de
+   categoria longo quebra em duas linhas, o que e melhor que uma barra de
+   rolagem de 30px.
+
+   A irma da Anual (por categoria do ano) tem as mesmas tres colunas mas so
+   larga o minimo abaixo de 768px, e por isso rola por dentro entre 768px e
+   ~1030px. A diferenca vem da rodada 12, quando a Anual nao podia ser tocada;
+   alinhar as duas muda pixel e e decisao de produto, nao de refatoracao. */
+.tabela--resumo--estreita {
   min-width: 0;
 }
 
@@ -1920,6 +1916,10 @@ body {
    A tabela interna NAO rola por dentro (a matriz continua sendo a unica
    excecao da app): no celular ela esconde a coluna Pessoa, que reaparece
    embaixo da descricao, e o rotulo do botao Editar da lugar ao icone.
+
+   Ela e uma .tabela--resumo como as outras cinco; aqui ficam so as regras que
+   sao dela - cinco colunas, o recuo do aninhamento e o celular proprio, com
+   respiro maior que o das tabelas de painel porque ja esta dentro de uma.
 */
 
 /* A linha inteira e o alvo do clique; o <button> da primeira celula e quem
@@ -1979,16 +1979,12 @@ body {
   border-radius: var(--raio-m);
 }
 
-/* Sem min-width: a tabela interna se ajusta a caixa em vez de rolar. */
+/* Sem min-width: a tabela interna se ajusta a caixa em vez de rolar.
+   Alinhamento dos numeros e visual do rodape vem da .tabela--resumo (5.13.2),
+   que ela tambem carrega. */
 .tabela--detalhe {
   min-width: 0;
   font-size: 13.5px;
-}
-
-.tabela--detalhe .col-num {
-  text-align: right;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
 }
 
 .tabela--detalhe .col-data {
@@ -2015,13 +2011,6 @@ body {
   font-size: 12px;
   font-weight: 400;
   color: var(--cor-texto-fraco);
-}
-
-.tabela--detalhe tfoot td {
-  font-weight: 700;
-  background: rgba(26, 27, 46, 0.025);
-  border-top: 1px solid var(--linha-forte);
-  border-bottom: none;
 }
 
 /* No desktop o botao Editar mostra a palavra; o icone entra no celular. */
@@ -2449,11 +2438,18 @@ body {
     padding: var(--e-4);
   }
 
-  .filtro-ano .selecao {
+  /* Seletores empilhados: lado a lado, em 390px, os tres da Mensal nao
+     leriam. O da Anual e um so e ja ocupava a largura toda. */
+  .filtro-barra {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filtro-barra .selecao {
     width: 100%;
   }
 
-  .filtro-ano .filtro-campo {
+  .filtro-barra .filtro-campo {
     flex: 1 1 auto;
   }
 
@@ -2464,12 +2460,14 @@ body {
     padding: var(--e-2);
   }
 
-  /* --- Tabelas do ano no celular ---
+  /* --- Tabelas dos paineis no celular ---
      Na mensal sobram Mes, Receitas, Despesas e Saldo; as outras quatro descem
-     para a linha de apoio. A de categorias cabe inteira. */
+     para a linha de apoio. As de participacao cabem inteiras. */
 
-  .tabela--mensal,
-  .tabela--categorias {
+  /* Todas largam o minimo de 560px da .tabela e se ajustam a caixa - menos a
+     matriz, que e a excecao que rola por dentro (5.14). O detalhe ja larga em
+     qualquer largura (5.14.1); estar aqui de novo nao muda nada. */
+  .tabela--resumo:not(.tabela--matriz) {
     min-width: 0;
   }
 
@@ -2490,17 +2488,20 @@ body {
   }
 
   /* Quatro colunas de dinheiro em 390px: o respiro sai do padding lateral,
-     nao do tamanho da fonte, que precisa continuar legivel. */
-  .tabela--mensal th,
-  .tabela--mensal td,
-  .tabela--categorias th,
-  .tabela--categorias td {
+     nao do tamanho da fonte, que precisa continuar legivel.
+
+     Os seletores sao de descendencia, entao alcancam tambem as celulas da
+     tabela do detalhe, que e aninhada numa de painel. E de proposito: o
+     respiro proprio dela vem depois, no fim desta secao, e vence por ordem -
+     mas o `letter-spacing` do cabecalho ela nao sobrescreve, e herda daqui.
+     Era assim antes da unificacao e continua sendo. */
+  .tabela--resumo th,
+  .tabela--resumo td {
     padding: var(--e-2) 5px;
     font-size: 12.5px;
   }
 
-  .tabela--mensal th,
-  .tabela--categorias th {
+  .tabela--resumo th {
     font-size: 10.5px;
     letter-spacing: 0.03em;
   }
@@ -2527,7 +2528,7 @@ body {
 
   /* A barra encolhe com a celula; o numero mantem largura fixa para nao
      dancar de linha em linha. */
-  .tabela--categorias .col-pct {
+  .tabela--resumo .col-pct {
     width: 42%;
   }
 
@@ -2541,31 +2542,6 @@ body {
   }
 
   /* --- Visao mensal no celular --- */
-
-  /* Tres seletores empilhados: lado a lado, em 390px, nenhum dos tres leria.
-     So o modificador muda de direcao - a barra de um campo so da Anual
-     continua como esta. */
-  .filtro-ano--mensal {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  /* O respiro sai do padding lateral, nao do tamanho da fonte, que precisa
-     continuar legivel. */
-  .tabela--mes th,
-  .tabela--mes td {
-    padding: var(--e-2) 5px;
-    font-size: 12.5px;
-  }
-
-  .tabela--mes th {
-    font-size: 10.5px;
-    letter-spacing: 0.03em;
-  }
-
-  .tabela--mes .col-pct {
-    width: 42%;
-  }
 
   /* A coluna fixa nao pode comer a tela: no seu tamanho natural ela ocupa 265
      dos 307px uteis em 390px, e sobraria menos de uma coluna de numero a

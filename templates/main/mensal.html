@@ -34,7 +34,7 @@
   <section class="card">
     <h2 class="card__titulo">{{ titulo }}</h2>
     <div class="tabela-caixa">
-      <table class="tabela tabela--mes{{ ' tabela--expansivel' if expansivel }}"
+      <table class="tabela tabela--resumo tabela--resumo--estreita{{ ' tabela--expansivel' if expansivel }}"
              {% if expansivel %}id="tabela-categorias"{% endif %}>
         <thead>
           <tr>
@@ -100,12 +100,12 @@
 
 {% block content %}
   {#
-    Mesma barra de filtros da Visao Anual (o bloco chama-se `.filtro-ano` desde
-    quando so havia o ano; o modificador acrescenta o que tres campos pedem).
+    Mesma barra de filtros da Visao Anual (`.filtro-barra`), sem modificador:
+    o que tres campos pedem nao atrapalha o de um so.
     GET com recarga da pagina inteira, sem HTMX: trocar de mes troca a tela
     toda, entao nao ha fragmento a trocar.
   #}
-  <form class="filtro-ano filtro-ano--mensal" method="get"
+  <form class="filtro-barra" method="get"
         action="{{ url_for('main.mensal') }}">
     <label class="filtro-campo">
       <span class="filtro-campo__rotulo">Ano</span>
@@ -180,7 +180,7 @@
           primeira coluna fica fixa para a categoria nao sumir ao rolar.
         #}
         <div class="tabela-caixa tabela-caixa--fixa-primeira">
-          <table class="tabela tabela--mes tabela--matriz">
+          <table class="tabela tabela--resumo tabela--matriz">
             <thead>
               <tr>
                 <th>Categoria</th>

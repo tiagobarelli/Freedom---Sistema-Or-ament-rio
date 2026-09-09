@@ -80,7 +80,7 @@
     cards de uma vez, entao nao ha fragmento a trocar. O select submete no
     onchange - mesmo padrao do filtro "Mostrar inativos" dos cadastros.
   #}
-  <form class="filtro-ano" method="get" action="{{ url_for('main.index') }}">
+  <form class="filtro-barra" method="get" action="{{ url_for('main.index') }}">
     <label class="filtro-campo">
       <span class="filtro-campo__rotulo">Ano</span>
       <select class="selecao" name="ano" onchange="this.form.submit()">
@@ -159,7 +159,7 @@
     <section class="card">
       <h2 class="card__titulo">Mês a mês</h2>
       <div class="tabela-caixa">
-        <table class="tabela tabela--mensal">
+        <table class="tabela tabela--resumo tabela--mensal">
           <thead>
             <tr>
               <th class="col-mes">Mês</th>
@@ -185,7 +185,7 @@
     <section class="card">
       <h2 class="card__titulo">Despesas por categoria</h2>
       <div class="tabela-caixa">
-        <table class="tabela tabela--categorias">
+        <table class="tabela tabela--resumo">
           <thead>
             <tr>
               <th class="col-categoria">Categoria</th>

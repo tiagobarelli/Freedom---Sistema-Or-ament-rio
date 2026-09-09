@@ -1007,6 +1007,15 @@ body {
   pointer-events: none;
 }
 
+/* O recuo que abre espaco para o prefixo pertence ao COMPONENTE, e nao ao
+   tamanho do campo. Ate a rodada 15 ele so existia dentro de .entrada--grande,
+   entao a caixa de tamanho normal do orcamento escrevia por baixo do "R$".
+   O valor e o mesmo 42px que .entrada--grande ja usava - de proposito: assim
+   as telas de lancamento nao mudam um pixel. */
+.entrada-moeda .entrada {
+  padding-left: 42px;
+}
+
 .entrada--grande {
   padding: 12px 12px 12px 42px;
   font-size: 20px;

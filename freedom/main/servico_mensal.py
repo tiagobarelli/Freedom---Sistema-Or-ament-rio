@@ -126,6 +126,10 @@ def receitas_do_mes(inicio, fim):
 def despesas_por_categoria_e_pessoa(inicio, fim):
     """Despesas do mês somadas por (categoria, pessoa). Uma linha por par.
 
+    O `categoria_id` vem junto porque a linha da tabela precisa dele para
+    montar o link do detalhe; agrupar por ele não muda nada, já que o nome é
+    UNIQUE em `tb_categorias`.
+
     É a consulta que sustenta as três tabelas. O par sem despesa simplesmente
     não vem — é o GROUP BY sobre o intervalo que garante que só apareça
     categoria e pessoa com movimento no mês, sem filtro extra. A ordem daqui
@@ -133,11 +137,12 @@ def despesas_por_categoria_e_pessoa(inicio, fim):
     fixá-la deixa o resultado estável entre execuções.
     """
     return query_all(
-        "SELECT v.categoria, p.nome AS pessoa, SUM(v.valor) AS total"
+        "SELECT v.categoria_id, v.categoria, p.nome AS pessoa,"
+        "       SUM(v.valor) AS total"
         "  FROM vw_despesas v"
         "  JOIN tb_pessoas  p ON p.id = v.pessoa_id"
         " WHERE v.data >= %s AND v.data < %s"
-        " GROUP BY v.categoria, p.nome"
+        " GROUP BY v.categoria_id, v.categoria, p.nome"
         " ORDER BY v.categoria, p.nome",
         (inicio, fim),
     )
@@ -185,15 +190,20 @@ def _ordenar(totais, ordem):
     return sorted(totais, key=lambda nome: (-totais[nome], _chave_alfabetica(nome)))
 
 
-def _tabela_participacao(nomes, totais, coluna, total_geral):
+def _tabela_participacao(nomes, totais, coluna, total_geral, ids=None):
     """Tabela de duas colunas de número: total e % do total, mais o rodapé.
 
     `coluna` é o nome da chave da primeira coluna ("categoria" ou "pessoa"),
     porque as duas tabelas são a mesma tabela sobre dimensões diferentes.
+
+    `ids` só chega na de categoria: é o que a linha expansível usa para pedir
+    o detalhe. A de pessoa não expande (rodada 13), e sem os ids o template
+    não tem como oferecer o que não existe.
     """
     return {
         "linhas": [
             {coluna: nome,
+             "id": ids.get(nome) if ids else None,
              "total": totais[nome],
              "pct": fracao(totais[nome], total_geral)}
             for nome in nomes
@@ -280,6 +290,7 @@ def painel_do_mes(ano, mes, ordem):
 
     categorias = _ordenar(por_categoria, ordem)
     pessoas = _ordenar(por_pessoa, ORDEM_TOTAL)
+    ids = {l["categoria"]: l["categoria_id"] for l in linhas}
 
     return {
         "cards": _cards(receitas, despesas),
@@ -288,10 +299,77 @@ def painel_do_mes(ano, mes, ordem):
         "tem_despesa": bool(linhas),
         "tabelas": {
             "categorias": _tabela_participacao(
-                categorias, por_categoria, "categoria", total),
+                categorias, por_categoria, "categoria", total, ids),
             "pessoas": _tabela_participacao(
                 pessoas, por_pessoa, "pessoa", total),
             "matriz": _matriz(categorias, pessoas, linhas,
                               por_categoria, por_pessoa, total),
         },
+    }
+
+
+# --------------------------------------------------------------------------
+# Detalhe de uma categoria (fragmento da linha expansível)
+#
+# Uma consulta, e a mesma regra de intervalo do resto da tela. O agrupamento
+# por subcategoria é feito aqui, e não com um segundo GROUP BY: as linhas já
+# vêm todas, ordenadas, e passar duas vezes no banco para somar o que já está
+# na mão só teria como resultado dois números que precisariam coincidir.
+# --------------------------------------------------------------------------
+
+def categoria(categoria_id):
+    """A categoria, ou None. Id inexistente vira 404 na rota, nunca 500."""
+    return query_one(
+        "SELECT id, nome FROM tb_categorias WHERE id = %s", (categoria_id,))
+
+
+def lancamentos_da_categoria(inicio, fim, categoria_id):
+    """Lançamentos de uma categoria no mês, com o nome de quem gastou.
+
+    `vw_despesas` traz `pessoa_id`, não o nome — mesmo JOIN do cubo. A ordem
+    do SQL agrupa por subcategoria e, dentro dela, põe o mais antigo primeiro;
+    o `id` fecha o critério para dois lançamentos do mesmo dia não trocarem de
+    lugar entre uma leitura e outra.
+    """
+    return query_all(
+        "SELECT v.id, v.data, v.descricao, v.valor, v.subcategoria,"
+        "       p.nome AS pessoa"
+        "  FROM vw_despesas v"
+        "  JOIN tb_pessoas  p ON p.id = v.pessoa_id"
+        " WHERE v.data >= %s AND v.data < %s AND v.categoria_id = %s"
+        " ORDER BY v.subcategoria, v.data, v.id",
+        (inicio, fim, categoria_id),
+    )
+
+
+def detalhe_da_categoria(ano, mes, categoria_id):
+    """Grupos por subcategoria, com subtotal, e o total da categoria.
+
+    O total daqui tem que ser idêntico ao "Total no mês" da linha expandida:
+    são as mesmas despesas, o mesmo intervalo e o mesmo filtro de categoria,
+    somadas em `Decimal` nos dois lugares.
+
+    A ordem dos grupos é a chave alfabética pt-BR, e não a do `ORDER BY`: o
+    SQL já entrega assim com a collation atual do banco, mas ordenar aqui
+    deixa a tela igual em qualquer collation, do mesmo jeito que na tabela por
+    categoria.
+    """
+    inicio, fim = intervalo_do_mes(ano, mes)
+    linhas = lancamentos_da_categoria(inicio, fim, categoria_id)
+
+    por_subcategoria = {}
+    for linha in linhas:
+        por_subcategoria.setdefault(linha["subcategoria"], []).append(linha)
+
+    return {
+        "grupos": [
+            {"subcategoria": nome,
+             "quantidade": len(itens),
+             "total": sum((i["valor"] for i in itens), ZERO),
+             "lancamentos": itens}
+            for nome, itens in sorted(por_subcategoria.items(),
+                                      key=lambda par: _chave_alfabetica(par[0]))
+        ],
+        "total": sum((l["valor"] for l in linhas), ZERO),
+        "quantidade": len(linhas),
     }

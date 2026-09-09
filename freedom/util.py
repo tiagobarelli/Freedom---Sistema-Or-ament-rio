@@ -1,14 +1,17 @@
 """Utilidades pequenas compartilhadas entre blueprints.
 
 Além do destino seguro de redirecionamento, mora aqui o que despesas, receitas
-e o painel usam em comum: os nomes dos meses, o parser de valor monetário e o
-escape de curingas do LIKE. Todos nasceram em `lancamentos/servico.py`, quando
-só havia uma tela de lançamento; passaram a servir mais de uma e subiram para cá.
+e o painel usam em comum: os nomes dos meses, o parser de valor monetário, o
+escape de curingas do LIKE e a leitura do cabeçalho do HTMX. Todos nasceram em
+`lancamentos/servico.py`, quando só havia uma tela de lançamento; passaram a
+servir mais de uma e subiram para cá.
 """
 
 import re
 from decimal import Decimal, InvalidOperation
 from urllib.parse import urlparse
+
+from flask import request
 
 # Nomes de mês em português vindos do Python, e não de `locale`: locale depende
 # do que está instalado no sistema operacional, e a mesma aplicação mudaria de
@@ -248,3 +251,25 @@ def escapar_like(texto):
     return (texto.replace("\\", "\\\\")
                  .replace("%", "\\%")
                  .replace("_", "\\_"))
+
+
+# --------------------------------------------------------------------------
+# HTMX
+# --------------------------------------------------------------------------
+
+def so_fragmento():
+    """True quando o HTMX quer apenas um fragmento, e não a página inteira.
+
+    Morava em `lancamentos/servico.py`, que era o único lugar com telas
+    filtradas; subiu para cá quando o detalhe da Visão Mensal virou a terceira
+    a precisar dela — e um blueprint importar helper de outro seria pior que
+    a duplicata.
+
+    A exceção é a restauração de histórico: quando o cache do HTMX não tem a
+    tela, ele refaz o GET com HX-History-Restore-Request e espera a página
+    inteira de volta. Devolver o fragmento ali quebraria o botão voltar.
+    """
+    return bool(
+        request.headers.get("HX-Request")
+        and not request.headers.get("HX-History-Restore-Request")
+    )

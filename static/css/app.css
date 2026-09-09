@@ -24,7 +24,8 @@
         5.13 Visao anual (cards e, em 5.13.1, os graficos do ano)
         5.14 Visao mensal (so o que a Anual nao cobre: as tres tabelas do mes,
             a matriz Pessoa x Categoria e a primeira coluna fixa, esta ultima
-            um modificador reutilizavel da .tabela-caixa)
+            um modificador reutilizavel da .tabela-caixa; em 5.14.1, o detalhe
+            da categoria em linha expansivel)
      6. Tela de login
      7. Responsivo (< 768px)
      8. Utilitarios
@@ -1911,6 +1912,123 @@ body {
     linear-gradient(var(--solido), var(--solido));
 }
 
+/* --- 5.14.1 Detalhe da categoria (linha expansivel) ---------------------
+   Cada linha da tabela por categoria abre uma <tr class="linha-detalhe"> logo
+   abaixo, com uma tabela aninhada. O aninhamento e visual: recuo, filete na
+   cor de destaque e o mesmo branco de leitura da caixa de fora.
+
+   A tabela interna NAO rola por dentro (a matriz continua sendo a unica
+   excecao da app): no celular ela esconde a coluna Pessoa, que reaparece
+   embaixo da descricao, e o rotulo do botao Editar da lugar ao icone.
+*/
+
+/* A linha inteira e o alvo do clique; o <button> da primeira celula e quem
+   tem o foco e o aria-expanded. */
+.linha-categoria {
+  cursor: pointer;
+}
+
+.expandir {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.expandir:focus-visible {
+  outline: 2px solid var(--cor-destaque);
+  outline-offset: 3px;
+  border-radius: var(--raio-p);
+}
+
+/* Seta deitada quando fechada, para baixo quando aberta. */
+.expandir__seta {
+  flex: 0 0 auto;
+  color: var(--cor-texto-fraco);
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.expandir[aria-expanded="true"] .expandir__seta {
+  transform: rotate(90deg);
+  color: var(--cor-destaque);
+}
+
+/* A celula da linha aberta some da regra de borda de baixo: linha e detalhe
+   sao um bloco so, como o par mes/apoio da tabela mensal da Anual. */
+.linha-categoria:has(.expandir[aria-expanded="true"]) td {
+  border-bottom: none;
+}
+
+.linha-detalhe > td {
+  padding: 0 var(--e-4) var(--e-4) var(--e-5);
+  background: rgba(26, 27, 46, 0.02);
+}
+
+/* O recuo a esquerda e o filete sao o que dizem "isto esta dentro daquilo". */
+.detalhe {
+  overflow: hidden;
+  background: var(--solido);
+  border: 1px solid var(--linha);
+  border-left: 3px solid var(--cor-destaque-clara);
+  border-radius: var(--raio-m);
+}
+
+/* Sem min-width: a tabela interna se ajusta a caixa em vez de rolar. */
+.tabela--detalhe {
+  min-width: 0;
+  font-size: 13.5px;
+}
+
+.tabela--detalhe .col-num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabela--detalhe .col-data {
+  width: 1%;
+  white-space: nowrap;
+  color: var(--cor-texto-suave);
+}
+
+.tabela--detalhe .col-pessoa {
+  width: 1%;
+  white-space: nowrap;
+}
+
+/* Linha de subtotal: e cabecalho de grupo, entao pesa mais que o lancamento e
+   menos que o rodape. */
+.linha-subgrupo td {
+  font-weight: 600;
+  background: rgba(91, 80, 224, 0.045);
+  border-bottom: 1px solid var(--linha);
+}
+
+.linha-subgrupo__contagem {
+  margin-left: var(--e-2);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--cor-texto-fraco);
+}
+
+.tabela--detalhe tfoot td {
+  font-weight: 700;
+  background: rgba(26, 27, 46, 0.025);
+  border-top: 1px solid var(--linha-forte);
+  border-bottom: none;
+}
+
+/* No desktop o botao Editar mostra a palavra; o icone entra no celular. */
+.tabela--detalhe .icone {
+  display: none;
+}
+
 /* ==========================================================================
    6. TELA DE LOGIN
    Sem sidebar: card unico centrado. Aqui o vidro e a moldura, e os campos
@@ -2457,6 +2575,59 @@ body {
   .tabela--matriz td:first-child {
     max-width: 130px;
     white-space: normal;
+  }
+
+  /* --- Detalhe da categoria no celular --- */
+
+  /* Sobram Data, Descricao e Valor; a pessoa desce para dentro da celula de
+     descricao, que e a coluna larga - variante da consulta, e nao a <tr> de
+     apoio das tabelas de coluna principal estreita. */
+  .tabela--detalhe .col-pessoa {
+    display: none;
+  }
+
+  .tabela--detalhe .linha-secundaria {
+    display: block;
+    margin-top: 2px;
+    font-size: 11.5px;
+    font-weight: 400;
+    color: var(--cor-texto-fraco);
+  }
+
+  .tabela--detalhe th,
+  .tabela--detalhe td {
+    padding: var(--e-2) var(--e-2);
+    font-size: 12.5px;
+  }
+
+  /* Um icone no lugar da palavra: em 390px "Editar" comeria a coluna do
+     valor. O aria-label do link mantem o nome acessivel. */
+  .tabela--detalhe .icone {
+    display: block;
+  }
+
+  .tabela--detalhe .btn__rotulo {
+    display: none;
+  }
+
+  .tabela--detalhe .tabela__acoes {
+    width: 1%;
+    padding-left: 0;
+  }
+
+  /* Menos recuo: em 390px o de 24px + 16px comeria a largura util da tabela
+     interna. O filete continua dizendo que ha aninhamento. */
+  .linha-detalhe > td {
+    padding: 0 var(--e-2) var(--e-3) var(--e-3);
+  }
+
+  /* O subtotal ocupa tres colunas no desktop; no celular a do meio sumiu e
+     ele passa a caber em duas mais o valor - o colspan do HTML continua
+     valendo, so o texto encolhe. */
+  .linha-subgrupo__contagem {
+    display: block;
+    margin-left: 0;
+    font-size: 11.5px;
   }
 
   /* --- Autocomplete no celular --- */

@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Freedom{% endblock %}</title>
+  {# Sem esta linha o navegador pede /favicon.ico em toda tela e leva 404. #}
+  <link rel="icon" type="image/svg+xml"
+        href="{{ url_for('static', filename='favicon.svg') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
   <script src="{{ url_for('static', filename='js/htmx.min.js') }}" defer></script>
 </head>

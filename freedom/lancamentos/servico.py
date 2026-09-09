@@ -6,8 +6,6 @@ efetiva); INSERT, UPDATE e DELETE vão em `tb_despesas`.
 
 from datetime import date
 
-from flask import request
-
 from freedom.db import query_all, query_one
 # MESES morava aqui; subiu para util.py quando a Visão Anual passou a precisar
 # dos mesmos nomes. Continua importado com o nome de sempre, para quem já o
@@ -203,19 +201,6 @@ def id_valido(args, chave, existentes):
 def pagina_pedida(args):
     pagina = args.get("pagina", type=int)
     return pagina if pagina and pagina >= 1 else 1
-
-
-def so_fragmento():
-    """True quando o HTMX quer apenas o bloco de resultados.
-
-    A excecao e a restauracao de historico: quando o cache do HTMX nao tem a
-    tela, ele refaz o GET com HX-History-Restore-Request e espera a pagina
-    inteira de volta. Devolver o fragmento ali quebraria o botao voltar.
-    """
-    return bool(
-        request.headers.get("HX-Request")
-        and not request.headers.get("HX-History-Restore-Request")
-    )
 
 
 def mes_valido(ano_mes):

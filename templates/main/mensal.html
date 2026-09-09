@@ -17,11 +17,25 @@
   </td>
 {% endmacro %}
 
-{% macro tabela_participacao(titulo, rotulo_coluna, campo, tabela) %}
+{#
+  As duas tabelas de participacao sao a mesma tabela sobre dimensoes
+  diferentes; `expansivel` e a unica diferenca de marcacao. So a de categoria
+  expande: o detalhe por pessoa nao existe (rodada 13).
+
+  A linha inteira e clicavel, mas quem carrega o papel de botao e o <button>
+  dentro da primeira celula - assim a <tr> continua sendo uma linha de tabela
+  para o leitor de tela, o Tab para nela sozinho e Enter/Espaco disparam o
+  mesmo `click` que o mouse. O hx-trigger e um evento proprio ("abrir"), e nao
+  "click": fechar nao pode ir ao servidor, e quem decide abrir ou fechar e o
+  script do fim da pagina.
+#}
+{% macro tabela_participacao(titulo, rotulo_coluna, campo, tabela,
+                             expansivel=false) %}
   <section class="card">
     <h2 class="card__titulo">{{ titulo }}</h2>
     <div class="tabela-caixa">
-      <table class="tabela tabela--mes">
+      <table class="tabela tabela--mes{{ ' tabela--expansivel' if expansivel }}"
+             {% if expansivel %}id="tabela-categorias"{% endif %}>
         <thead>
           <tr>
             <th>{{ rotulo_coluna }}</th>
@@ -31,8 +45,28 @@
         </thead>
         <tbody>
           {% for l in tabela.linhas %}
-            <tr>
-              <td class="tabela__principal">{{ l[campo] }}</td>
+            <tr {% if expansivel %}class="linha-categoria"
+                hx-get="{{ url_for('main.detalhe_categoria', categoria_id=l.id,
+                                   ano=ano, mes=mes, ordem=ordem) }}"
+                hx-trigger="abrir"
+                hx-target="this"
+                hx-swap="afterend"{% endif %}>
+              <td class="tabela__principal">
+                {%- if expansivel -%}
+                  <button type="button" class="expandir" aria-expanded="false"
+                          aria-controls="detalhe-{{ l.id }}">
+                    <svg class="expandir__seta" width="14" height="14"
+                         viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="2.5" stroke-linecap="round"
+                         stroke-linejoin="round" aria-hidden="true">
+                      <path d="M9 6l6 6-6 6"/>
+                    </svg>
+                    {{ l[campo] }}
+                  </button>
+                {%- else -%}
+                  {{ l[campo] }}
+                {%- endif -%}
+              </td>
               <td class="col-num">{{ m.reais(l.total) }}</td>
               {{ celula_pct(l.pct) }}
             </tr>
@@ -131,7 +165,8 @@
   <div class="painel-tabelas">
     {% if tem_despesa %}
       {{ tabela_participacao("Despesas por categoria", "Categoria",
-                             "categoria", tabelas.categorias) }}
+                             "categoria", tabelas.categorias,
+                             expansivel=true) }}
       {{ tabela_participacao("Total por pessoa", "Pessoa",
                              "pessoa", tabelas.pessoas) }}
 
@@ -188,4 +223,52 @@
       </section>
     {% endif %}
   </div>
+{% endblock %}
+
+{#
+  Abrir e fechar o detalhe de uma categoria. Vinte linhas, na dose do menu do
+  layout: abrir dispara o evento "abrir" que o HTMX escuta na <tr>; fechar so
+  remove a linha ja inserida, sem ida ao servidor.
+
+  Delegacao no <tbody> porque as linhas de detalhe chegam depois, e porque o
+  clique pode cair em qualquer celula - a linha inteira e a area clicavel. O
+  teclado nao precisa de tratamento proprio: quem tem foco e um <button>, e
+  Enter e Espaco ja disparam `click` nele.
+#}
+{% block scripts %}
+  <script>
+    (function () {
+      var tabela = document.getElementById('tabela-categorias');
+      if (!tabela) return;
+
+      function alternar(linha) {
+        var botao = linha.querySelector('.expandir');
+        if (botao.getAttribute('aria-expanded') === 'true') {
+          var detalhe = linha.nextElementSibling;
+          if (detalhe && detalhe.classList.contains('linha-detalhe')) {
+            detalhe.remove();
+          }
+          botao.setAttribute('aria-expanded', 'false');
+        } else {
+          botao.setAttribute('aria-expanded', 'true');
+          htmx.trigger(linha, 'abrir');
+        }
+      }
+
+      tabela.addEventListener('click', function (e) {
+        // Editar e outros links dentro do detalhe nao alternam nada.
+        if (e.target.closest('a')) return;
+        var linha = e.target.closest('tr.linha-categoria');
+        if (linha) alternar(linha);
+      });
+
+      // Resposta que nao veio (404, queda do servidor): a linha volta a
+      // fechada, senao o proximo clique so apagaria um detalhe inexistente.
+      tabela.addEventListener('htmx:responseError', function (e) {
+        var linha = e.target.closest('tr.linha-categoria');
+        if (linha) linha.querySelector('.expandir')
+                        .setAttribute('aria-expanded', 'false');
+      });
+    })();
+  </script>
 {% endblock %}

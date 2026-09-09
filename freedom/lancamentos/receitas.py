@@ -18,9 +18,10 @@ from freedom.db import executar
 from freedom.lancamentos import bp
 
 from freedom.lancamentos.forms import ReceitaForm
-# id_valido, pagina_pedida e so_fragmento são a regra comum das duas telas de
-# lista (id de filtro inexistente cai no padrão, página mínima 1, e quando o
-# HTMX quer só o fragmento); moram em servico.py para não haver duas cópias.
+# id_valido e pagina_pedida são a regra comum das duas telas de lista (id de
+# filtro inexistente cai no padrão, página mínima 1); moram em servico.py para
+# não haver duas cópias. `so_fragmento` subiu para util.py na rodada 13, quando
+# a Visão Mensal virou a terceira tela a precisar dele.
 from freedom.lancamentos.servico import (
     deslocar_mes,
     id_valido,
@@ -29,7 +30,6 @@ from freedom.lancamentos.servico import (
     pagina_pedida,
     pessoas_ativas,
     rotulo_mes,
-    so_fragmento,
 )
 from freedom.lancamentos.servico_receitas import (
     POR_PAGINA,
@@ -43,7 +43,7 @@ from freedom.lancamentos.servico_receitas import (
     resumo_por_categoria,
     totais_do_filtro,
 )
-from freedom.util import destino_interno
+from freedom.util import destino_interno, so_fragmento
 
 # Parâmetros que compõem o estado da tela e viajam na URL. São deliberadamente
 # diferentes dos nomes dos campos do formulário de lançamento (pessoa_id,

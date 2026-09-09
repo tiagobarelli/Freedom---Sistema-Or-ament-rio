@@ -25,9 +25,9 @@ from freedom.lancamentos.servico import (
     pagina_pedida,
     resumo_por_categoria,
     rotulo_mes,
-    so_fragmento,
     totais_do_filtro,
 )
+from freedom.util import so_fragmento
 
 # Parâmetros que compõem o estado da tela e viajam na URL.
 PARAMETROS = ("mes", "pessoa_id", "categoria_id", "conta_id",

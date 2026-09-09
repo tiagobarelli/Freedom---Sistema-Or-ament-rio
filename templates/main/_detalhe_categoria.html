@@ -1,0 +1,100 @@
+{% import "_macros.html" as m %}
+{#
+  Detalhe de uma categoria da Visao Mensal. Resposta do GET
+  /mensal/categoria/<id>, inserida com hx-swap="afterend" logo abaixo da linha
+  que foi expandida - por isso comeca com <tr>, e por isso o colspan e 3, as
+  tres colunas da tabela de fora (Categoria, Total no mes, % do total).
+
+  Tudo ja vem somado de servico_mensal.py: subtotal de cada subcategoria e
+  total da categoria. Aqui nao se soma nada.
+#}
+<tr class="linha-detalhe" id="detalhe-{{ categoria.id }}">
+  <td colspan="3">
+    <div class="detalhe">
+      {% if detalhe.grupos %}
+        <table class="tabela tabela--detalhe">
+          <caption class="so-leitor">
+            Lançamentos de {{ categoria.nome }} em {{ periodo }}
+          </caption>
+          <thead>
+            <tr>
+              <th class="col-data">Data</th>
+              <th class="col-descricao">Descrição</th>
+              <th class="col-pessoa">Pessoa</th>
+              <th class="col-num">Valor</th>
+              <th class="tabela__acoes"><span class="so-leitor">Ações</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for g in detalhe.grupos %}
+              {#
+                Linha de subtotal do grupo. Nao e <th scope="rowgroup"> porque
+                ela carrega tambem quantidade e valor; o destaque visual e a
+                classe.
+              #}
+              <tr class="linha-subgrupo">
+                <td colspan="3">
+                  {{ g.subcategoria }}
+                  <span class="linha-subgrupo__contagem">
+                    {{ g.quantidade }} lançamento{{ 's' if g.quantidade != 1 }}
+                  </span>
+                </td>
+                <td class="col-num">{{ m.reais(g.total) }}</td>
+                <td></td>
+              </tr>
+              {% for i in g.lancamentos %}
+                <tr>
+                  <td class="col-data">{{ i.data.strftime('%d/%m') }}</td>
+                  <td class="tabela__principal col-descricao">
+                    {{ i.descricao }}
+                    {#
+                      Coluna principal larga: no celular a pessoa desce para
+                      dentro desta celula, como na consulta de despesas - e
+                      nao numa <tr> de apoio, que e a variante das tabelas de
+                      coluna principal estreita.
+                    #}
+                    <span class="linha-secundaria">{{ i.pessoa }}</span>
+                  </td>
+                  <td class="tabela__suave col-pessoa">{{ i.pessoa }}</td>
+                  <td class="col-num">{{ m.reais(i.valor) }}</td>
+                  <td class="tabela__acoes">
+                    {#
+                      Mesmo mecanismo de origem da consulta: `?retorno=`, que
+                      o `destino_interno` valida antes de redirecionar. No
+                      celular o rotulo da vez ao icone (secao 7 do CSS), e o
+                      aria-label mantem o nome acessivel nos dois casos.
+                    #}
+                    <a class="btn btn--discreto btn--pequeno"
+                       aria-label="Editar {{ i.descricao }}"
+                       href="{{ url_for('lancamentos.despesas_editar',
+                                        despesa_id=i.id, retorno=retorno) }}">
+                      <svg class="icone" width="15" height="15" viewBox="0 0 24 24"
+                           fill="none" stroke="currentColor" stroke-width="2"
+                           stroke-linecap="round" stroke-linejoin="round"
+                           aria-hidden="true">
+                        <path d="M12 20h9"/>
+                        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>
+                      </svg>
+                      <span class="btn__rotulo">Editar</span>
+                    </a>
+                  </td>
+                </tr>
+              {% endfor %}
+            {% endfor %}
+          </tbody>
+          {# O total daqui e o mesmo "Total no mes" da linha que expandiu. #}
+          <tfoot>
+            <tr>
+              <td colspan="3">Total de {{ categoria.nome }}</td>
+              <td class="col-num">{{ m.reais(detalhe.total) }}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      {% else %}
+        {# URL montada a mao: categoria que existe, mas nao gastou no mes. #}
+        <p class="tabela__vazio">Nenhum lançamento</p>
+      {% endif %}
+    </div>
+  </td>
+</tr>

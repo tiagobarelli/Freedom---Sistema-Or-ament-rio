@@ -26,12 +26,11 @@ linha nenhuma — a FK é NOT NULL —, e é isso que mantém o total da matriz
 idêntico ao card Despesas.
 """
 
-import unicodedata
 from datetime import date
 
 from freedom.db import query_all, query_one
 from freedom.main.servico import ZERO, card, fracao, percentual
-from freedom.util import MESES
+from freedom.util import MESES, chave_alfabetica
 
 # Ordem das categorias na tabela 1 e nas linhas da matriz. A tabela por pessoa
 # não entra: ela é sempre por total, porque são poucas linhas e a pergunta ali
@@ -161,24 +160,6 @@ def _somar_por(linhas, coluna):
     return totais
 
 
-def _chave_alfabetica(nome):
-    """Nome dobrado (sem acento, em minúscula) para ordenar como em pt-BR.
-
-    O `sorted` do Python compara ponto de código, e aí 'Água e esgoto' cairia
-    depois de 'Vestuário', porque 'Á' vale mais que qualquer letra ASCII —
-    ninguém procura a primeira categoria da lista no fim dela. Decompor em NFD
-    e descartar as marcas combinantes põe cada nome onde se espera.
-
-    `locale.strxfrm` faria o mesmo, mas locale no Windows não é confiável: é a
-    mesma razão pela qual os nomes dos meses são uma tupla em `util.py`.
-    O nome original entra como segunda chave para 'Saude' e 'Saúde', se um dia
-    existirem, não trocarem de lugar entre uma leitura e outra.
-    """
-    dobrado = "".join(letra for letra in unicodedata.normalize("NFD", nome)
-                      if not unicodedata.combining(letra))
-    return dobrado.lower(), nome
-
-
 def _ordenar(totais, ordem):
     """Nomes de `totais` na ordem pedida.
 
@@ -186,8 +167,8 @@ def _ordenar(totais, ordem):
     não podem trocar de lugar conforme a ordem física das linhas do banco.
     """
     if ordem == ORDEM_NOME:
-        return sorted(totais, key=_chave_alfabetica)
-    return sorted(totais, key=lambda nome: (-totais[nome], _chave_alfabetica(nome)))
+        return sorted(totais, key=chave_alfabetica)
+    return sorted(totais, key=lambda nome: (-totais[nome], chave_alfabetica(nome)))
 
 
 def _tabela_participacao(nomes, totais, coluna, total_geral, ids=None):
@@ -368,7 +349,7 @@ def detalhe_da_categoria(ano, mes, categoria_id):
              "total": sum((i["valor"] for i in itens), ZERO),
              "lancamentos": itens}
             for nome, itens in sorted(por_subcategoria.items(),
-                                      key=lambda par: _chave_alfabetica(par[0]))
+                                      key=lambda par: chave_alfabetica(par[0]))
         ],
         "total": sum((l["valor"] for l in linhas), ZERO),
         "quantidade": len(linhas),

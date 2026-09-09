@@ -29,6 +29,10 @@
             a matriz Pessoa x Categoria e a primeira coluna fixa, esta ultima
             um modificador reutilizavel da .tabela-caixa; em 5.14.1, o detalhe
             da categoria em linha expansivel)
+        5.15 Orcamento (as duas barras de filtro lado a lado, o cabecalho de
+            estado do mes, a receita planejada e o rodape de resumo; a tabela e
+            a .tabela--resumo de 5.13.2 e a edicao em linha e a .config-edicao
+            de 5.12)
      6. Tela de login
      7. Responsivo (< 768px)
      8. Utilitarios
@@ -2018,6 +2022,173 @@ body {
   display: none;
 }
 
+/* --- 5.15 Orcamento -----------------------------------------------------
+   A tela do mes reaproveita quase tudo: .card, .filtro-barra (5.13),
+   .tabela--resumo e .linha-subgrupo (5.13.2 e 5.14.1), .tabela-caixa, o
+   .entrada-moeda do lancamento e a .config-edicao das configuracoes, que e a
+   linha virada formulario.
+
+   Aqui mora so o que nao existia: as duas barras de filtro lado a lado (uma
+   navega, a outra cria), o cabecalho de estado do mes, a faixa da receita
+   planejada, o rodape de resumo e o formulario de acrescentar linha.
+*/
+
+/* Duas barras na mesma faixa: a de escolher o mes e a de criar um novo. Cada
+   uma e um .filtro-barra inteiro, com o mesmo visual da Anual e da Mensal. */
+.orcamento-barras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-4);
+  align-items: flex-start;
+}
+
+.orcamento-barras > .filtro-barra {
+  flex: 1 1 320px;
+  margin-bottom: var(--e-4);
+}
+
+/* Faixa das regras recusadas. Fica vazia (e sem altura) ate o servidor por
+   uma mensagem dentro, entao nao abre buraco na tela em uso normal. */
+.aviso-inline:empty {
+  display: none;
+}
+
+.aviso-inline {
+  margin-bottom: var(--e-4);
+}
+
+/* --- cabecalho do mes --- */
+
+.orcamento-cabecalho {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--e-4);
+  flex-wrap: wrap;
+}
+
+/* O estado empurra as acoes para a direita: o badge fica colado no titulo e os
+   botoes na ponta oposta, que e onde a mao os procura. */
+.orcamento-estado {
+  margin-right: auto;
+  padding-top: 2px;
+}
+
+.orcamento-acoes {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  flex-wrap: wrap;
+}
+
+/* --- receita planejada --- */
+
+/* Faixa propria, entre o cabecalho e a tabela: e o unico numero do mes que nao
+   e linha de tabela, e e o denominador da taxa de poupanca do rodape. */
+.orcamento-receita {
+  display: flex;
+  align-items: baseline;
+  gap: var(--e-3);
+  flex-wrap: wrap;
+  margin-top: var(--e-4);
+  padding: var(--e-3) var(--e-4);
+  background: rgba(91, 80, 224, 0.045);
+  border: 1px solid var(--linha);
+  border-radius: var(--raio-m);
+}
+
+.orcamento-receita__rotulo {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--cor-texto-fraco);
+}
+
+.orcamento-receita__valor {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--cor-texto);
+}
+
+/* Em edicao a faixa vira formulario, com os campos na mesma linha de base. */
+.orcamento-receita__form {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--e-3);
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.orcamento-receita__form .entrada-moeda {
+  max-width: 220px;
+}
+
+/* --- tabela do mes --- */
+
+/* A tabela tem cinco colunas e uma delas e um cabecalho longo ("Realizado no
+   mes anterior"): mantem o minimo da .tabela e rola por dentro da caixa
+   quando nao couber, a mesma excecao da matriz. */
+.tabela--orcamento .tabela__acoes {
+  white-space: nowrap;
+  /* O <span class="so-leitor"> do cabecalho de acoes e position:absolute. Sem
+     um ancestral posicionado ele escapa da .tabela-caixa que rola e estica a
+     PAGINA - em 390px isso dava 496px de largura contra 375 de viewport.
+     Ancorar na propria celula o mantem dentro do que rola. */
+  position: relative;
+}
+
+/* O nome da subcategoria em edicao, no lugar onde estaria o campo: e leitura,
+   nao entrada - subcategoria nao muda na edicao, troca-se a linha. */
+.orcamento-edicao__nome {
+  font-weight: 600;
+  color: var(--cor-texto);
+}
+
+/* Rodape: a primeira linha e o total das tres colunas de numero; as tres
+   seguintes sao o resumo do plano, e por isso vem em peso normal, para o
+   total continuar sendo o numero mais pesado do bloco. */
+.tabela--orcamento tfoot .orcamento-resumo td {
+  font-weight: 500;
+  border-top: none;
+}
+
+.tabela--orcamento tfoot .orcamento-resumo:first-of-type td {
+  border-top: 1px solid var(--linha);
+}
+
+/* --- acrescentar subcategoria --- */
+
+.orcamento-nova {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--e-3);
+  flex-wrap: wrap;
+  margin-top: var(--e-4);
+  padding-top: var(--e-4);
+  border-top: 1px solid var(--linha);
+}
+
+.orcamento-nova .selecao {
+  min-width: 260px;
+}
+
+.orcamento-nova .entrada-moeda {
+  max-width: 160px;
+}
+
+/* O campo do botao nao tem rotulo; o padding-bottom o alinha com os que tem. */
+.orcamento-nova .campo--acao {
+  padding-bottom: 2px;
+}
+
+.orcamento-nova__vazio {
+  margin-top: var(--e-4);
+  padding-top: var(--e-4);
+  border-top: 1px solid var(--linha);
+}
+
 /* ==========================================================================
    6. TELA DE LOGIN
    Sem sidebar: card unico centrado. Aqui o vidro e a moldura, e os campos
@@ -2604,6 +2775,31 @@ body {
     display: block;
     margin-left: 0;
     font-size: 11.5px;
+  }
+
+  /* --- Orcamento no celular ---
+     Sem layout dedicado: as barras empilham (ja empilham, por .filtro-barra),
+     a tabela rola por dentro da caixa e o formulario de acrescentar vira uma
+     coluna. Nada mais - a tela de planejar e de desktop. */
+
+  .orcamento-barras > .filtro-barra {
+    flex: 1 1 100%;
+  }
+
+  .orcamento-cabecalho,
+  .orcamento-nova {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .orcamento-estado {
+    margin-right: 0;
+  }
+
+  .orcamento-nova .selecao,
+  .orcamento-nova .entrada-moeda {
+    min-width: 0;
+    max-width: none;
   }
 
   /* --- Autocomplete no celular --- */

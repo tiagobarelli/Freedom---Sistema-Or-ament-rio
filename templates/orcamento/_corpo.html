@@ -1,0 +1,169 @@
+{% import "_macros.html" as m %}
+{#
+  O mes inteiro: cabecalho de estado, receita planejada, tabela agrupada por
+  categoria e rodape. E a resposta de TODA escrita bem-sucedida - editar uma
+  linha muda o subtotal da categoria, o total, a poupanca e a taxa, e excluir
+  muda tambem o combobox de disponiveis. Devolver so a <tr> deixaria quatro
+  numeros velhos na tela.
+#}
+<section class="card card--solido orcamento-mes">
+  <div class="orcamento-cabecalho">
+    <div>
+      <h2 class="card__titulo">{{ p.periodo | capitalize }}</h2>
+      <p class="campo__dica">
+        {% if p.aberto %}
+          {{ p.quantidade }} subcategoria{{ 's' if p.quantidade != 1 }} no plano.
+        {% else %}
+          Encerrado em {{ p.encerrado_em.strftime('%d/%m/%Y') }} —
+          {{ p.quantidade }} subcategoria{{ 's' if p.quantidade != 1 }} no plano.
+        {% endif %}
+      </p>
+    </div>
+
+    <div class="orcamento-estado">
+      {% if p.aberto %}
+        <span class="badge badge--ativo">Aberto</span>
+      {% else %}
+        <span class="badge badge--inativo">Encerrado</span>
+      {% endif %}
+    </div>
+
+    <div class="orcamento-acoes">
+      {% if p.aberto %}
+        <button type="button" class="btn btn--primario btn--pequeno"
+                hx-post="{{ url_for('orcamento.orcamento_encerrar', mes=p.mes_url) }}"
+                hx-confirm="Encerrar {{ p.periodo }}? O mês fica só leitura até ser reaberto."
+                hx-target="#orcamento-corpo"
+                hx-swap="innerHTML">Encerrar mês</button>
+        {#
+          Exclusao por hx-confirm, e nao por pagina de confirmacao: e a mesma
+          dose de cerimonia da exclusao de vigencia em configuracoes e da de
+          lancamento na consulta, e o que se perde e recriavel em um clique
+          (o mes volta a ser sugerido do mesmo jeito).
+        #}
+        <button type="button" class="btn btn--secundario btn--pequeno"
+                hx-post="{{ url_for('orcamento.orcamento_excluir', mes=p.mes_url) }}"
+                hx-confirm="Excluir o orçamento de {{ p.periodo }} e todas as suas linhas? Isso não pode ser desfeito."
+                hx-target="body"
+                hx-swap="innerHTML">Excluir mês</button>
+      {% else %}
+        {% if p.seguinte_criavel %}
+          <form method="post" action="{{ url_for('orcamento.orcamento_criar') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="ano_mes" value="{{ p.seguinte_url }}">
+            <button type="submit" class="btn btn--primario btn--pequeno">
+              Criar orçamento de {{ p.seguinte_periodo }}
+            </button>
+          </form>
+        {% endif %}
+        {#
+          Reabrir some quando ha mes posterior: o seguinte foi copiado deste, e
+          mexer no pai depois faria o filho descender de numeros que mudaram.
+          A rota recusa do mesmo jeito, para quem chamar a mao.
+        #}
+        {% if p.pode_reabrir %}
+          <button type="button" class="btn btn--secundario btn--pequeno"
+                  hx-post="{{ url_for('orcamento.orcamento_reabrir', mes=p.mes_url) }}"
+                  hx-target="#orcamento-corpo"
+                  hx-swap="innerHTML">Reabrir</button>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  {# --- receita planejada do mes --- #}
+  <div id="orcamento-receita" class="orcamento-receita">
+    {% include "orcamento/_receita.html" %}
+  </div>
+
+  <div class="tabela-caixa">
+    <table class="tabela tabela--resumo tabela--orcamento">
+      <thead>
+        <tr>
+          <th>Subcategoria</th>
+          <th class="col-num">Planejado</th>
+          <th class="col-num">Média 12m</th>
+          <th class="col-num">Realizado no mês anterior</th>
+          <th class="tabela__acoes"><span class="so-leitor">Ações</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for g in p.grupos %}
+          {# Subtotal da categoria: e cabecalho de grupo, como no detalhe da
+             Visao Mensal, e sai da MESMA lista que alimenta o rodape. #}
+          <tr class="linha-subgrupo">
+            <td>{{ g.categoria }}</td>
+            <td class="col-num">{{ m.reais(g.planejado) }}</td>
+            <td class="col-num">{{ m.reais(g.media) }}</td>
+            <td class="col-num">{{ m.reais(g.realizado) }}</td>
+            <td></td>
+          </tr>
+          {% for l in g.linhas %}
+            {% with aberto = p.aberto %}
+              {% include "orcamento/_linha.html" %}
+            {% endwith %}
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td class="tabela__vazio" colspan="5">
+              Nenhuma subcategoria no plano deste mês.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+
+      {#
+        Rodape: os quatro numeros do plano, todos alinhados na coluna do
+        Planejado. Vem prontos de servico.py - o Jinja nao soma nada aqui.
+      #}
+      <tfoot>
+        <tr>
+          <td>Total planejado</td>
+          <td class="col-num">{{ m.reais(p.total.planejado) }}</td>
+          <td class="col-num">{{ m.reais(p.total.media) }}</td>
+          <td class="col-num">{{ m.reais(p.total.realizado) }}</td>
+          <td></td>
+        </tr>
+        <tr class="orcamento-resumo">
+          <td>Receita planejada</td>
+          <td class="col-num">{{ m.reais(p.receita) }}</td>
+          <td colspan="3"></td>
+        </tr>
+        <tr class="orcamento-resumo">
+          <td>Poupança planejada</td>
+          <td class="col-num">
+            {#
+              Vermelho no <span>, nunca na celula: e a regra do projeto, e aqui
+              importa porque a linha de baixo pode ser travessao.
+            #}
+            {% if p.total.poupanca < 0 %}
+              <span class="negativo">{{ m.reais(p.total.poupanca) }}</span>
+            {% else %}
+              {{ m.reais(p.total.poupanca) }}
+            {% endif %}
+          </td>
+          <td colspan="3"></td>
+        </tr>
+        <tr class="orcamento-resumo">
+          <td>Taxa de poupança planejada</td>
+          <td class="col-num">
+            {% if p.total.taxa is none %}
+              &mdash;
+            {% elif p.total.taxa < 0 %}
+              <span class="negativo">{{ p.total.taxa | numero(1) }}%</span>
+            {% else %}
+              {{ p.total.taxa | numero(1) }}%
+            {% endif %}
+          </td>
+          <td colspan="3"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  {% if p.aberto %}
+    <div id="orcamento-nova-linha">
+      {% include "orcamento/_nova_linha.html" %}
+    </div>
+  {% endif %}
+</section>

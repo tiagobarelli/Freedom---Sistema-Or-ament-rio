@@ -1,0 +1,28 @@
+{% import "_macros.html" as m %}
+{#
+  Uma subcategoria do plano, em leitura. Media 12m e Realizado no mes anterior
+  sao referencia calculada de vw_despesas - por isso vao atenuadas, como os
+  zeros da matriz: quem se edita aqui e so o Planejado.
+
+  Com o mes encerrado nao ha botao nenhum: a tela vira leitura de verdade, e
+  nao leitura com botoes que o servidor recusaria.
+#}
+<tr id="orcamento-linha-{{ l.id }}">
+  <td class="tabela__principal">{{ l.subcategoria }}</td>
+  <td class="col-num">{{ m.reais(l.valor_planejado) }}</td>
+  <td class="col-num tabela__suave">{{ m.reais(l.media) }}</td>
+  <td class="col-num tabela__suave">{{ m.reais(l.realizado) }}</td>
+  <td class="tabela__acoes">
+    {% if aberto %}
+      <button type="button" class="btn btn--discreto btn--pequeno"
+              hx-get="{{ url_for('orcamento.orcamento_linha_form', linha_id=l.id) }}"
+              hx-target="#orcamento-linha-{{ l.id }}"
+              hx-swap="outerHTML">Editar</button>
+      <button type="button" class="btn btn--secundario btn--pequeno"
+              hx-post="{{ url_for('orcamento.orcamento_linha_excluir', linha_id=l.id) }}"
+              hx-confirm="Tirar {{ l.subcategoria }} do plano deste mês?"
+              hx-target="#orcamento-corpo"
+              hx-swap="innerHTML">Excluir</button>
+    {% endif %}
+  </td>
+</tr>

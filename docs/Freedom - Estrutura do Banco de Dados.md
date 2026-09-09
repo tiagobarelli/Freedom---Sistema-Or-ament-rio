@@ -4,7 +4,7 @@ Sistema web pessoal de controle financeiro. Roda localmente; acesso de outros me
 
 > **Status**: schema implementado em `db/init/01_schema.sql` (idempotente). Este documento reflete exatamente o que está no banco. Se o SQL mudar, atualizar aqui; se este documento mudar, atualizar o SQL.
 >
-> Histórico do DDL: criado na rodada 1 e inalterado até a rodada 6. A **rodada 7 acrescentou a view `vw_receitas`** — única mudança de schema desde então, e nenhuma tabela foi tocada. A rodada 8 (configurações) não mexeu no schema. O que as rodadas 4 a 8 acrescentaram além disso está em **Regras da aplicação** e em **Padrões de acesso**.
+> Histórico do DDL: criado na rodada 1 e inalterado até a rodada 6. A **rodada 7 acrescentou a view `vw_receitas`**. A **rodada 15 é a segunda e única outra mudança**: criou `tb_orcamento_meses` e trocou `tb_orcamentos` de categoria para subcategoria (a tabela nunca recebera uma linha, então foi troca de coluna, sem migração de dados). Nenhuma tabela de movimento foi tocada em nenhuma das duas. O que as rodadas 4 a 15 acrescentaram além disso está em **Regras da aplicação** e em **Padrões de acesso**.
 
 ## Decisões de projeto
 
@@ -17,6 +17,8 @@ Sistema web pessoal de controle financeiro. Roda localmente; acesso de outros me
 - **Movimento se exclui, referência se desativa** (decisão da rodada 4): `tb_despesas` e `tb_receitas` não têm coluna de situação e admitem `DELETE` físico, porque um lançamento digitado errado é lixo, não histórico. Nenhuma tabela de referência pode ser apagada, nem em teste.
 - **Configurações têm vigência**: mudar a TSR no futuro não altera relatórios do passado.
 - **Configuração é corrigível** (decisão da rodada 8): `tb_configuracoes` admite `UPDATE` e `DELETE` físico pela interface. Uma vigência digitada errada é lixo, como um lançamento errado; como nada derivado é armazenado, apagá-la só muda o que os relatórios calculam dali em diante. A **chave** não muda na edição — trocar de chave é apagar e lançar de novo.
+- **Orçamento é por subcategoria, e o mês tem tabela própria** (rodada 15): orçar por categoria pede um número que ninguém sabe dizer ("quanto vou gastar em Lazer?"); por subcategoria o número sai do histórico daquela linha e a categoria vira soma. O que é atributo do **mês** — receita planejada, encerramento, observação — mora em `tb_orcamento_meses`, e não repetido em cada linha; assim um mês recém-criado ou esvaziado continua existindo.
+- **Mês de orçamento se encerra, não se congela por trigger** (rodada 15): `encerrado_em` nulo significa aberto. A recusa de alterar mês encerrado é da aplicação (ver Regras da aplicação).
 - **Leitura pela view, escrita na tabela**, para os dois movimentos: `vw_despesas` e `vw_receitas` são o que a aplicação consulta; `INSERT`, `UPDATE` e `DELETE` vão sempre nas tabelas base.
 
 ## Decisões de implementação (tomadas ao escrever o DDL)
@@ -42,6 +44,9 @@ Sistema web pessoal de controle financeiro. Roda localmente; acesso de outros me
 - **Configuração não aceita valor negativo** (regra da aplicação; o banco não tem `CHECK`). Nenhum dos três parâmetros iniciais admite negativo e `-4` é quase sempre `4` com um dedo a mais. *Reabrir se o dashboard precisar de um `R` real negativo.*
 - **Casas decimais em configuração**: percentual aceita até 4 casas digitadas (viram 6 ao dividir por 100, o limite de `NUMERIC(12,6)`); chave livre aceita 6. Acima disso, erro de campo — nunca arredondamento silencioso.
 - **Vigência futura não é o valor de hoje.** A tela mostra a série inteira por chave, marca as vigências futuras como tais e destaca o valor vigente na data corrente.
+- **Mês de orçamento encerrado não aceita alteração** (rodada 15). Com `tb_orcamento_meses.encerrado_em` preenchido, a aplicação recusa `INSERT`, `UPDATE` e `DELETE` nas linhas daquele mês, na receita planejada e na exclusão do próprio mês, sempre com mensagem legível — nunca 500. O banco não impede nada disso: uma trigger em `tb_orcamentos` consultando o mês a cada linha custaria caro e tornaria impossível corrigir um encerramento equivocado por SQL.
+- **Reabrir mês só enquanto for o último** (rodada 15). Zerar `encerrado_em` é permitido apenas se não existir `tb_orcamento_meses` com `ano_mes` posterior: o mês seguinte é criado copiando o anterior, e reabrir um mês que já teve descendente faria o descendente derivar de números que mudaram depois.
+- **Sugestão de orçamento vem do histórico, não é armazenada** (rodada 15). Ao criar um mês, se o mês imediatamente anterior tiver orçamento, copiam-se as linhas e a receita planejada dele; senão, sugere-se uma linha por subcategoria ativa com despesa nos **12 meses fechados anteriores**, com `valor_planejado` = soma dos 12 ÷ 12 (`ROUND_HALF_UP`, duas casas), e receita planejada pela mesma média. A divisão é sempre por 12, mesmo que só um mês tenha despesa: o orçamento é provisão, não média dos meses em que houve gasto. As colunas "Média 12m" e "Realizado no mês anterior" da tela são recalculadas a cada exibição e **nunca gravadas**.
 - **Padronização de `tb_ativos.classe`**: dropdown alimentado pelos valores já usados.
 
 ## Padrões de acesso (rodadas 5 a 8)
@@ -60,7 +65,7 @@ Sistema web pessoal de controle financeiro. Roda localmente; acesso de outros me
 - Percentuais: em fração (4% = `0.04`).
 - Datas: `DATE`. Carimbos de auditoria: `TIMESTAMPTZ`.
 - `criado_em`: `NOT NULL DEFAULT now()`. `atualizado_em`: `NULL` até o primeiro `UPDATE`, preenchido pela trigger `fn_set_atualizado_em()`.
-- Constraints nomeadas: `ck_` (CHECK), `uq_` (UNIQUE), `ix_` (índice), `tg_` (trigger), `fn_` (função), `vw_` (view).
+- Constraints nomeadas: `ck_` (CHECK), `uq_` (UNIQUE), `ix_` (índice), `tg_` (trigger), `fn_` (função), `vw_` (view), `fk_` (chave estrangeira). O prefixo `fk_` entrou na rodada 15 e vale para FK nova: as anteriores usam o nome automático do Postgres, e renomeá-las não traria nada. Nomear importa quando o script precisa perguntar "esta constraint já existe?" antes de criá-la.
 
 ---
 
@@ -212,16 +217,28 @@ Tabela principal. **Movimento**: admite `DELETE` físico pela interface (ver Dec
 
 ## Tabelas de planejamento e patrimônio
 
+### `tb_orcamento_meses`
+
+Cabeçalho de cada mês orçado, criado na rodada 15. É a tabela **pai** das linhas de `tb_orcamentos`: guarda o que é atributo do mês, não da linha, e faz um mês sem nenhuma linha continuar existindo.
+
+| Coluna | Tipo | Função |
+|---|---|---|
+| `ano_mes` | `DATE PK` | Mês orçado, sempre dia 1. `CHECK (EXTRACT(DAY FROM ano_mes) = 1)`. Sendo chave primária, há no máximo um orçamento por mês. |
+| `receita_planejada` | `NUMERIC(12,2) NOT NULL DEFAULT 0` | Receita esperada no mês. `CHECK (>= 0)`. A poupança planejada é ela menos a soma das linhas. |
+| `criado_em` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Quando o mês foi aberto. |
+| `encerrado_em` | `TIMESTAMPTZ` | Quando foi encerrado. `NULL` = aberto. Mês encerrado não aceita alteração — **regra da aplicação**, não do banco. |
+| `observacoes` | `TEXT` | Anotação livre sobre o mês (as premissas do planejamento, por exemplo). |
+
 ### `tb_orcamentos`
 
-Orçamento mensal por categoria de despesa.
+Uma linha por **subcategoria** orçada num mês. Até a rodada 14 era por categoria e nunca recebeu uma linha; a rodada 15 trocou a coluna, sem migração de dados.
 
 | Coluna | Tipo | Função |
 |---|---|---|
 | `id` | `INT IDENTITY PK` | Identificador único. |
-| `categoria_id` | `INT NOT NULL FK → tb_categorias` | Categoria orçada. |
-| `ano_mes` | `DATE NOT NULL` | Mês de referência, dia 1. `CHECK (EXTRACT(DAY FROM ano_mes) = 1)`. `UNIQUE (categoria_id, ano_mes)`. |
-| `valor_planejado` | `NUMERIC(12,2) NOT NULL` | Teto planejado para o mês. `CHECK (>= 0)` — zero é permitido. Realizado vs. planejado sai comparando com `vw_despesas`. |
+| `subcategoria_id` | `INT NOT NULL FK → tb_subcategorias` (`fk_orcamentos_subcategoria`) | Subcategoria orçada. O total da categoria é a soma das subcategorias dela — não se orça categoria diretamente. |
+| `ano_mes` | `DATE NOT NULL FK → tb_orcamento_meses (ano_mes)` (`fk_orcamentos_mes`) | Mês de referência, dia 1, que **tem de existir** em `tb_orcamento_meses`. `CHECK (EXTRACT(DAY FROM ano_mes) = 1)` mantido, redundante com a FK mas barato. `UNIQUE (subcategoria_id, ano_mes)`. |
+| `valor_planejado` | `NUMERIC(12,2) NOT NULL` | Teto planejado da subcategoria no mês. `CHECK (>= 0)` — zero é permitido. Realizado vs. planejado sai comparando com `vw_despesas` por intervalo de `data`. |
 
 ### `tb_ativos`
 
@@ -298,7 +315,8 @@ JOIN tb_ref_receitas rr ON rr.id = r.ref_receita_id;
 
 ```
 tb_categorias 1──n tb_subcategorias 1──n tb_despesas
-tb_categorias 1──n tb_orcamentos
+tb_subcategorias 1──n tb_orcamentos
+tb_orcamento_meses 1──n tb_orcamentos  (por ano_mes)
 tb_ref_receitas 1──n tb_receitas
 tb_contas 1──n tb_despesas
 tb_pessoas 1──n tb_despesas
@@ -319,7 +337,8 @@ tb_configuracoes (sem FK; consultada por chave e data)
 | Patrimônio total | soma de `tb_patrimonio_snapshots` na última data disponível |
 | Número de independência | `despesas anuais / TSR`, com a TSR vigente na data de referência |
 | Despesa deflacionada | `valor × indice_base / indice_do_mes`, só para `integra_ipca = TRUE` |
-| Realizado vs. orçado | soma de `vw_despesas` por categoria e mês comparada a `tb_orcamentos` |
+| Realizado vs. orçado | soma de `vw_despesas` por **subcategoria** no intervalo de `data` do mês, comparada a `tb_orcamentos` do mesmo `ano_mes`; a categoria é a soma das subcategorias dela |
+| Poupança planejada do mês | `tb_orcamento_meses.receita_planejada` − soma de `tb_orcamentos.valor_planejado` do mês; a taxa é a poupança sobre a receita planejada |
 | Total do período e divisão essencial × não essencial | agregados sobre `vw_despesas` no intervalo de datas filtrado (implementado na consulta de despesas) |
 | Total de receitas do período por categoria | agregados sobre `vw_receitas` no intervalo filtrado (implementado na tela de receitas) |
 
@@ -331,4 +350,6 @@ tb_configuracoes (sem FK; consultada por chave e data)
 4. ~~Lançamento, consulta, edição e exclusão de **despesas**~~ — feito (rodadas 4 a 6).
 5. ~~Lançamento e visualização de **receitas** em página única, com `vw_receitas`~~ — feito (rodada 7).
 6. ~~**Configurações** com vigência (TSR, R, S e chaves livres)~~ — feito (rodada 8).
-7. Próximo: **dashboard** em `/` (totais do mês, por categoria, essencial × não essencial, taxa de poupança, número de independência), depois orçamento, patrimônio, carga do IPCA (API SIDRA/IBGE, `INSERT ... ON CONFLICT (mes) DO UPDATE`) e deploy via Tailscale.
+7. ~~**Painéis**: Visão Anual em `/` e Visão Mensal em `/mensal`~~ — feito (rodadas 9 a 14).
+8. ~~**Orçamento**: schema por subcategoria, `tb_orcamento_meses`, montagem do mês a partir do histórico~~ — feito (rodada 15).
+9. Próximo: acompanhamento realizado × orçado, patrimônio, carga do IPCA (API SIDRA/IBGE, `INSERT ... ON CONFLICT (mes) DO UPDATE`) e deploy via Tailscale.

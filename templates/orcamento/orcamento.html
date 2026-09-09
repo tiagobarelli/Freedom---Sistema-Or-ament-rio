@@ -1,0 +1,90 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{% block title %}Orçamento - Freedom{% endblock %}
+{% block titulo_pagina %}Orçamento{% endblock %}
+{% block subtitulo_pagina %}
+  <p class="pagina-subtitulo">
+    {% if p %}
+      O plano de {{ p.periodo }}, por subcategoria. Média 12m e Realizado no mês
+      anterior são recalculados dos lançamentos a cada visita — nunca ficam gravados.
+    {% else %}
+      Planeje o mês antes de ele acontecer: o primeiro orçamento nasce da média
+      dos doze meses fechados, e os seguintes, do mês anterior.
+    {% endif %}
+  </p>
+{% endblock %}
+
+{% block content %}
+  {#
+    Duas barras de filtro lado a lado (.filtro-barra, secao 5.13). A da
+    esquerda NAVEGA entre meses que ja tem orcamento; a da direita GRAVA um mes
+    novo. Sao formularios separados porque fazem coisas diferentes - e porque o
+    segundo e POST com CSRF, enquanto o primeiro e GET com recarga inteira,
+    como o seletor da Visao Mensal.
+  #}
+  <div class="orcamento-barras">
+    {% if anos %}
+      <form class="filtro-barra" method="get"
+            action="{{ url_for('orcamento.orcamento_tela') }}">
+        <label class="filtro-campo">
+          <span class="filtro-campo__rotulo">Ano</span>
+          <select class="selecao" name="ano" onchange="this.form.submit()">
+            {% for a in anos %}
+              <option value="{{ a }}"
+                      {{ 'selected' if ano_mes and a == ano_mes.year }}>{{ a }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="filtro-campo">
+          <span class="filtro-campo__rotulo">Mês</span>
+          {# So os meses que TEM orcamento: aqui nao ha o que ver num mes que
+             ninguem planejou, ao contrario da Visao Mensal. #}
+          <select class="selecao" name="mes" onchange="this.form.submit()">
+            {% for mes in meses %}
+              <option value="{{ mes.numero }}"
+                      {{ 'selected' if ano_mes and mes.numero == ano_mes.month }}>
+                {{ mes.rotulo }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+      </form>
+    {% endif %}
+
+    {% if criaveis %}
+      <form class="filtro-barra" method="post"
+            action="{{ url_for('orcamento.orcamento_criar') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="filtro-campo">
+          <span class="filtro-campo__rotulo">Criar orçamento de</span>
+          {# Mes corrente e os doze seguintes que ainda nao tem orcamento. Mes
+             passado nao aparece: planejar o que ja aconteceu nao e planejar. #}
+          <select class="selecao" name="ano_mes">
+            {% for c in criaveis %}
+              <option value="{{ c.valor }}">{{ c.rotulo }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <div class="filtro-campo filtro-campo--acao">
+          <button type="submit" class="btn btn--primario">Criar</button>
+        </div>
+      </form>
+    {% endif %}
+  </div>
+
+  {# Faixa das regras recusadas (mes encerrado, reabertura barrada). O HTMX
+     joga a mensagem aqui com HX-Retarget, venha ela de que botao vier. #}
+  <div id="orcamento-aviso" class="aviso-inline" role="status"></div>
+
+  {% if p %}
+    <div id="orcamento-corpo">
+      {% include "orcamento/_corpo.html" %}
+    </div>
+  {% else %}
+    <div class="card card--solido">
+      {{ m.vazio("Nenhum mês orçado ainda",
+                 "Escolha um mês acima e clique em Criar. O primeiro orçamento vem da média dos doze meses fechados anteriores: uma linha por subcategoria que teve despesa no período, com a soma dividida por doze.") }}
+    </div>
+  {% endif %}
+{% endblock %}

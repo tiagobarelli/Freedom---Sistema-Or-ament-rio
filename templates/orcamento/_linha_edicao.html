@@ -1,0 +1,44 @@
+{#
+  A mesma linha, virada formulario.
+
+  O <form> vive dentro de um unico <td colspan>: <form> solto entre <td>s e
+  marcacao invalida e o navegador o expulsa da tabela (licao da rodada 8).
+
+  O alvo declarado e a propria linha, que e o que a resposta de ERRO precisa
+  trocar. No sucesso a rota responde com HX-Retarget para o corpo inteiro,
+  porque o subtotal da categoria, o total, a poupanca e a taxa mudam junto.
+#}
+<tr id="orcamento-linha-{{ l.id }}" class="linha-edicao">
+  <td colspan="5">
+    <form class="config-edicao"
+          hx-post="{{ url_for('orcamento.orcamento_linha_gravar', linha_id=l.id) }}"
+          hx-target="#orcamento-linha-{{ l.id }}"
+          hx-swap="outerHTML">
+      {{ form.hidden_tag() }}
+
+      <div class="config-edicao__campos">
+        <div class="campo">
+          <span class="campo__rotulo">Subcategoria</span>
+          <p class="orcamento-edicao__nome">{{ l.categoria }} · {{ l.subcategoria }}</p>
+        </div>
+        <div class="campo">
+          {{ form.valor.label(class="campo__rotulo", text="Planejado") }}
+          <div class="entrada-moeda">
+            <span class="entrada-moeda__prefixo" aria-hidden="true">R$</span>
+            {{ form.valor(class="entrada" ~ (" entrada--erro" if form.valor.errors else ""),
+                          inputmode="decimal", autocomplete="off", autofocus=true) }}
+          </div>
+        </div>
+        <div class="config-edicao__acoes">
+          <button type="submit" class="btn btn--primario btn--pequeno">Salvar</button>
+          <button type="button" class="btn btn--secundario btn--pequeno"
+                  hx-get="{{ url_for('orcamento.orcamento_linha', linha_id=l.id) }}"
+                  hx-target="#orcamento-linha-{{ l.id }}"
+                  hx-swap="outerHTML">Cancelar</button>
+        </div>
+      </div>
+
+      {% for e in form.valor.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
+    </form>
+  </td>
+</tr>

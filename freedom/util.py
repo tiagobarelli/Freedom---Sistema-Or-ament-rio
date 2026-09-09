@@ -2,12 +2,14 @@
 
 Além do destino seguro de redirecionamento, mora aqui o que despesas, receitas
 e o painel usam em comum: os nomes dos meses, o parser de valor monetário, o
-escape de curingas do LIKE e a leitura do cabeçalho do HTMX. Todos nasceram em
+escape de curingas do LIKE, a ordenação alfabética em português e a leitura do
+cabeçalho do HTMX. Todos nasceram em
 `lancamentos/servico.py`, quando só havia uma tela de lançamento; passaram a
 servir mais de uma e subiram para cá.
 """
 
 import re
+import unicodedata
 from decimal import Decimal, InvalidOperation
 from urllib.parse import urlparse
 
@@ -235,6 +237,31 @@ def formatar_valor(valor):
     os dois são o mesmo assunto visto dos dois lados.
     """
     return formatar_numero(valor, 2)
+
+
+# --------------------------------------------------------------------------
+# Ordenação alfabética
+# --------------------------------------------------------------------------
+
+def chave_alfabetica(nome):
+    """Nome dobrado (sem acento, em minúscula) para ordenar como em pt-BR.
+
+    O `sorted` do Python compara ponto de código, e aí 'Água e esgoto' cairia
+    depois de 'Vestuário', porque 'Á' vale mais que qualquer letra ASCII —
+    ninguém procura a primeira categoria da lista no fim dela. Decompor em NFD
+    e descartar as marcas combinantes põe cada nome onde se espera.
+
+    `locale.strxfrm` faria o mesmo, mas locale no Windows não é confiável: é a
+    mesma razão pela qual os nomes dos meses são uma tupla aqui em cima.
+    O nome original entra como segunda chave para 'Saude' e 'Saúde', se um dia
+    existirem, não trocarem de lugar entre uma leitura e outra.
+
+    Nasceu privada em `main/servico_mensal.py` (rodada 12) e subiu para cá na
+    rodada 15, quando o orçamento virou a terceira tela a precisar dela.
+    """
+    dobrado = "".join(letra for letra in unicodedata.normalize("NFD", nome)
+                      if not unicodedata.combining(letra))
+    return dobrado.lower(), nome
 
 
 # --------------------------------------------------------------------------

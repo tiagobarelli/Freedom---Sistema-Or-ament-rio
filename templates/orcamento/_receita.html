@@ -1,0 +1,10 @@
+{% import "_macros.html" as m %}
+{# Receita planejada em leitura. Editar troca so este bloco por _receita_edicao. #}
+<span class="orcamento-receita__rotulo">Receita planejada</span>
+<strong class="orcamento-receita__valor">{{ m.reais(p.receita) }}</strong>
+{% if p.aberto %}
+  <button type="button" class="btn btn--discreto btn--pequeno"
+          hx-get="{{ url_for('orcamento.orcamento_receita_form', mes=p.mes_url) }}"
+          hx-target="#orcamento-receita"
+          hx-swap="innerHTML">Editar</button>
+{% endif %}

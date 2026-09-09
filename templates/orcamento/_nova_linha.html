@@ -1,0 +1,58 @@
+{#
+  Acrescentar uma subcategoria que ainda nao esta no mes. O select so oferece
+  ATIVAS e AUSENTES: o que ja esta no plano sai da lista sozinho, porque a
+  consulta o exclui - nao ha como lancar duplicata pela tela.
+
+  Sem <combobox> de texto livre aqui, ao contrario das configuracoes: chave de
+  configuracao e lista aberta, subcategoria e cadastro fechado. Oferecer texto
+  livre convidaria a criar subcategoria por engano de dentro do orcamento.
+#}
+{% if p.disponiveis %}
+  <form class="orcamento-nova"
+        hx-post="{{ url_for('orcamento.orcamento_linha_nova', mes=p.mes_url) }}"
+        hx-target="#orcamento-nova-linha"
+        hx-swap="innerHTML">
+    {{ form.hidden_tag() if form else '' }}
+    {% if not form %}
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% endif %}
+
+    <div class="campo">
+      <label class="campo__rotulo" for="subcategoria_id">Acrescentar subcategoria</label>
+      <select class="selecao{{ ' selecao--erro' if form and form.subcategoria_id.errors }}"
+              id="subcategoria_id" name="subcategoria_id" required>
+        <option value="">Escolha a subcategoria</option>
+        {% for s in p.disponiveis %}
+          <option value="{{ s.id }}"
+                  {{ 'selected' if form and form.subcategoria_id.data == s.id }}>
+            {{ s.categoria }} · {{ s.nome }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="campo">
+      <label class="campo__rotulo" for="valor">Planejado</label>
+      <div class="entrada-moeda">
+        <span class="entrada-moeda__prefixo" aria-hidden="true">R$</span>
+        <input class="entrada{{ ' entrada--erro' if form and form.valor.errors }}"
+               id="valor" name="valor" inputmode="decimal" autocomplete="off"
+               value="{{ form.valor.data if form and form.valor.data else '0,00' }}">
+      </div>
+    </div>
+
+    <div class="campo campo--acao">
+      <button type="submit" class="btn btn--primario btn--pequeno">Acrescentar</button>
+    </div>
+
+    {% if form %}
+      {% for campo in [form.subcategoria_id, form.valor] %}
+        {% for e in campo.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
+      {% endfor %}
+    {% endif %}
+  </form>
+{% else %}
+  <p class="campo__dica orcamento-nova__vazio">
+    Todas as subcategorias ativas já estão no plano deste mês.
+  </p>
+{% endif %}

@@ -45,12 +45,14 @@ def create_app(config_class=Config):
     from freedom.configuracoes import bp as configuracoes_bp
     from freedom.lancamentos import bp as lancamentos_bp
     from freedom.main import bp as main_bp
+    from freedom.orcamento import bp as orcamento_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(cadastros_bp)
     app.register_blueprint(lancamentos_bp)
     app.register_blueprint(configuracoes_bp)
+    app.register_blueprint(orcamento_bp)
 
     from freedom.util import formatar_numero, formatar_valor
 

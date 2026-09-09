@@ -1,0 +1,21 @@
+{# Receita planejada virada formulario. No sucesso a rota devolve o corpo
+   inteiro (poupanca e taxa mudam com ela) via HX-Retarget; no erro, so este
+   bloco, para quem digitou nao perder o que digitou. #}
+<form class="orcamento-receita__form"
+      hx-post="{{ url_for('orcamento.orcamento_receita', mes=mes_url) }}"
+      hx-target="#orcamento-receita"
+      hx-swap="innerHTML">
+  {{ form.hidden_tag() }}
+  <label class="campo__rotulo" for="{{ form.valor.id }}">Receita planejada</label>
+  <div class="entrada-moeda">
+    <span class="entrada-moeda__prefixo" aria-hidden="true">R$</span>
+    {{ form.valor(class="entrada" ~ (" entrada--erro" if form.valor.errors else ""),
+                  inputmode="decimal", autocomplete="off", autofocus=true) }}
+  </div>
+  <button type="submit" class="btn btn--primario btn--pequeno">Salvar</button>
+  <button type="button" class="btn btn--secundario btn--pequeno"
+          hx-get="{{ url_for('orcamento.orcamento_receita_cancelar', mes=mes_url) }}"
+          hx-target="#orcamento-receita"
+          hx-swap="innerHTML">Cancelar</button>
+  {% for e in form.valor.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
+</form>

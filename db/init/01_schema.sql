@@ -56,6 +56,25 @@
 --    sao repetidas para nao induzir uso errado; auditar de onde veio o valor
 --    exige consultar tb_despesas e tb_subcategorias diretamente.
 --
+-- 7. O ORCAMENTO E POR SUBCATEGORIA, E O MES E UMA TABELA PROPRIA. (rodada 15)
+--    Ate aqui tb_orcamentos era por categoria, e nunca recebeu uma linha.
+--    Orcar por categoria pede um numero que ninguem sabe dizer ("quanto vou
+--    gastar em Lazer?"); por subcategoria o numero sai do historico daquela
+--    linha, e a categoria vira soma. Dai a troca de categoria_id por
+--    subcategoria_id.
+--    O mes ganhou tabela propria (tb_orcamento_meses) porque ha atributos do
+--    MES, e nao da linha: a receita planejada, o carimbo de encerramento e a
+--    observacao. Sem ela esses tres se repetiriam em cada linha, e um mes sem
+--    nenhuma linha - recem-criado, ou esvaziado - deixaria de existir. A FK de
+--    tb_orcamentos.ano_mes para ela e o que impede linha orfa de um mes que
+--    ninguem abriu.
+--
+-- 8. AS DUAS FKS NOVAS SAO NOMEADAS (fk_...). (rodada 15)
+--    As FKs das rodadas anteriores usam o nome automatico do Postgres. As do
+--    orcamento sao nomeadas para que o bloco DO que as cria possa perguntar
+--    "ja existe?" por nome: sem isso, reaplicar o script num banco ja migrado
+--    acrescentaria uma FK identica a cada execucao.
+--
 -- -----------------------------------------------------------------------------
 -- REGRAS DA APLICACAO (deliberadamente NAO impostas pelo banco)
 --
@@ -68,6 +87,17 @@
 --    da subcategoria, e o efeito colateral seria pior que o problema: renomear
 --    ou reclassificar a essencialidade de uma subcategoria passaria a falhar,
 --    ou a zerar prioridades historicas em silencio, alterando o passado.
+--
+-- MES DE ORCAMENTO ENCERRADO NAO SE ALTERA. (rodada 15)
+--    tb_orcamento_meses.encerrado_em nulo significa aberto. Nada no banco
+--    impede UPDATE, INSERT ou DELETE nas linhas de um mes encerrado, nem na
+--    receita planejada dele: a regra vive na aplicacao, que recusa a operacao
+--    e responde com mensagem legivel. Impor por trigger custaria uma trigger
+--    em tb_orcamentos consultando tb_orcamento_meses a cada linha, e tornaria
+--    impossivel corrigir um encerramento equivocado por SQL.
+--    Reabrir (zerar encerrado_em) so e permitido enquanto nao existir
+--    tb_orcamento_meses com ano_mes posterior: senao o mes seguinte, que foi
+--    copiado deste, passaria a descender de um numero que mudou depois.
 -- =============================================================================
 
 SET client_encoding = 'UTF8';
@@ -326,25 +356,92 @@ CREATE TRIGGER tg_receitas_atualizado_em
 -- 4. TABELAS DE PLANEJAMENTO E PATRIMONIO
 -- =============================================================================
 
+-- --------------------------------------------------------- meses do orcamento
+-- O cabecalho de cada mes orcado. Existe antes das linhas e sobrevive a elas:
+-- um mes recem-criado, ou esvaziado, continua sendo um mes aberto.
+CREATE TABLE IF NOT EXISTS tb_orcamento_meses (
+    ano_mes            DATE          PRIMARY KEY
+                                     CONSTRAINT ck_orcamento_meses_dia_1
+                                     CHECK (EXTRACT(DAY FROM ano_mes) = 1),
+    receita_planejada  NUMERIC(12,2) NOT NULL DEFAULT 0
+                                     CONSTRAINT ck_orcamento_meses_receita
+                                     CHECK (receita_planejada >= 0),
+    criado_em          TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    encerrado_em       TIMESTAMPTZ,
+    observacoes        TEXT
+);
+
+COMMENT ON TABLE  tb_orcamento_meses                   IS 'Cabecalho de cada mes orcado: receita planejada, encerramento e observacao. E a tabela pai das linhas de tb_orcamentos.';
+COMMENT ON COLUMN tb_orcamento_meses.ano_mes           IS 'Mes orcado, sempre dia 1 (ex.: 2026-09-01). E a chave primaria: ha no maximo um orcamento por mes.';
+COMMENT ON COLUMN tb_orcamento_meses.receita_planejada IS 'Receita que se espera receber no mes. Aceita zero, nao aceita negativo. A poupanca planejada e ela menos a soma das linhas.';
+COMMENT ON COLUMN tb_orcamento_meses.criado_em         IS 'Quando o mes foi aberto.';
+COMMENT ON COLUMN tb_orcamento_meses.encerrado_em      IS 'Quando o mes foi encerrado. NULL = aberto. Mes encerrado nao aceita alteracao - regra da aplicacao, nao do banco.';
+COMMENT ON COLUMN tb_orcamento_meses.observacoes       IS 'Anotacao livre sobre o mes (as premissas do planejamento, por exemplo).';
+
 -- ----------------------------------------------------------------- orcamentos
+-- Em banco novo o CREATE ja nasce por subcategoria. Num banco vindo da rodada 1
+-- a tabela existe por categoria (e vazia), e os ALTER abaixo fazem a troca; num
+-- banco ja migrado, todos eles sao no-op.
 CREATE TABLE IF NOT EXISTS tb_orcamentos (
     id               INT           GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    categoria_id     INT           NOT NULL
-                                   REFERENCES tb_categorias (id) ON DELETE RESTRICT,
+    subcategoria_id  INT           NOT NULL
+                                   CONSTRAINT fk_orcamentos_subcategoria
+                                   REFERENCES tb_subcategorias (id) ON DELETE RESTRICT,
     ano_mes          DATE          NOT NULL
+                                   CONSTRAINT fk_orcamentos_mes
+                                   REFERENCES tb_orcamento_meses (ano_mes) ON DELETE RESTRICT
                                    CONSTRAINT ck_orcamentos_ano_mes_dia_1
                                    CHECK (EXTRACT(DAY FROM ano_mes) = 1),
     valor_planejado  NUMERIC(12,2) NOT NULL
                                    CONSTRAINT ck_orcamentos_valor_planejado
                                    CHECK (valor_planejado >= 0),
-    CONSTRAINT uq_orcamentos_categoria_ano_mes UNIQUE (categoria_id, ano_mes)
+    CONSTRAINT uq_orcamentos_subcategoria_ano_mes UNIQUE (subcategoria_id, ano_mes)
 );
 
-COMMENT ON TABLE  tb_orcamentos                 IS 'Orcamento mensal por categoria de despesa.';
+-- Formato antigo COM linha dentro: nao ha como adivinhar de qual subcategoria
+-- era uma linha de categoria. Para com mensagem em vez de inventar dado.
+DO $BLOCO$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'tb_orcamentos' AND column_name = 'categoria_id')
+       AND EXISTS (SELECT 1 FROM tb_orcamentos)
+    THEN
+        RAISE EXCEPTION 'tb_orcamentos esta no formato antigo (categoria_id) e tem linhas. Migre os dados a mao antes de reaplicar este script.';
+    END IF;
+END
+$BLOCO$;
+
+ALTER TABLE tb_orcamentos DROP CONSTRAINT IF EXISTS uq_orcamentos_categoria_ano_mes;
+ALTER TABLE tb_orcamentos DROP COLUMN     IF EXISTS categoria_id;
+ALTER TABLE tb_orcamentos ADD  COLUMN     IF NOT EXISTS subcategoria_id INT;
+ALTER TABLE tb_orcamentos ALTER COLUMN subcategoria_id SET NOT NULL;
+
+DO $BLOCO$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_orcamentos_subcategoria') THEN
+        ALTER TABLE tb_orcamentos
+            ADD CONSTRAINT fk_orcamentos_subcategoria
+            FOREIGN KEY (subcategoria_id) REFERENCES tb_subcategorias (id) ON DELETE RESTRICT;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_orcamentos_mes') THEN
+        ALTER TABLE tb_orcamentos
+            ADD CONSTRAINT fk_orcamentos_mes
+            FOREIGN KEY (ano_mes) REFERENCES tb_orcamento_meses (ano_mes) ON DELETE RESTRICT;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uq_orcamentos_subcategoria_ano_mes') THEN
+        ALTER TABLE tb_orcamentos
+            ADD CONSTRAINT uq_orcamentos_subcategoria_ano_mes UNIQUE (subcategoria_id, ano_mes);
+    END IF;
+END
+$BLOCO$;
+
+COMMENT ON TABLE  tb_orcamentos                 IS 'Uma linha por subcategoria orcada num mes. O cabecalho do mes (receita planejada, encerramento) fica em tb_orcamento_meses.';
 COMMENT ON COLUMN tb_orcamentos.id              IS 'Identificador unico.';
-COMMENT ON COLUMN tb_orcamentos.categoria_id    IS 'Categoria orcada.';
-COMMENT ON COLUMN tb_orcamentos.ano_mes         IS 'Mes de referencia, dia 1. UNIQUE (categoria_id, ano_mes).';
-COMMENT ON COLUMN tb_orcamentos.valor_planejado IS 'Teto planejado para o mes. Realizado vs. planejado sai comparando com tb_despesas.';
+COMMENT ON COLUMN tb_orcamentos.subcategoria_id IS 'Subcategoria orcada. O total da categoria e a soma das subcategorias dela - nao se orca categoria diretamente.';
+COMMENT ON COLUMN tb_orcamentos.ano_mes         IS 'Mes de referencia, dia 1, que tem de existir em tb_orcamento_meses. UNIQUE (subcategoria_id, ano_mes).';
+COMMENT ON COLUMN tb_orcamentos.valor_planejado IS 'Teto planejado da subcategoria no mes. Aceita zero, nao aceita negativo. Realizado vs. planejado sai comparando com vw_despesas por intervalo de data.';
 
 -- --------------------------------------------------------------------- ativos
 CREATE TABLE IF NOT EXISTS tb_ativos (

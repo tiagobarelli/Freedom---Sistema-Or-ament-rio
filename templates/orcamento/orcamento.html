@@ -5,7 +5,10 @@
 {% block titulo_pagina %}Orçamento{% endblock %}
 {% block subtitulo_pagina %}
   <p class="pagina-subtitulo">
-    {% if p %}
+    {% if a %}
+      O plano de {{ a.rotulo_periodo }} contra o que já foi gasto. O realizado sai
+      dos lançamentos a cada visita — nunca fica gravado.
+    {% elif p %}
       O plano de {{ p.periodo }}, por subcategoria. Média 12m e Realizado no mês
       anterior são recalculados dos lançamentos a cada visita — nunca ficam gravados.
     {% else %}
@@ -49,6 +52,30 @@
             {% endfor %}
           </select>
         </label>
+
+        {#
+          Modo: montar o plano ou acompanha-lo. O padrao vem do servidor (mes
+          com despesa abre no acompanhamento; mes vazio, na montagem), mas a
+          escolha explicita manda e viaja na URL como os demais seletores.
+        #}
+        <label class="filtro-campo">
+          <span class="filtro-campo__rotulo">Modo</span>
+          <select class="selecao" name="modo" onchange="this.form.submit()">
+            <option value="montagem" {{ 'selected' if modo == 'montagem' }}>Montagem</option>
+            <option value="acompanhamento" {{ 'selected' if modo == 'acompanhamento' }}>Acompanhamento</option>
+          </select>
+        </label>
+
+        {# So no acompanhamento: na montagem nao ha o que acumular. #}
+        {% if modo == 'acompanhamento' %}
+          <label class="filtro-campo">
+            <span class="filtro-campo__rotulo">Período</span>
+            <select class="selecao" name="periodo" onchange="this.form.submit()">
+              <option value="mes" {{ 'selected' if periodo == 'mes' }}>Mês</option>
+              <option value="acumulado" {{ 'selected' if periodo == 'acumulado' }}>Acumulado no ano</option>
+            </select>
+          </label>
+        {% endif %}
       </form>
     {% endif %}
 
@@ -77,9 +104,13 @@
      joga a mensagem aqui com HX-Retarget, venha ela de que botao vier. #}
   <div id="orcamento-aviso" class="aviso-inline" role="status"></div>
 
-  {% if p %}
+  {% if cab %}
     <div id="orcamento-corpo">
-      {% include "orcamento/_corpo.html" %}
+      {% if modo == 'acompanhamento' %}
+        {% include "orcamento/_acompanhamento.html" %}
+      {% else %}
+        {% include "orcamento/_corpo.html" %}
+      {% endif %}
     </div>
   {% else %}
     <div class="card card--solido">

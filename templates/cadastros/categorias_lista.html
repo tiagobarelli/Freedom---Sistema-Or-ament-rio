@@ -7,27 +7,21 @@
   <p class="pagina-subtitulo">Nível superior das despesas. Também usado no orçamento.</p>
 {% endblock %}
 {% block acoes_pagina %}
-  <a class="btn btn--primario" href="{{ url_for('cadastros.categorias_nova') }}">Nova categoria</a>
+  <a class="btn btn--primario" href="{{ url_for('cadastros.categorias_nova') }}">
+    {{ m.icone("plus", tamanho=14, tracado=2.25) }}Nova categoria
+  </a>
 {% endblock %}
 
 {% block content %}
-  <form class="filtros" method="get">
-    {{ m.filtro_inativos(mostrar_inativos) }}
-  </form>
+<div class="painel painel--estreito">
 
-  <div class="tabela-caixa">
-    {% if linhas %}
-      <table class="tabela">
-        {{ m.cabecalho_tabela(["Nome", "Situação"]) }}
-        <tbody>
-          {% for item in linhas %}
-            {% include "cadastros/_linha_categoria.html" %}
-          {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
-      {{ m.vazio("Nenhuma categoria",
-                 "Crie a primeira categoria para começar a classificar despesas.") }}
-    {% endif %}
-  </div>
+  {{ m.filtros_cadastro(contagem, mostrar_inativos) }}
+
+  {% call m.lista_cadastro(linhas, ["Nome", "Situação"],
+                            "Nenhuma categoria",
+                 "Crie a primeira categoria para começar a classificar despesas.") %}
+    {% for item in linhas %}{% include "cadastros/_linha_categoria.html" %}{% endfor %}
+  {% endcall %}
+
+</div>
 {% endblock %}

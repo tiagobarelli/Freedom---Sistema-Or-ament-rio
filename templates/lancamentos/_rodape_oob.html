@@ -1,0 +1,18 @@
+{#
+  Rodape da lista de recentes, trocado fora do alvo principal.
+
+  Dois numeros com origens diferentes de proposito: "Total exibido" e a soma
+  das linhas que estao na tela (vem das mesmas linhas que a tabela recebeu) e
+  "Total do mes" le do mesmo lugar que o #total-mes da barra superior. Se os
+  dois batessem sempre, um deles sobraria; e quando nao batem, a diferenca e
+  justamente a informacao (o mes tem mais lancamentos do que os quinze).
+#}
+{% import "_macros.html" as m %}
+<div id="recentes-rodape" class="recentes-rodape" hx-swap-oob="true">
+  <span class="recentes-rodape__total">
+    Total exibido <b>{{ m.reais(exibido) }}</b>
+  </span>
+  <span class="recentes-rodape__total">
+    Total do mês <b>{{ m.reais(resumo.total) }}</b>
+  </span>
+</div>

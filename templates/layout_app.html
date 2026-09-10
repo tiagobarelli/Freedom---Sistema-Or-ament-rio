@@ -1,37 +1,42 @@
 {% extends "base.html" %}
+{% import "_macros.html" as m %}
 
 {#
-  Layout das telas autenticadas: sidebar fixa + area de conteudo.
+  Layout das telas autenticadas: sidebar escura + barra superior + conteudo.
   A tela de login nao usa este arquivo; ela estende base.html direto.
 #}
 
-{% macro _logo() -%}
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-       stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
-       stroke-linejoin="round" aria-hidden="true">
-    <path d="M4 20V6a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/>
-    <path d="M8 13h6M8 16.5h4M8 9.5h4"/>
-  </svg>
+{% macro _marca() -%}
+  <span class="marca__quadrado" aria-hidden="true"></span>
+  <span class="marca__nome">Freedom</span>
 {%- endmacro %}
 
+{#
+  O menu inteiro numa estrutura so: grupo -> chave -> itens (endpoint, rotulo,
+  icone). A chave e o sufixo da chave do localStorage e o id do painel que o
+  botao controla; o icone e o nome que a macro `icone` conhece.
+
+  Configuracoes continua no fim de Cadastros: e cadastro de parametro, e nao um
+  grupo de um item so.
+#}
 {% set navegacao = [
-  ("Painel", [
-    ("main.index",                    "Visão Anual"),
-    ("main.mensal",                   "Visão Mensal"),
-    ("orcamento.orcamento_tela",      "Orçamento"),
+  ("Painel", "painel", true, [
+    ("main.index",                    "Visão Anual",        "calendar-range"),
+    ("main.mensal",                   "Visão Mensal",       "calendar-days"),
+    ("orcamento.orcamento_tela",      "Orçamento",          "pie-chart"),
   ]),
-  ("Lançamentos", [
-    ("lancamentos.despesas_tela",     "Lançar despesa"),
-    ("lancamentos.despesas_consulta", "Consultar despesas"),
-    ("lancamentos.receitas_tela",     "Receitas"),
+  ("Lançamentos", "lancamentos", true, [
+    ("lancamentos.despesas_tela",     "Lançar despesa",     "circle-plus"),
+    ("lancamentos.despesas_consulta", "Consultar despesas", "search"),
+    ("lancamentos.receitas_tela",     "Receitas",           "trending-up"),
   ]),
-  ("Cadastros", [
-    ("cadastros.categorias_lista",    "Categorias"),
-    ("cadastros.subcategorias_lista", "Subcategorias"),
-    ("cadastros.contas_lista",        "Contas"),
-    ("cadastros.pessoas_lista",       "Pessoas"),
-    ("cadastros.ref_receitas_lista",  "Fontes de receita"),
-    ("configuracoes.configuracoes_tela", "Configurações"),
+  ("Cadastros", "cadastros", false, [
+    ("cadastros.categorias_lista",    "Categorias",         "tags"),
+    ("cadastros.subcategorias_lista", "Subcategorias",      "tag"),
+    ("cadastros.contas_lista",        "Contas",             "landmark"),
+    ("cadastros.pessoas_lista",       "Pessoas",            "users"),
+    ("cadastros.ref_receitas_lista",  "Fontes de receita",  "banknote"),
+    ("configuracoes.configuracoes_tela", "Configurações",   "settings"),
   ]),
 ] %}
 
@@ -41,7 +46,7 @@
   {# Barra de topo: aparece so abaixo de 768px (ver CSS secao 7). #}
   <header class="topo-mobile">
     <a class="topo-mobile__marca" href="{{ url_for('main.index') }}">
-      {{ _logo() }} Freedom
+      {{ _marca() }}
     </a>
     <button type="button" class="menu-botao" id="menu-botao"
             aria-controls="sidebar" aria-expanded="false">
@@ -56,7 +61,7 @@
 
   <aside class="sidebar" id="sidebar">
     <a class="sidebar__logo" href="{{ url_for('main.index') }}">
-      {{ _logo() }} Freedom
+      {{ _marca() }}
     </a>
 
     {#
@@ -65,8 +70,8 @@
       /lancamentos/despesas, e os dois ficariam destacados ao mesmo tempo.
     #}
     {% set ns = namespace(ativo='') %}
-    {% for _, itens in navegacao %}
-      {% for endpoint, _rotulo in itens %}
+    {% for _, _chave, _aberto, itens in navegacao %}
+      {% for endpoint, _rotulo, _icone in itens %}
         {% set alvo = url_for(endpoint) %}
         {% if (request.endpoint == endpoint or request.path.startswith(alvo + '/'))
               and alvo | length > ns.ativo | length %}
@@ -76,14 +81,39 @@
     {% endfor %}
 
     <nav class="sidebar__nav" aria-label="Navegacao principal">
-      {% for titulo_grupo, itens in navegacao %}
+      {% for titulo_grupo, chave, aberto, itens in navegacao %}
         <div class="nav-grupo">
-          <p class="nav-grupo__titulo">{{ titulo_grupo }}</p>
-          {% for endpoint, rotulo in itens %}
-            {% set alvo = url_for(endpoint) %}
-            <a class="nav-item {{ 'nav-item--ativo' if alvo == ns.ativo else '' }}"
-               href="{{ alvo }}">{{ rotulo }}</a>
-          {% endfor %}
+          {#
+            O cabecalho de secao e <button> porque recolhe e expande. O estado
+            visivel e o `hidden` da lista; o estado anunciado e o
+            aria-expanded. Os dois andam juntos, escritos pelo mesmo lugar no
+            script la embaixo. O padrao inicial (Painel e Lancamentos abertos,
+            Cadastros fechado) vem daqui, ja renderizado, e o script so o
+            corrige com o que estiver no localStorage - assim a secao nao
+            aparece aberta para fechar em seguida.
+          #}
+          <button type="button" class="nav-grupo__titulo"
+                  data-secao="{{ chave }}"
+                  aria-controls="nav-{{ chave }}"
+                  aria-expanded="{{ 'true' if aberto else 'false' }}">
+            {{ titulo_grupo }}
+            {{ m.icone("chevron-down", tamanho=12, tracado=2,
+                       classe="icone nav-grupo__seta") }}
+          </button>
+          {# Atributo inteiro por {% if %}, e nao por interpolacao: expressao
+             que devolve texto com aspas passa pelo autoescape e vira
+             `hidden=&#34;...&#34;` (licao da rodada 16). #}
+          <div class="nav-grupo__lista" id="nav-{{ chave }}"
+               {% if not aberto %}hidden{% endif %}>
+            {% for endpoint, rotulo, nome_icone in itens %}
+              {% set alvo = url_for(endpoint) %}
+              <a class="nav-item {{ 'nav-item--ativo' if alvo == ns.ativo else '' }}"
+                 href="{{ alvo }}"
+                 {% if alvo == ns.ativo %}aria-current="page"{% endif %}>
+                {{ m.icone(nome_icone) }}{{ rotulo }}
+              </a>
+            {% endfor %}
+          </div>
         </div>
       {% endfor %}
     </nav>
@@ -98,35 +128,128 @@
           <span class="usuario__login">{{ current_user.login }}</span>
         </span>
       </div>
-      <form action="{{ url_for('auth.logout') }}" method="post">
+      {#
+        Sair e POST com CSRF, e continua sendo: o desenho traz um <a href="#">,
+        que trocaria encerrar sessao por um GET. O botao e so o icone, entao o
+        rotulo vai no `title` (ponteiro) e no .so-leitor (leitor de tela).
+      #}
+      <form class="sair" action="{{ url_for('auth.logout') }}" method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="btn btn--secundario btn--bloco btn--pequeno">
-          Sair
+        <button type="submit" class="sair__botao" title="Sair">
+          <span class="so-leitor">Sair</span>
+          {{ m.icone("log-out") }}
         </button>
       </form>
     </div>
   </aside>
 
+  {#
+    Script das secoes recolhiveis. Fica AQUI, colado na sidebar, e nao no fim
+    do corpo: ele roda enquanto o navegador ainda esta lendo a pagina, antes
+    de pintar, e assim uma secao que o usuario fechou nao pisca aberta.
+  #}
+  <script>
+    (function () {
+      var CHAVE = 'freedom.sidebar.';
+      var painel = document.getElementById('sidebar');
+      if (!painel) return;
+
+      var botoes = painel.querySelectorAll('.nav-grupo__titulo');
+      // Abaixo de 768px a sidebar ja e um painel que abre e fecha inteiro:
+      // recolher secoes dentro dele seria dois cliques para chegar a um link.
+      // La tudo fica visivel, como antes desta rodada.
+      var desktop = window.matchMedia('(min-width: 768px)');
+
+      // localStorage pode nao existir (navegacao privativa, politica do
+      // navegador) e pode LANCAR so de ser lido. Sem ele, tudo aberto e
+      // nenhum erro: se o menu nao consegue lembrar do que foi fechado, nao
+      // fecha nada - o padrao inicial so faz sentido se der para desfaze-lo e
+      // o navegador guardar a escolha.
+      var memoria = (function () {
+        try {
+          var teste = CHAVE + 'teste';
+          localStorage.setItem(teste, '1');
+          localStorage.removeItem(teste);
+          return true;
+        } catch (e) {
+          return false;
+        }
+      })();
+
+      function lido(chave) {
+        try {
+          return localStorage.getItem(CHAVE + chave);
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function gravar(chave, aberto) {
+        try {
+          localStorage.setItem(CHAVE + chave, aberto ? '1' : '0');
+        } catch (e) { /* sem memoria: a sessao atual continua valendo */ }
+      }
+
+      function aplicar(botao, aberto) {
+        botao.setAttribute('aria-expanded', aberto ? 'true' : 'false');
+        var lista = document.getElementById(botao.getAttribute('aria-controls'));
+        if (lista) lista.hidden = !aberto;
+      }
+
+      function repor() {
+        botoes.forEach(function (botao) {
+          if (!desktop.matches || !memoria) {
+            aplicar(botao, true);
+            return;
+          }
+          var guardado = lido(botao.dataset.secao);
+          // Sem nada guardado vale o que o servidor ja renderizou.
+          if (guardado !== null) aplicar(botao, guardado === '1');
+        });
+      }
+
+      botoes.forEach(function (botao) {
+        botao.addEventListener('click', function () {
+          if (!desktop.matches) return;
+          var aberto = botao.getAttribute('aria-expanded') !== 'true';
+          aplicar(botao, aberto);
+          gravar(botao.dataset.secao, aberto);
+        });
+      });
+
+      // Girar o aparelho ou redimensionar a janela cruza os 768px: o estado
+      // anunciado tem que acompanhar o que se ve.
+      desktop.addEventListener('change', repor);
+      repor();
+    })();
+  </script>
+
   <main class="conteudo">
+    {#
+      Barra superior sticky: titulo e subtitulo da tela a esquerda, acoes a
+      direita. Cada tela preenche os tres blocos.
+    #}
     <div class="pagina-cabecalho">
-      <div>
+      <div class="pagina-cabecalho__texto">
         <h1 class="pagina-titulo">{% block titulo_pagina %}{% endblock %}</h1>
         {% block subtitulo_pagina %}{% endblock %}
       </div>
       <div class="pagina-acoes">{% block acoes_pagina %}{% endblock %}</div>
     </div>
 
-    {% with mensagens = get_flashed_messages(with_categories=true) %}
-      {% if mensagens %}
-        <div class="flash-lista">
-          {% for categoria, texto in mensagens %}
-            <div class="flash flash--{{ categoria }}" role="status">{{ texto }}</div>
-          {% endfor %}
-        </div>
-      {% endif %}
-    {% endwith %}
+    <div class="conteudo__corpo">
+      {% with mensagens = get_flashed_messages(with_categories=true) %}
+        {% if mensagens %}
+          <div class="flash-lista">
+            {% for categoria, texto in mensagens %}
+              <div class="flash flash--{{ categoria }}" role="status">{{ texto }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
 
-    {% block content %}{% endblock %}
+      {% block content %}{% endblock %}
+    </div>
   </main>
 </div>
 

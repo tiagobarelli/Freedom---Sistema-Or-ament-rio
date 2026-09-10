@@ -11,6 +11,7 @@ from psycopg import errors
 from freedom.cadastros import bp
 from freedom.cadastros.forms import SubcategoriaForm
 from freedom.cadastros.servico import (
+    contagem,
     alternar_ativo,
     aplicar_erro_duplicado,
     executar,
@@ -79,6 +80,7 @@ def subcategorias_lista():
     return render_template(
         "cadastros/subcategorias_lista.html",
         linhas=linhas,
+        contagem=contagem("subcategorias"),
         categorias=categorias,
         filtro_categoria=filtro_categoria,
         mostrar_inativos=mostrar_inativos,

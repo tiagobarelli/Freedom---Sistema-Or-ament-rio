@@ -7,9 +7,20 @@
   <p class="pagina-subtitulo">Despesa no cartão entra com a data da compra, como qualquer outra.</p>
 {% endblock %}
 
+{#
+  O total do mês vive na barra superior desde a rodada 18. Continua sendo o
+  mesmo `#total-mes` que a gravação e a exclusão trocam fora de banda: o id não
+  mudou, e um swap por id não se importa com onde o elemento está.
+#}
+{% block acoes_pagina %}
+  {% if not pendencias %}{% include "lancamentos/_total_oob.html" %}{% endif %}
+{% endblock %}
+
 {% block content %}
+<div class="painel">
+
   {% if pendencias %}
-    <div class="card card--solido">
+    <div class="card">
       {{ m.vazio("Falta cadastro antes de lançar",
                  "Uma despesa precisa de subcategoria, conta e pessoa. Ainda falta:") }}
       <ul class="pendencias">
@@ -22,21 +33,19 @@
       </ul>
     </div>
   {% else %}
-    <div class="card card--solido form-despesa">
+    <div class="card form-despesa">
       {% include "lancamentos/_formulario_oob.html" %}
     </div>
-    {# Preenchido pelo swap out-of-band apos gravar. #}
-    <div id="aviso-lancamento" class="aviso-inline" role="status"></div>
   {% endif %}
 
-  <section class="secao-recentes">
-    <div class="recentes-cabecalho">
-      <h2 class="card__titulo mt-0">Lançamentos recentes</h2>
-      {% include "lancamentos/_total_oob.html" %}
+  <section class="card card--tabela">
+    <div class="card__cabecalho">
+      <h2 class="card__titulo">Lançamentos recentes</h2>
+      <span class="card__nota">Editar abre a despesa em página própria</span>
     </div>
 
     <div class="tabela-caixa">
-      <table class="tabela tabela--despesas">
+      <table class="tabela tabela--despesas tabela--recentes">
         <thead>
           <tr>
             <th class="col-data">Data</th>
@@ -63,7 +72,17 @@
         </tbody>
       </table>
     </div>
+
+    {#
+      Dois números de origens diferentes, de propósito: o exibido sai das
+      linhas acima, o do mês lê do mesmo lugar que a barra superior. A
+      diferença entre eles é a informação — o mês tem mais lançamentos do que
+      cabem em quinze linhas.
+    #}
+    {% include "lancamentos/_rodape_oob.html" %}
   </section>
+
+</div>
 
   <script>
     // --- Autocomplete de descricao -------------------------------------

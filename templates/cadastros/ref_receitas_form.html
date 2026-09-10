@@ -5,7 +5,7 @@
 {% block titulo_pagina %}{{ 'Editar fonte de receita' if registro else 'Nova fonte de receita' }}{% endblock %}
 
 {% block content %}
-  <div class="card card--solido formulario">
+  <div class="card formulario">
     <form method="post" novalidate>
       {{ form.hidden_tag() }}
       {{ m.campo(form.categoria, dica="Ex.: Salário, Investimentos, Extras.",

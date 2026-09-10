@@ -10,10 +10,11 @@
 {% endblock %}
 
 {% block content %}
-  <div class="card card--solido form-despesa formulario-largo">
+  {# Mesmo cartao e mesma grade da tela de lancamento: e o mesmo formulario. #}
+  <div class="card form-despesa">
     {# Mesma macro da tela de lancamento: a marcacao nao e copiada. #}
     {# O retorno viaja na action para o POST voltar ao mesmo lugar. #}
-    <form id="form-despesa" method="post" class="pilha" novalidate
+    <form id="form-despesa" method="post" class="form-lancar" novalidate
           action="{{ url_for('lancamentos.despesas_editar',
                              despesa_id=despesa.id, retorno=retorno) }}">
       {{ m.campos_despesa(form, sub_selecionada,

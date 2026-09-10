@@ -7,27 +7,21 @@
   <p class="pagina-subtitulo">Classificação das entradas: categoria e subcategoria na mesma tabela.</p>
 {% endblock %}
 {% block acoes_pagina %}
-  <a class="btn btn--primario" href="{{ url_for('cadastros.ref_receitas_nova') }}">Nova fonte</a>
+  <a class="btn btn--primario" href="{{ url_for('cadastros.ref_receitas_nova') }}">
+    {{ m.icone("plus", tamanho=14, tracado=2.25) }}Nova fonte
+  </a>
 {% endblock %}
 
 {% block content %}
-  <form class="filtros" method="get">
-    {{ m.filtro_inativos(mostrar_inativos) }}
-  </form>
+<div class="painel painel--estreito">
 
-  <div class="tabela-caixa">
-    {% if linhas %}
-      <table class="tabela">
-        {{ m.cabecalho_tabela(["Categoria", "Subcategoria", "Observação", "Situação"]) }}
-        <tbody>
-          {% for item in linhas %}
-            {% include "cadastros/_linha_ref_receita.html" %}
-          {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
-      {{ m.vazio("Nenhuma fonte de receita",
-                 "Cadastre de onde vêm as entradas: salário, dividendos, extras.") }}
-    {% endif %}
-  </div>
+  {{ m.filtros_cadastro(contagem, mostrar_inativos) }}
+
+  {% call m.lista_cadastro(linhas, ["Categoria", "Subcategoria", "Observação", "Situação"],
+                            "Nenhuma fonte de receita",
+                 "Cadastre de onde vêm as entradas: salário, dividendos, extras.") %}
+    {% for item in linhas %}{% include "cadastros/_linha_ref_receita.html" %}{% endfor %}
+  {% endcall %}
+
+</div>
 {% endblock %}

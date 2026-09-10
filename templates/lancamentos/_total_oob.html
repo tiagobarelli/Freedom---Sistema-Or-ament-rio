@@ -1,4 +1,8 @@
-{# Total do mes trocado fora do alvo principal (out-of-band). #}
+{#
+  Total do mes trocado fora do alvo principal (out-of-band). Desde a rodada 18
+  vive na barra superior, a direita do titulo; o id nao mudou, entao o swap
+  continua o mesmo.
+#}
 {% import "_macros.html" as m %}
 <div id="total-mes" class="total-mes" hx-swap-oob="true">
   <span class="total-mes__rotulo">Total em {{ resumo.rotulo }}</span>

@@ -34,6 +34,9 @@
   exatamente as mesmas oito colunas, e escrever duas vezes seria duas chances
   de divergir.
 
+  A classe da linha vem do servidor: mes sem lancamento nenhum sai esmaecido.
+  Nao e zero, e ausencia - e o acumulado e a taxa dele ja vem como travessao.
+
   A segunda <tr> so aparece no celular (secao 7 do CSS) e carrega as quatro
   colunas escondidas. Aqui a linha de apoio e uma LINHA, e nao um <span> dentro
   da celula principal como nas tabelas de lancamento: la a celula principal e a
@@ -41,7 +44,7 @@
   sem espremer as colunas de dinheiro.
 #}
 {% macro linha_mensal(l) %}
-  <tr>
+  <tr class="{{ l.classe or '' }}">
     <td class="tabela__principal col-mes">
       <span class="mes-longo">{{ l.mes }}</span> <span class="mes-curto">{{ l.mes_curto }}</span>
     </td>
@@ -49,7 +52,7 @@
     <td class="col-num">{{ dinheiro(l.despesas) }}</td>
     <td class="col-num col-essenciais">{{ dinheiro(l.essenciais) }}</td>
     <td class="col-num col-nao-essenciais">{{ dinheiro(l.nao_essenciais) }}</td>
-    <td class="col-num">{{ dinheiro(l.saldo) }}</td>
+    <td class="col-num col-saldo">{{ dinheiro(l.saldo) }}</td>
     <td class="col-num col-acumulado">{{ dinheiro(l.acumulado) }}</td>
     <td class="col-num col-taxa">{{ percentual(l.taxa) }}</td>
   </tr>
@@ -66,45 +69,77 @@
 {% block title %}Visão Anual - Freedom{% endblock %}
 {% block titulo_pagina %}Visão Anual{% endblock %}
 {% block subtitulo_pagina %}
-  <p class="pagina-subtitulo">O ano inteiro num relance. Para o detalhe do mês, use Consultar despesas.</p>
+  <p class="pagina-subtitulo">O ano inteiro num relance</p>
 {% endblock %}
+
+{#
+  Acoes da barra superior: o seletor de ano e o botao de lancar despesa.
+
+  O seletor e um grupo de LINKS, e nao um <select> nem radios. Trocar de ano
+  sempre foi um GET com recarga da pagina inteira (`?ano=`), e e exatamente
+  isso que um link e: navegavel por teclado, abrivel em outra aba, sem uma
+  linha de JavaScript e sem formulario. O ano em exibicao leva
+  aria-current="page", que e o que o CSS pinta - o estado visual e o estado
+  anunciado sao o mesmo atributo.
+
+  A ordem vem invertida porque o servico devolve os anos do mais recente para
+  o mais antigo (a ordem certa para um <select>) e o segmentado se le da
+  esquerda para a direita, do mais antigo para o mais novo.
+#}
 {% block acoes_pagina %}
+  <nav class="anos" aria-label="Ano">
+    {% for a in anos | reverse %}
+      <a class="anos__item" href="{{ url_for('main.index', ano=a) }}"
+         {% if a == ano %}aria-current="page"{% endif %}>{{ a }}</a>
+    {% endfor %}
+  </nav>
   <a class="btn btn--primario" href="{{ url_for('lancamentos.despesas_tela') }}">
-    Lançar despesa
+    {{ m.icone("plus", tamanho=14, tracado=2.25) }}Lançar despesa
   </a>
 {% endblock %}
 
 {% block content %}
-  {#
-    GET com recarga da pagina inteira, sem HTMX: trocar de ano troca os treze
-    cards de uma vez, entao nao ha fragmento a trocar. O select submete no
-    onchange - mesmo padrao do filtro "Mostrar inativos" dos cadastros.
-  #}
-  <form class="filtro-barra" method="get" action="{{ url_for('main.index') }}">
-    <label class="filtro-campo">
-      <span class="filtro-campo__rotulo">Ano</span>
-      <select class="selecao" name="ano" onchange="this.form.submit()">
-        {% for a in anos %}
-          <option value="{{ a }}" {{ 'selected' if a == ano }}>{{ a }}</option>
-        {% endfor %}
-      </select>
-    </label>
-  </form>
+<div class="painel">
 
   {#
-    Os treze cards vem montados de servico.py, na ordem em que aparecem: card
-    de dinheiro traz `valor` (Decimal, formatado aqui pela macro `reais`), os
-    demais trazem `texto` ja pronto.
+    Os quatro KPIs. Vem montados de servico.py: card de dinheiro traz `valor`
+    (Decimal, formatado aqui pela macro `reais`), os demais trazem `texto` ja
+    pronto. `classe` e `barra` tambem vem de la - a cor do saldo e a proporcao
+    do trilho sao decisao da aplicacao, nao do Jinja.
   #}
   <div class="painel-grade">
-    {% for c in cards %}
-      <article class="card painel-card">
-        <p class="painel-card__rotulo">{{ c.rotulo }}</p>
-        <p class="painel-card__valor{{ ' painel-card__valor--negativo' if c.negativo }}">
+    {% for c in cards.kpis %}
+      <article class="card kpi">
+        <p class="kpi__rotulo">{{ c.rotulo }}</p>
+        <p class="kpi__valor {{ c.classe or '' }}">
           {%- if c.valor is not none %}{{ m.reais(c.valor) }}{% else %}{{ c.texto }}{% endif -%}
         </p>
-        {% if c.apoio %}<p class="painel-card__apoio">{{ c.apoio }}</p>{% endif %}
+        {% if c.barra %}
+          {# Largura em `style` com PONTO decimal: e CSS, nao texto de tela. #}
+          <div class="kpi__trilho" aria-hidden="true">
+            <span class="kpi__preenchimento {{ c.barra.classe }}"
+                  style="width: {{ '%.2f' | format(c.barra.pct) }}%"></span>
+          </div>
+        {% endif %}
+        {% if c.apoio %}<p class="kpi__apoio">{{ c.apoio }}</p>{% endif %}
       </article>
+    {% endfor %}
+  </div>
+
+  {#
+    Os nove indicadores secundarios, num cartao so. A nota (mes, divisor da
+    media, descricao e data do pico) vem pronta do servidor; o ponto que a
+    separa do valor e o CSS que poe, porque e separador, nao conteudo.
+  #}
+  <div class="card indicadores">
+    {% for c in cards.indicadores %}
+      <div class="indicador">
+        <span class="indicador__rotulo">{{ c.rotulo }}</span>
+        <span class="indicador__valor {{ 'negativo' if c.negativo else '' }}">
+          {%- if c.valor is not none %}{{ m.reais(c.valor) }}{% else %}{{ c.texto }}{% endif -%}
+          {%- if c.apoio %} <span class="indicador__nota {{ c.classe or '' }}">{{ c.apoio }}</span>{% endif -%}
+        </span>
+      </div>
     {% endfor %}
   </div>
 
@@ -126,7 +161,7 @@
     </section>
 
     <section class="card grafico">
-      <h2 class="card__titulo">Despesas Essenciais &times; Não Essenciais</h2>
+      <h2 class="card__titulo">Essenciais &times; Não essenciais</h2>
       <div class="grafico__area">
         <canvas id="grafico-essencialidade"
                 aria-label="Despesas essenciais, nao essenciais e total por mes"></canvas>
@@ -152,83 +187,87 @@
 
   {#
     As duas tabelas. Tudo ja vem somado de servico.py - inclusive o acumulado,
-    os totais e os percentuais. Aqui nao se soma nada: o Jinja so escolhe o
-    formato (macro `reais`, filtro `numero`) e onde pintar de vermelho.
+    os totais, os percentuais e o contador de categorias. Aqui nao se soma
+    nada: o Jinja so escolhe o formato (macro `reais`, filtro `numero`) e onde
+    pintar de vermelho.
   #}
-  <div class="painel-tabelas">
-    <section class="card">
+  <section class="card card--tabela">
+    <div class="card__cabecalho">
       <h2 class="card__titulo">Mês a mês</h2>
-      <div class="tabela-caixa">
-        <table class="tabela tabela--resumo tabela--mensal">
-          <thead>
-            <tr>
-              <th class="col-mes">Mês</th>
-              <th class="col-num">Receitas</th>
-              <th class="col-num">Despesas</th>
-              <th class="col-num col-essenciais">Essenciais</th>
-              <th class="col-num col-nao-essenciais">Não Essenciais</th>
-              <th class="col-num">Saldo</th>
-              <th class="col-num col-acumulado">Saldo Acumulado</th>
-              <th class="col-num col-taxa">Taxa de Poupança</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for l in tabelas.mensal.linhas %}{{ linha_mensal(l) }}{% endfor %}
-          </tbody>
-          <tfoot>
-            {{ linha_mensal(tabelas.mensal.total) }}
-          </tfoot>
-        </table>
-      </div>
-    </section>
+    </div>
+    <div class="tabela-caixa">
+      <table class="tabela tabela--resumo tabela--anual tabela--mensal">
+        <thead>
+          <tr>
+            <th class="col-mes">Mês</th>
+            <th class="col-num">Receitas</th>
+            <th class="col-num">Despesas</th>
+            <th class="col-num col-essenciais">Essenciais</th>
+            <th class="col-num col-nao-essenciais">Não essenciais</th>
+            <th class="col-num col-saldo">Saldo</th>
+            <th class="col-num col-acumulado">Acumulado</th>
+            <th class="col-num col-taxa">Poupança</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in tabelas.mensal.linhas %}{{ linha_mensal(l) }}{% endfor %}
+        </tbody>
+        <tfoot>
+          {{ linha_mensal(tabelas.mensal.total) }}
+        </tfoot>
+      </table>
+    </div>
+  </section>
 
-    <section class="card">
+  <section class="card card--tabela">
+    <div class="card__cabecalho">
       <h2 class="card__titulo">Despesas por categoria</h2>
-      <div class="tabela-caixa">
-        <table class="tabela tabela--resumo">
-          <thead>
+      <span class="card__contador">{{ tabelas.categorias.contador }}</span>
+    </div>
+    <div class="tabela-caixa">
+      {# Quatro colunas: nome, barra, total e percentual. A barra ganhou coluna
+         propria (na Mensal ela continua dentro da celula do percentual). O
+         cabecalho dela existe so para o leitor de tela - uma barra nao precisa
+         de rotulo visivel, e a coluna precisa de um <th>. #}
+      <table class="tabela tabela--resumo tabela--anual tabela--categorias">
+        <thead>
+          <tr>
+            <th class="col-categoria">Categoria</th>
+            <th class="col-barra"><span class="so-leitor">Participação</span></th>
+            <th class="col-num">Total</th>
+            <th class="col-pct">%</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in tabelas.categorias.linhas %}
             <tr>
-              <th class="col-categoria">Categoria</th>
-              <th class="col-num">Total</th>
-              <th class="col-pct">% das despesas</th>
+              <td class="col-categoria">{{ l.categoria }}</td>
+              <td class="col-barra">{{ m.barra_pct(l.pct) }}</td>
+              <td class="col-num">{{ m.reais(l.total) }}</td>
+              <td class="col-pct">{{ l.pct | numero(1) }}%</td>
             </tr>
-          </thead>
-          <tbody>
-            {% for l in tabelas.categorias.linhas %}
-              <tr>
-                <td class="tabela__principal col-categoria">{{ l.categoria }}</td>
-                <td class="col-num">{{ m.reais(l.total) }}</td>
-                <td class="col-pct">
-                  <span class="pct-celula">
-                    {{ m.barra_pct(l.pct) }}
-                    <span class="pct-celula__numero">{{ l.pct | numero(1) }}%</span>
-                  </span>
-                </td>
-              </tr>
-            {% else %}
-              <tr>
-                <td class="tabela__vazio" colspan="3">Nenhuma despesa em {{ ano }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-          {% if tabelas.categorias.linhas %}
-            {# Sem barra no rodape: uma barra cheia de 100% nao informa nada. #}
-            <tfoot>
-              <tr>
-                <td class="col-categoria">Total</td>
-                <td class="col-num">{{ m.reais(tabelas.categorias.total.total) }}</td>
-                <td class="col-pct">
-                  <span class="pct-celula__numero">
-                    {{ tabelas.categorias.total.pct | numero(1) }}%
-                  </span>
-                </td>
-              </tr>
-            </tfoot>
-          {% endif %}
-        </table>
-      </div>
-    </section>
-  </div>
+          {% else %}
+            <tr>
+              <td class="tabela__vazio" colspan="4">Nenhuma despesa em {{ ano }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        {% if tabelas.categorias.linhas %}
+          {# Sem barra no rodape: uma barra cheia de 100% nao informa nada. #}
+          <tfoot>
+            <tr>
+              <td class="col-categoria">Total</td>
+              <td class="col-barra"></td>
+              <td class="col-num">{{ m.reais(tabelas.categorias.total.total) }}</td>
+              <td class="col-pct">{{ tabelas.categorias.total.pct | numero(1) }}%</td>
+            </tr>
+          </tfoot>
+        {% endif %}
+      </table>
+    </div>
+  </section>
+
+</div>
 {% endblock %}
 
 {#

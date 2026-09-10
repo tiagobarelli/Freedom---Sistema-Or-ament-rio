@@ -11,6 +11,7 @@ from psycopg import errors
 from freedom.cadastros import bp
 from freedom.cadastros.forms import RefReceitaForm
 from freedom.cadastros.servico import (
+    contagem,
     alternar_ativo,
     aplicar_erro_duplicado,
     executar,
@@ -39,6 +40,7 @@ def ref_receitas_lista():
     return render_template(
         "cadastros/ref_receitas_lista.html",
         linhas=linhas,
+        contagem=contagem("ref_receitas"),
         mostrar_inativos=mostrar_inativos,
     )
 

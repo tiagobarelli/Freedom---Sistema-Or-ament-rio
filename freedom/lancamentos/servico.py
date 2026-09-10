@@ -5,6 +5,7 @@ efetiva); INSERT, UPDATE e DELETE vão em `tb_despesas`.
 """
 
 from datetime import date
+from decimal import Decimal
 
 from freedom.db import query_all, query_one
 # MESES morava aqui; subiu para util.py quando a Visão Anual passou a precisar
@@ -114,12 +115,48 @@ _SELECT_LISTA = """
 """
 
 
-def recentes(limite=15):
+# Quantas despesas a tela de lançamento mostra. O número aparece no texto do
+# estado vazio e governa as duas trocas out-of-band que mantêm a lista do
+# navegador igual a esta lista aqui.
+LIMITE_RECENTES = 15
+
+
+def recentes(limite=LIMITE_RECENTES):
     """As mais recentes por criado_em. Sistema doméstico: mostra de todos."""
     return query_all(
         _SELECT_LISTA + " ORDER BY v.criado_em DESC, v.id DESC LIMIT %s",
         (limite,),
     )
+
+
+def recentes_com_excedente(limite=LIMITE_RECENTES):
+    """As `limite` mais recentes e a PRIMEIRA que ficou de fora.
+
+    Uma consulta só, pedindo uma linha a mais. A linha extra é a fronteira da
+    lista, e a tela de lançamento precisa dela nos dois sentidos:
+
+    - ao gravar, a linha nova entra por cima (`afterbegin`) e a fronteira
+      anterior tem de sair, senão a lista no navegador cresceria a cada
+      lançamento em série;
+    - ao excluir, uma linha sai e a fronteira entra por baixo, para o buraco
+      não ficar.
+
+    Sem isso o "Total exibido" do rodapé descreveria um conjunto diferente do
+    que está na tela — é o número que mais depende dessa igualdade.
+    """
+    linhas = recentes(limite + 1)
+    return linhas[:limite], (linhas[limite] if len(linhas) > limite else None)
+
+
+def total_exibido(linhas):
+    """Soma das linhas que estão na tela, em Decimal.
+
+    Exceção prevista à regra de não somar em Python sobre a página: o conjunto
+    é pequeno, completo e definido justamente como "estas linhas". Uma consulta
+    agregada responderia outra pergunta (o total do mês, que é o número ao
+    lado) e poderia divergir do que se vê.
+    """
+    return sum((l["valor"] for l in linhas), Decimal("0.00"))
 
 
 def linha(despesa_id):

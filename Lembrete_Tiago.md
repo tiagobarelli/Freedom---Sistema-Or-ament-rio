@@ -1,1 +1,0 @@
-Colar o prompt da rodada 16. Além disso, o histório gerado até a rodada 15 ainda não foi transposto para docs

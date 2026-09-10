@@ -1,0 +1,36 @@
+{#
+  Resposta da exclusao feita na tela de lancamento.
+
+  Nao ha conteudo principal: a <tr> alvo do botao e trocada por nada, que e
+  como ela some. Tudo aqui e out-of-band, e cada peca vai dentro de
+  <template> porque a resposta contem uma <tr> - misturar <tr> e <div> soltos
+  poe o parser em contexto de tabela e expulsa os <div> (licao da rodada 6).
+#}
+<template>
+  {% include "lancamentos/_total_oob.html" %}
+</template>
+
+<template>
+  {% include "lancamentos/_rodape_oob.html" %}
+</template>
+
+{#
+  A despesa que voltou a caber nas quinze mais recentes entra pelo fim da
+  lista. Sem ela a tela ficaria com quatorze linhas e o "Total exibido"
+  contaria uma que nao esta la.
+
+  A <tr> vai dentro de um <tbody> que carrega o hx-swap-oob, e nao nela mesma:
+  num swap out-of-band que NAO seja outerHTML, o htmx insere o CONTEUDO do
+  elemento marcado, nao o elemento. Com o atributo na propria <tr> o que
+  chegaria na tabela seriam os <td> soltos, que o parser descarta - a linha
+  simplesmente nao aparecia.
+#}
+{% if completa %}
+  <template>
+    <tbody hx-swap-oob="beforeend:#lista-despesas">
+      {% with item = completa %}
+        {% include "lancamentos/_linha_despesa.html" %}
+      {% endwith %}
+    </tbody>
+  </template>
+{% endif %}

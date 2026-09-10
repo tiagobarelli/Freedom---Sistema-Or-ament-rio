@@ -1,12 +1,23 @@
 /* ==========================================================================
    Freedom - folha de estilo unica
-   Tema claro, direcao glassmorphism. Escrita a mao, sem framework.
+   Escrita a mao, sem framework.
+
+   O tema Glassmorphism roxo saiu na rodada 17 e entrou o design system
+   sobrio: fundo #F5F5F7, fonte do sistema, cinzas neutros, um acento teal
+   (#30B0C7) e verde/vermelho RESERVADOS a receita, despesa e valor negativo.
+   A sidebar e escura; o unico backdrop-filter que sobrou e o da barra
+   superior. Ver secao 1 sobre os apelidos do tema antigo.
+
+   A troca e em tres rodadas. A 17 refez tokens, layout e Visao Anual; as
+   telas de lancamento e cadastro sao da 18; Mensal, Orcamento e configuracoes
+   sao da 19. Ate la elas rodam sobre os apelidos, com a paleta nova e o
+   arranjo antigo.
 
    Sumario:
-     1. Variaveis
+     1. Variaveis (tokens do desenho + apelidos do tema antigo)
      2. Reset minimo
      3. Fundo da pagina
-     4. Layout (sidebar + conteudo)
+     4. Layout (sidebar escura recolhivel + barra superior + conteudo)
      5. Componentes
         5.1 Card          5.5 Badge
         5.2 Botao         5.6 Flash
@@ -24,7 +35,9 @@
         5.13 Paineis: o que a Visao Anual e a Visao Mensal compartilham -
             .filtro-barra, .painel-grade e .painel-card; em 5.13.1 os graficos
             (so da Anual) e em 5.13.2 o empilhamento .painel-tabelas mais a
-            .tabela--resumo, visual comum das seis tabelas dos dois paineis
+            .tabela--resumo, visual comum das seis tabelas dos dois paineis;
+            em 5.13.3 o que e so da Visao Anual refeita (KPIs, indicadores,
+            cartao com cabecalho, tabelas do desenho novo)
         5.14 Visao mensal (so o que a Anual nao tem: .tabela--resumo--estreita,
             a matriz Pessoa x Categoria e a primeira coluna fixa, esta ultima
             um modificador reutilizavel da .tabela-caixa; em 5.14.1, o detalhe
@@ -32,95 +45,223 @@
         5.15 Orcamento (as duas barras de filtro lado a lado, o cabecalho de
             estado do mes, a receita planejada e o rodape de resumo; a tabela e
             a .tabela--resumo de 5.13.2 e a edicao em linha e a .config-edicao
-            de 5.12)
+            de 5.12); em 5.15.1, o acompanhamento - cards de realizado x
+            planejado, faixas de cor do consumo e "fora do orcamento"
      6. Tela de login
      7. Responsivo (< 768px)
      8. Utilitarios
 
-   REGRA DE LEGIBILIDADE: vidro (translucido + blur) so em sidebar, cabecalho
-   e cards de moldura. Tabela, formulario e area de leitura usam superficie
-   quase opaca (alfa >= 0.92). Texto nunca fica direto sobre o degrade.
+   REGRA DE LEGIBILIDADE: superficie de conteudo e sempre opaca. O unico
+   translucido do sistema e a barra superior, que precisa deixar entrever o
+   que rola por baixo dela.
    ========================================================================== */
 
 /* ==========================================================================
    1. VARIAVEIS
+
+   Duas camadas, e a ordem importa:
+
+   a) TOKENS DO DESENHO - os nomes do handoff (--bg, --ink-*, --accent, ...).
+      Sao a fonte da verdade da paleta. Toda regra escrita da rodada 17 em
+      diante usa estes.
+
+   b) APELIDOS DO TEMA ANTIGO - os nomes roxos (--cor-destaque, --cor-texto,
+      --linha, --vidro, ...) apontando para os tokens novos. Existem para que
+      lancamentos, cadastros, configuracoes, Mensal e Orcamento continuem
+      funcionando e legiveis com a paleta nova ate as rodadas 18 e 19, quando
+      cada uma sera reescrita e o apelido correspondente morre.
+
+   Nada de novo deve usar um apelido.
    ========================================================================== */
 
 :root {
-  /* --- Cor de destaque (azul-violeta), unica no sistema --- */
-  --cor-destaque: #5b50e0;
-  --cor-destaque-escura: #4a3fd0;
-  --cor-destaque-clara: #7d74e8;
-  --cor-destaque-fantasma: rgba(91, 80, 224, 0.10);
-  --cor-destaque-borda: rgba(91, 80, 224, 0.28);
+  /* --- (a) TOKENS DO DESENHO --------------------------------------------- */
 
-  /* --- Texto: contraste AA sobre superficie clara --- */
-  --cor-texto: #1a1b2e;          /* 15.8:1 sobre branco */
-  --cor-texto-suave: #5a5f7a;    /*  5.9:1 sobre branco */
-  --cor-texto-fraco: #767b93;    /*  4.6:1 sobre branco */
-  --cor-texto-invertido: #ffffff;
+  /* Superficies */
+  --bg: #F5F5F7;
+  --surface: #fff;
+  --surface-alt: #FAFAFC;      /* cabecalho de tabela, linha de total, hover */
 
-  /* --- Semanticas --- */
-  --cor-sucesso: #17795e;
-  --cor-sucesso-fundo: rgba(23, 121, 94, 0.10);
-  --cor-erro: #c02b3f;
-  --cor-erro-fundo: rgba(192, 43, 63, 0.10);
-  --cor-aviso: #9a6414;
-  --cor-aviso-fundo: rgba(154, 100, 20, 0.12);
-  --cor-neutra: #5a5f7a;
-  --cor-neutra-fundo: rgba(90, 95, 122, 0.10);
+  /* Tinta: do texto principal ao desabilitado */
+  --ink: #1D1D1F;              /* 16.8:1 sobre --surface */
+  --ink-2: #3A3A3C;            /* 11.0:1  numeros de apoio da tabela */
+  --ink-3: #6E6E73;            /*  5.1:1  rotulo, subtitulo, cabecalho */
+  --ink-4: #86868B;            /*  3.5:1  nota complementar, eixo de grafico */
+  --ink-5: #8E8E93;            /*  3.2:1  titulo de secao da sidebar, total */
+  --ink-disabled: #AEAEB2;     /*  2.3:1  mes sem lancamento - so numero */
 
-  /* --- Graficos (secao 5.13): as cores das series moram aqui, e o
-         visao_anual.js as le por getComputedStyle. Nenhum hex no JS. --- */
-  --grafico-receita: #17795e;          /* mesma familia do --cor-sucesso */
-  --grafico-despesa: #c02b3f;          /* mesma familia do --cor-erro */
-  --grafico-essencial: #2f6fb5;
-  --grafico-nao-essencial: #d08324;
-  --grafico-total: #5a5f7a;
-  --grafico-saldo: #5b50e0;
-  --grafico-saldo-area: rgba(91, 80, 224, 0.16);
+  /* Linhas e preenchimentos */
+  --line: #E0E0E5;             /* borda de secao (barra superior) */
+  --line-soft: #F0F0F2;        /* divisoria de linha de tabela e de item */
+  --fill: #E5E5EA;             /* trilho de barra, fundo do seletor de ano */
+  --grid: #EEEEF0;             /* grade do eixo Y dos graficos */
+
+  /* Sidebar escura */
+  --sidebar: #1D1D1F;
+  --sidebar-text: #C7C7CC;
+  --sidebar-largura: 232px;
+
+  /* Acento unico do sistema (teal) e os quatro tons da rampa de prioridade */
+  --accent: #30B0C7;
+  --accent-hover: #2A9DB2;
+  --accent-2: #0E7C8A;
+  --accent-3: #8ED7E3;
+  --accent-4: #D3F0F5;
+
+  /* Semanticas de dinheiro. Verde e vermelho sao RESERVADOS: receita, despesa
+     e valor negativo. Nao servem de decoracao em nenhuma outra tela. */
+  --green: #34C759;
+  --red: #FF3B30;
+  --orange: #FF9500;           /* nao essenciais, so nos graficos */
+
+  /* Duas cores que o handoff nao tem, porque o desenho nunca precisou delas:
+     as versoes ESCURAS do verde e do acento, para quando eles sao TEXTO.
+     Sobre branco, #34C759 da 1.9:1 e #30B0C7 da 2.6:1 - nao se leem. Estas
+     dao 5.4:1 e 4.9:1, na mesma familia de cor. O teal escuro ja e o
+     --accent-2 da rampa de prioridade; o verde escuro e novo.
+     Onde a cor e FUNDO (botao primario, avatar) ou ICONE, vale o tom claro. */
+  --green-texto: var(--green-ink);
+  --accent-texto: var(--accent-2);
+
+  /* Raios */
+  --radius-card: 14px;
+  --radius-control: 7px;
+  --radius-chip: 5px;
+
+  /* Controles de formulario (rodada 18). Altura e raio sao os mesmos para
+     input, select, textarea e o valor com prefixo: um controle nunca fica
+     meio pixel mais alto que o vizinho na mesma linha da grade. */
+  --control-h: 36px;           /* campo de formulario */
+  --control-h-sm: 30px;        /* campo dentro de linha de tabela */
+  --btn-h-sm: 28px;            /* botao de acao em linha */
+  --control-border: #D2D2D7;
+  --control-radius: 8px;
+  --control-radius-sm: 6px;
+  --focus-ring: 0 0 0 3px rgba(48, 176, 199, 0.18);
+
+  /* Superficies de acento: faixa de criacao, hover de botao discreto, linha
+     em edicao. */
+  --accent-soft: #E6F6F9;
+  --accent-soft-line: #C9EBF1;
+  --row-editing: #F7FCFD;
+
+  /* Pares fundo/texto das semanticas. O fundo e claro e o texto e a versao
+     escura da mesma cor - e o que faz um badge de 12px ser legivel, coisa que
+     --green e --red puros nao dao (1,9:1 e 3,3:1 sobre branco). */
+  --green-soft: #E4F7EA;
+  --green-ink: #1D7F3B;
+  --orange-soft: #FFF3E0;
+  --orange-ink: #B25E00;
+  --red-soft: #FFF1F0;
+  --red-ink: #D70015;
+
+  /* Painel flutuante (autocomplete). Mais alta que a do cartao: ele precisa
+     descolar do que esta por baixo. */
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06);
+
+  /* Sombra do cartao: a segunda camada e o fio de contorno, no lugar da borda
+     solida que o desenho dispensa. */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.03);
+
+  /* Tipografia. O handoff pede a fonte do sistema e lista a pilha da Apple;
+     nenhum daqueles nomes existe no Windows, onde a aplicacao roda, e a pilha
+     dele cairia em Arial. `system-ui` entra no meio: no Mac vence
+     -apple-system, no Windows vence system-ui (Segoe UI). Fonte do sistema
+     nos dois, nenhuma requisicao externa. */
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui,
+          "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+  /* Tamanhos do handoff: 11 12 13 14 15 17, e o KPI em clamp(20, 1.6vw, 28).
+     Ficam escritos nas regras, como o resto do arquivo ja faz com medida. */
+
+  /* --- (b) APELIDOS DO TEMA ANTIGO --------------------------------------- */
+
+  /* Destaque: era o roxo #5b50e0, agora o teal */
+  --cor-destaque: var(--accent);
+  --cor-destaque-escura: var(--accent-hover);
+  --cor-destaque-clara: var(--accent-3);
+  --cor-destaque-fantasma: rgba(48, 176, 199, 0.10);
+  --cor-destaque-borda: rgba(48, 176, 199, 0.28);
+
+  /* Texto */
+  --cor-texto: var(--ink);
+  --cor-texto-suave: var(--ink-3);
+  --cor-texto-fraco: var(--ink-4);
+  --cor-texto-invertido: #fff;
+
+  /* Semanticas. --cor-erro vira o vermelho do desenho (e o que pinta valor
+     negativo em toda parte). --cor-sucesso vai para o verde de TEXTO, e nao
+     para --green, senao o badge "Ativo" some no branco. --cor-aviso fica como
+     estava: o ambar do desenho (#FF9500) tambem nao se le como texto, e o
+     orcamento usa esta cor em rotulo de faixa. */
+  --cor-sucesso: var(--green-ink);
+  --cor-sucesso-fundo: var(--green-soft);
+  --cor-erro: var(--red);
+  --cor-erro-fundo: var(--red-soft);
+  --cor-aviso: var(--orange-ink);
+  --cor-aviso-fundo: var(--orange-soft);
+  --cor-neutra: var(--ink-3);
+  --cor-neutra-fundo: rgba(110, 110, 115, 0.10);
+
+  /* Graficos: o visao_anual.js le TODAS as cores das series daqui, por
+     getComputedStyle. Nenhum hex no JS. O mapeamento e o do handoff - receita
+     verde, despesa vermelho, essenciais no acento, nao essenciais em ambar,
+     total no cinza, prioridades na rampa de quatro tons de teal. */
+  --grafico-receita: var(--green);
+  --grafico-despesa: var(--red);
+  --grafico-essencial: var(--accent);
+  --grafico-nao-essencial: var(--orange);
+  --grafico-total: var(--ink-5);
+  --grafico-saldo: var(--accent);
+  --grafico-saldo-area: rgba(48, 176, 199, 0.12);
   /* Prioridade e escala ordenada: rampa do escuro (P1) ao claro (P4), para a
      pilha ser lida como ordem e nao como quatro assuntos diferentes. */
-  --grafico-p1: #3d33b8;
-  --grafico-p2: #6a5fe4;
-  --grafico-p3: #9a92ee;
-  --grafico-p4: #c6c1f6;
-  --grafico-sem-prioridade: #9aa0b8;
-  --grafico-grade: rgba(26, 27, 46, 0.10);
-  --grafico-zero: rgba(26, 27, 46, 0.38);
+  --grafico-p1: var(--accent-2);
+  --grafico-p2: var(--accent);
+  --grafico-p3: var(--accent-3);
+  --grafico-p4: var(--accent-4);
+  --grafico-sem-prioridade: var(--ink-disabled);
+  --grafico-grade: var(--grid);
+  --grafico-zero: var(--ink-4);
+  /* Fundo do tooltip e cor do texto dos eixos, que no prototipo eram literais
+     dentro do JS. Aqui tambem sao variaveis: o JS continua sem hex nenhum. */
+  --grafico-tooltip: var(--ink);
+  --grafico-rotulo: var(--ink-4);
 
-  /* --- Fundo da pagina --- */
-  --fundo-de: #eef0fc;
-  --fundo-ate: #fbfcff;
-  --forma-1: rgba(122, 108, 235, 0.30);
-  --forma-2: rgba(108, 176, 235, 0.26);
-  --forma-3: rgba(178, 130, 232, 0.20);
+  /* Fundo da pagina: era degrade com tres circulos desfocados. Agora e uma
+     cor chapada, e as formas sairam junto com o vidro. */
+  --fundo-de: var(--bg);
+  --fundo-ate: var(--bg);
 
-  /* --- Superficies de vidro (moldura) --- */
-  --vidro: rgba(255, 255, 255, 0.62);
-  --vidro-forte: rgba(255, 255, 255, 0.72);
-  --vidro-borda: rgba(255, 255, 255, 0.75);
-  --desfoque: 16px;
+  /* Vidro: o blur saiu do cartao e da sidebar e ficou SO na barra superior,
+     que tem o proprio rgba escrito na regra. Estes apelidos viraram
+     superficie solida - o backdrop-filter que sobrou em tela ainda nao
+     refeita passa a desfocar fundo opaco, ou seja, nao faz nada. */
+  --vidro: var(--surface);
+  --vidro-forte: var(--surface);
+  --vidro-borda: var(--line);
+  --desfoque: 20px;
 
-  /* --- Superficies solidas (leitura: tabela, formulario) --- */
-  --solido: rgba(255, 255, 255, 0.96);
-  --solido-sutil: rgba(255, 255, 255, 0.99);
-  --linha: rgba(26, 27, 46, 0.10);
-  --linha-forte: rgba(26, 27, 46, 0.16);
+  /* Superficies solidas de leitura */
+  --solido: var(--surface);
+  --solido-sutil: var(--surface-alt);
+  --linha: var(--line);
+  --linha-forte: var(--line);
 
-  /* --- Raios --- */
-  --raio-p: 8px;
-  --raio-m: 12px;
-  --raio-g: 18px;
+  /* Raios */
+  --raio-p: var(--radius-control);
+  --raio-m: var(--radius-card);
+  --raio-g: var(--radius-card);
   --raio-pill: 999px;
 
-  /* --- Sombras: difusas e leves --- */
-  --sombra-p: 0 1px 2px rgba(26, 27, 46, 0.05);
-  --sombra-m: 0 6px 20px rgba(26, 27, 46, 0.07);
-  --sombra-g: 0 14px 40px rgba(26, 27, 46, 0.10);
-  --sombra-destaque: 0 6px 16px rgba(91, 80, 224, 0.28);
+  /* Sombras: o desenho tem uma so, a do cartao. --sombra-destaque existia para
+     o botao primario roxo brilhar; o botao do desenho e chapado. */
+  --sombra-p: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --sombra-m: var(--shadow-card);
+  --sombra-g: 0 8px 30px rgba(0, 0, 0, 0.10);
+  --sombra-destaque: none;
 
-  /* --- Espacamentos --- */
+  /* Espacamentos: escala propria do projeto, sem cor nenhuma, mantida. */
   --e-1: 4px;
   --e-2: 8px;
   --e-3: 12px;
@@ -129,14 +270,11 @@
   --e-6: 32px;
   --e-7: 48px;
 
-  /* --- Tipografia --- */
-  --fonte: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
-           Arial, "Noto Sans", sans-serif;
+  --fonte: var(--font);
   --fonte-mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas,
                 monospace;
 
-  /* --- Medidas de layout --- */
-  --sidebar: 240px;
+  /* Medida de layout do celular (a largura da sidebar e --sidebar-largura). */
   --topo-mobile: 60px;
 }
 
@@ -152,6 +290,10 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  /* A barra superior e sticky: sem esta folga, rolar ate um elemento (por
+     ancora, por foco de teclado ou pelo scrollIntoView do autocomplete) o
+     deixa embaixo dela. 64px = altura da barra mais um respiro. */
+  scroll-padding-top: 64px;
 }
 
 body,
@@ -186,8 +328,10 @@ button {
   cursor: pointer;
 }
 
+/* Link em texto usa o acento ESCURO: o claro da 2.6:1 sobre branco. O acento
+   claro continua valendo como fundo (botao primario) e como icone. */
 a {
-  color: var(--cor-destaque);
+  color: var(--accent-texto);
   text-decoration: none;
 }
 
@@ -212,184 +356,226 @@ a:hover {
 
 /* ==========================================================================
    3. FUNDO DA PAGINA
-   Degrade frio claro + tres circulos grandes desfocados, para o vidro ter
-   o que desfocar. As formas ficam atras de tudo e nao capturam clique.
+   Uma cor chapada. Ate a rodada 16 eram um degrade frio e tres circulos
+   grandes desfocados, que existiam so para o vidro ter o que desfocar; sem
+   vidro em cartao nem em sidebar, eles nao tinham mais funcao e sairiam
+   atras de superficie opaca de qualquer jeito. O <div class="fundo-formas">
+   saiu do base.html junto.
    ========================================================================== */
 
 body {
   min-height: 100vh;
   margin: 0;
-  font-family: var(--fonte);
-  font-size: 15px;
+  font-family: var(--font);
+  font-size: 13px;
   line-height: 1.55;
-  color: var(--cor-texto);
-  background: linear-gradient(160deg, var(--fundo-de) 0%, var(--fundo-ate) 55%,
-                              var(--fundo-de) 100%);
-  background-attachment: fixed;
-}
-
-.fundo-formas {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.fundo-formas span {
-  position: absolute;
-  display: block;
-  border-radius: 50%;
-  filter: blur(80px);
-}
-
-.fundo-formas span:nth-child(1) {
-  width: 520px;
-  height: 520px;
-  top: -140px;
-  left: -120px;
-  background: var(--forma-1);
-}
-
-.fundo-formas span:nth-child(2) {
-  width: 460px;
-  height: 460px;
-  top: 22%;
-  right: -160px;
-  background: var(--forma-2);
-}
-
-.fundo-formas span:nth-child(3) {
-  width: 400px;
-  height: 400px;
-  bottom: -160px;
-  left: 38%;
-  background: var(--forma-3);
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  /* "font-variant-numeric: tabular-nums em todo numero": aqui, e nao em cada
+     classe de valor. So digito e afetado, entao texto corrido nao muda; e
+     nenhuma coluna de dinheiro pode escapar por esquecimento. */
+  font-variant-numeric: tabular-nums;
 }
 
 /* ==========================================================================
    4. LAYOUT
+   Sidebar escura sticky de 232px + area de conteudo com barra superior
+   sticky. A sidebar e `sticky`, e nao `fixed` com margin-left no conteudo:
+   sendo irma flex do <main>, ela ocupa a coluna dela sozinha e o conteudo
+   nao precisa saber a largura dela.
    ========================================================================== */
 
+/* O degrade de duas paradas pinta a faixa escura da sidebar ate o fim da
+   pagina. A sidebar e sticky e mede 100vh: numa pagina longa como a Visao
+   Anual a coluna dela acabaria no meio do caminho, e apareceria um retangulo
+   claro embaixo. O fundo fica atras dela e nao muda o que ela e. */
 .app {
   display: flex;
   min-height: 100vh;
+  background: linear-gradient(to right,
+                              var(--sidebar) 0 var(--sidebar-largura),
+                              var(--bg) var(--sidebar-largura));
 }
 
-/* --- Sidebar: superficie de vidro --- */
+/* --- Sidebar escura ---------------------------------------------------- */
 
 .sidebar {
-  position: fixed;
+  position: sticky;
   top: 0;
-  left: 0;
-  bottom: 0;
-  width: var(--sidebar);
+  align-self: flex-start;
+  flex: none;
+  width: var(--sidebar-largura);
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  padding: var(--e-5) var(--e-4);
-  background: var(--vidro);
-  -webkit-backdrop-filter: blur(var(--desfoque));
-  backdrop-filter: blur(var(--desfoque));
-  border-right: 1px solid var(--vidro-borda);
-  box-shadow: var(--sombra-m);
+  gap: 1px;
+  padding: 24px 12px 16px;
+  background: var(--sidebar);
+  color: var(--sidebar-text);
   z-index: 20;
 }
 
+/* Marca: o quadrado do acento e o nome. O mesmo par aparece na barra de
+   celular; e por isso que a cor e a forma moram em .marca, e nao aqui. */
 .sidebar__logo {
   display: flex;
   align-items: center;
-  gap: var(--e-2);
-  margin-bottom: var(--e-6);
-  padding: 0 var(--e-2);
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--cor-texto);
+  gap: 10px;
+  padding: 0 10px 24px;
+  color: #fff;
 }
 
 .sidebar__logo:hover {
   text-decoration: none;
 }
 
-.sidebar__logo svg {
-  flex: 0 0 auto;
-  color: var(--cor-destaque);
+.marca__quadrado {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-control);
+  background: var(--accent);
+}
+
+.marca__nome {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: inherit;
 }
 
 .sidebar__nav {
   flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
 }
 
+/* --- Secao recolhivel do menu ------------------------------------------ */
+
 .nav-grupo + .nav-grupo {
-  margin-top: var(--e-5);
+  margin-top: 14px;
 }
 
+/* Cabecalho de secao: e <button>, e nao <p>, porque recolhe e expande. O
+   estado vive no aria-expanded, e o chevron so o acompanha. */
 .nav-grupo__titulo {
-  padding: 0 var(--e-2);
-  margin-bottom: var(--e-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 10px;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.09em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--cor-texto-fraco);
+  color: var(--ink-5);
+  transition: color 0.15s;
+}
+
+.nav-grupo__titulo:hover {
+  color: var(--sidebar-text);
+}
+
+.nav-grupo__seta {
+  flex: none;
+  transition: transform 0.2s ease;
+}
+
+/* Fechado: o chevron aponta para a esquerda. O seletor le o estado do
+   proprio botao, entao nao ha classe a sincronizar com o aria. */
+.nav-grupo__titulo[aria-expanded="false"] .nav-grupo__seta {
+  transform: rotate(-90deg);
+}
+
+.nav-grupo__lista {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* Sem esta linha a secao fechada continua aparecendo: `display: flex` de folha
+   de autor vence o `[hidden] { display: none }` do navegador, que e regra de
+   user agent. O atributo precisa ser reafirmado aqui. */
+.nav-grupo__lista[hidden] {
+  display: none;
 }
 
 .nav-item {
-  display: block;
-  padding: var(--e-2) var(--e-3);
-  margin-bottom: 2px;
-  border-radius: var(--raio-p);
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--cor-texto-suave);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: var(--radius-control);
+  font-size: 13px;
+  color: var(--sidebar-text);
   transition: background-color 0.15s, color 0.15s;
 }
 
+/* O icone e mais apagado que o rotulo, e acende junto com ele. `currentColor`
+   no SVG faz o segundo passo sozinho; este e o primeiro. */
+.nav-item .icone {
+  flex: none;
+  color: var(--ink-5);
+  transition: color 0.15s;
+}
+
 .nav-item:hover {
-  background: rgba(255, 255, 255, 0.7);
-  color: var(--cor-texto);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
   text-decoration: none;
 }
 
-.nav-item--ativo {
-  background: var(--cor-destaque);
-  color: var(--cor-texto-invertido);
-  box-shadow: var(--sombra-destaque);
+.nav-item:hover .icone {
+  color: inherit;
 }
 
+.nav-item--ativo,
 .nav-item--ativo:hover {
-  background: var(--cor-destaque-escura);
-  color: var(--cor-texto-invertido);
+  background: rgba(255, 255, 255, 0.12);
+  font-weight: 500;
+  color: #fff;
 }
 
-/* --- Rodape da sidebar: usuario logado --- */
+.nav-item--ativo .icone {
+  color: inherit;
+}
+
+/* --- Rodape da sidebar: usuario logado --------------------------------- */
 
 .sidebar__rodape {
   flex: 0 0 auto;
-  margin-top: var(--e-4);
-  padding-top: var(--e-4);
-  border-top: 1px solid var(--linha);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  padding: 14px 10px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .usuario {
   display: flex;
   align-items: center;
-  gap: var(--e-3);
-  padding: 0 var(--e-2) var(--e-3);
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .usuario__avatar {
   flex: 0 0 auto;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: var(--cor-destaque);
-  color: var(--cor-texto-invertido);
-  font-size: 13px;
-  font-weight: 700;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .usuario__dados {
@@ -397,64 +583,119 @@ body {
 }
 
 .usuario__nome {
-  font-size: 14px;
-  font-weight: 600;
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .usuario__login {
-  font-size: 12px;
-  color: var(--cor-texto-fraco);
+  display: block;
+  font-size: 11px;
+  color: var(--ink-5);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* --- Area de conteudo --- */
+/* Sair continua sendo POST com CSRF - o desenho traz um <a href="#">, que
+   nao serve: trocar sessao por GET e o que se evita desde a rodada 3. O
+   formulario nao ocupa espaco proprio; o botao e que e o alvo. */
+.sair {
+  flex: none;
+  display: flex;
+}
+
+.sair__botao {
+  display: flex;
+  padding: 4px;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  color: var(--ink-5);
+  transition: color 0.15s;
+}
+
+.sair__botao:hover {
+  color: #fff;
+}
+
+/* --- Area de conteudo -------------------------------------------------- */
 
 .conteudo {
   flex: 1 1 auto;
   min-width: 0;
-  margin-left: var(--sidebar);
-  padding: var(--e-6) var(--e-6) var(--e-7);
+  display: flex;
+  flex-direction: column;
 }
 
+/* Barra superior: o unico vidro que sobrou no sistema. Ela precisa deixar
+   entrever o que rola por baixo; todo o resto e opaco. */
 .pagina-cabecalho {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--e-4);
   flex-wrap: wrap;
-  margin-bottom: var(--e-5);
-  padding: var(--e-4) var(--e-5);
-  background: var(--vidro-forte);
+  padding: 14px 28px;
+  background: rgba(255, 255, 255, 0.75);
   -webkit-backdrop-filter: blur(var(--desfoque));
   backdrop-filter: blur(var(--desfoque));
-  border: 1px solid var(--vidro-borda);
-  border-radius: var(--raio-g);
-  box-shadow: var(--sombra-m);
+  border-bottom: 1px solid var(--line);
+}
+
+/* Titulo e subtitulo lado a lado, na mesma linha de base. */
+.pagina-cabecalho__texto {
+  display: flex;
+  align-items: baseline;
+  gap: var(--e-4);
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .pagina-titulo {
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--cor-texto);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
 }
 
 .pagina-subtitulo {
-  margin-top: 2px;
   font-size: 13px;
-  color: var(--cor-texto-suave);
+  color: var(--ink-3);
 }
 
 .pagina-acoes {
   display: flex;
   align-items: center;
-  gap: var(--e-2);
+  gap: 10px;
   flex-wrap: wrap;
+}
+
+.conteudo__corpo {
+  padding: 24px 28px 40px;
+}
+
+/* Empilhamento dos blocos de uma tela. O gap fica aqui, e nao em margin-top
+   de cada bloco, porque quem conhece a distancia entre eles e o arranjo da
+   pagina. Nasceu na Visao Anual (rodada 17) e serve a de lancamento e as de
+   cadastro desde a 18. */
+.painel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Telas de lista: o conteudo nao precisa da largura toda de um monitor de
+   1440px para mostrar nome, situacao e duas acoes. */
+.painel--estreito {
+  max-width: 960px;
 }
 
 /* Barra de topo: so no mobile */
@@ -468,35 +709,32 @@ body {
 
 /* --- 5.1 Card ---------------------------------------------------------- */
 
-/* Card de moldura: vidro. Para envolver blocos, nao para texto corrido longo. */
+/* Cartao padrao: branco, raio 14, sombra de duas camadas - a segunda e o fio
+   de contorno, no lugar da borda solida que o desenho dispensa. Nao ha mais
+   dois tipos de cartao: o vidro saiu, e com ele a distincao entre moldura e
+   leitura. */
 .card {
-  padding: var(--e-5);
-  background: var(--vidro-forte);
-  -webkit-backdrop-filter: blur(var(--desfoque));
-  backdrop-filter: blur(var(--desfoque));
-  border: 1px solid var(--vidro-borda);
-  border-radius: var(--raio-g);
-  box-shadow: var(--sombra-m);
+  padding: 18px 20px;
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
-/* Card de leitura: quase opaco. Use quando houver texto, tabela ou formulario. */
+/* Era o cartao "de leitura", quase opaco, por oposicao ao de vidro. Todo
+   cartao e opaco agora, entao o modificador nao tem mais o que fazer. Fica
+   como apelido vazio ate as rodadas 18 e 19 tirarem a classe dos dezoito
+   templates que a escrevem; remove-la aqui e agora nao mudaria pixel nenhum
+   nem quebraria nada, mas deixaria a busca por "card--solido" sem resposta. */
 .card--solido {
-  background: var(--solido);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  border-color: var(--linha);
+  background: var(--surface);
 }
 
 .card__titulo {
   margin-bottom: var(--e-2);
-  font-size: 16px;
-  font-weight: 650;
+  font-size: 14px;
+  font-weight: 600;
   letter-spacing: -0.01em;
-  color: var(--cor-texto);
-}
-
-.card__texto {
-  color: var(--cor-texto-suave);
+  color: var(--ink);
 }
 
 .card__rodape {
@@ -504,29 +742,78 @@ body {
   align-items: center;
   gap: var(--e-2);
   flex-wrap: wrap;
-  margin-top: var(--e-5);
-  padding-top: var(--e-4);
-  border-top: 1px solid var(--linha);
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+}
+
+/* Cartao com cabecalho proprio e miolo colado nas bordas (as duas tabelas da
+   Visao Anual). O padding sai do cartao e vai para o cabecalho e para o
+   corpo; `overflow: hidden` faz o raio recortar a tabela. */
+.card--tabela {
+  padding: 0;
+  overflow: hidden;
+}
+
+.card__cabecalho {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--e-3);
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.card__cabecalho .card__titulo {
+  margin-bottom: 0;
+}
+
+/* A direita do titulo: um contador montado no servidor ("21 categorias") ou
+   uma nota curta sobre o que a lista faz. Mesmo peso visual, nomes diferentes
+   porque dizem coisas diferentes. */
+.card__contador,
+.card__nota {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.campo--em-linha {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.campo--em-linha .selecao {
+  width: auto;
+  min-width: 190px;
 }
 
 /* --- 5.2 Botao --------------------------------------------------------- */
 
+/* 30px de altura, 13px/500, raio 7 - a medida do desenho. `min-height` e nao
+   `height`: botao de bloco no celular e rotulo longo precisam poder crescer. */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--e-2);
-  padding: 9px 16px;
+  gap: 6px;
+  min-height: 30px;
+  padding: 5px 14px;
   border: 1px solid transparent;
-  border-radius: var(--raio-p);
-  font-size: 14px;
-  font-weight: 600;
+  border-radius: var(--radius-control);
+  font-size: 13px;
+  font-weight: 500;
   line-height: 1.2;
   white-space: nowrap;
   background: transparent;
-  color: var(--cor-texto);
-  transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s,
+  color: var(--ink);
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s,
               transform 0.05s;
+}
+
+/* O icone do botao nao encolhe junto com o texto. */
+.btn .icone {
+  flex: none;
 }
 
 .btn:hover {
@@ -543,52 +830,115 @@ body {
   cursor: not-allowed;
 }
 
+/* Chapado, sem sombra: no desenho o peso do botao primario vem da cor. */
 .btn--primario {
-  background: var(--cor-destaque);
-  color: var(--cor-texto-invertido);
-  box-shadow: var(--sombra-destaque);
+  background: var(--accent);
+  color: #fff;
 }
 
 .btn--primario:hover {
-  background: var(--cor-destaque-escura);
+  background: var(--accent-hover);
 }
 
 .btn--secundario {
-  background: var(--solido);
-  border-color: var(--linha-forte);
-  color: var(--cor-texto);
-  box-shadow: var(--sombra-p);
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
 }
 
 .btn--secundario:hover {
-  background: #fff;
-  border-color: var(--cor-destaque-borda);
-  color: var(--cor-destaque);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .btn--discreto {
   background: transparent;
-  color: var(--cor-texto-suave);
+  color: var(--ink-3);
 }
 
 .btn--discreto:hover {
   background: var(--cor-destaque-fantasma);
-  color: var(--cor-destaque);
+  color: var(--accent);
 }
 
+/* Botao de acao em linha de tabela: 28px, sem borda, retangulo de toque
+   inteiro colorido no hover. */
 .btn--pequeno {
-  padding: 5px 10px;
-  font-size: 13px;
-  border-radius: 6px;
+  min-height: var(--btn-h-sm);
+  height: var(--btn-h-sm);
+  padding: 0 10px;
+  font-size: 12px;
+  border-radius: var(--control-radius-sm);
+}
+
+/* Editar: o unico botao de linha que usa o acento. */
+.btn--discreto.btn--pequeno {
+  border-color: transparent;
+  color: var(--accent-texto);
+}
+
+.btn--discreto.btn--pequeno:hover {
+  background: var(--accent-soft);
+  color: var(--accent-texto);
+}
+
+/* Excluir / Desativar: neutro em repouso. Excluir avisa em vermelho no hover;
+   desativar continua neutro, porque desativar nao apaga nada. */
+.btn--secundario.btn--pequeno {
+  background: none;
+  border-color: transparent;
+  color: var(--ink-3);
+}
+
+.btn--secundario.btn--pequeno:hover {
+  background: var(--line-soft);
+  border-color: transparent;
+  color: var(--ink);
+}
+
+.btn--perigo.btn--pequeno:hover {
+  background: var(--red-soft);
+  color: var(--red-ink);
+}
+
+/* "Desativar" e "Reativar" tem larguras diferentes; sem o minimo, a coluna de
+   acoes pula de largura quando o texto troca no swap da linha. */
+.btn--largura-fixa {
+  min-width: 72px;
+}
+
+/* Botao que e so um icone (paginacao). Quadrado, com borda, sem texto. */
+.btn--quadrado {
+  width: var(--btn-h-sm);
+  height: var(--btn-h-sm);
+  min-height: 0;
+  padding: 0;
+  border-color: var(--control-border);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.btn--quadrado:hover {
+  border-color: var(--accent);
+  color: var(--accent-texto);
+}
+
+.btn--quadrado:disabled,
+.btn--quadrado[aria-disabled="true"] {
+  opacity: 0.4;
 }
 
 .btn--bloco {
   width: 100%;
 }
 
-/* --- 5.3 Formulario ---------------------------------------------------- */
+/* --- 5.3 Formulario ----------------------------------------------------
+   Todos os controles tem a MESMA altura (--control-h) e o mesmo raio. E o que
+   faz uma linha da grade de 12 colunas ficar alinhada sem ajuste caso a caso:
+   data, valor, descricao, select e o bloco de classificacao derivada medem
+   36px cada um.
+*/
 
-/* Formularios ficam sobre superficie quase opaca (regra de legibilidade). */
 .formulario {
   max-width: 560px;
 }
@@ -597,30 +947,47 @@ body {
   margin-top: var(--e-4);
 }
 
-.campo__rotulo {
-  display: block;
-  margin-bottom: var(--e-1);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--cor-texto);
+/* O campo e uma coluna: rotulo em cima, controle embaixo, 6px entre eles.
+   Vale tanto para <div class="campo"> quanto para <label class="campo">. */
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
 }
 
-.campo__obrigatorio {
-  color: var(--cor-erro);
-  margin-left: 2px;
+/* Sem esta linha o campo escondido continua ocupando a coluna dele na grade:
+   `display: flex` de folha de autor vence o `[hidden]` do navegador, que e
+   regra de user agent. */
+.campo[hidden] {
+  display: none;
+}
+
+.campo__rotulo {
+  display: block;
+  margin-bottom: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
 }
 
 .campo__dica {
-  margin-top: var(--e-1);
-  font-size: 12px;
-  color: var(--cor-texto-fraco);
+  display: block;
+  margin-top: -2px;
+  font-size: 11px;
+  color: var(--ink-4);
+}
+
+/* Dentro do rotulo de um checkbox a dica desce uma linha e nao herda o
+   recuo negativo, que so serve para colar a dica no campo acima dela. */
+.marcar .campo__dica {
+  margin-top: 2px;
 }
 
 .campo__erro {
-  margin-top: var(--e-1);
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--cor-erro);
+  margin-top: -2px;
+  font-size: 12px;
+  color: var(--red-ink);
 }
 
 .entrada,
@@ -628,109 +995,211 @@ body {
 .area-texto {
   display: block;
   width: 100%;
-  padding: 9px 12px;
-  background: var(--solido-sutil);
-  border: 1px solid var(--linha-forte);
-  border-radius: var(--raio-p);
-  font-size: 14px;
-  color: var(--cor-texto);
+  height: var(--control-h);
+  padding: 0 10px;
+  background: var(--surface);
+  border: 1px solid var(--control-border);
+  border-radius: var(--control-radius);
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .entrada::placeholder,
 .area-texto::placeholder {
-  color: var(--cor-texto-fraco);
+  color: var(--ink-disabled);
 }
 
 .entrada:focus,
 .selecao:focus,
 .area-texto:focus {
   outline: none;
-  border-color: var(--cor-destaque);
-  box-shadow: 0 0 0 3px var(--cor-destaque-fantasma);
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
 }
 
 .entrada--erro,
 .selecao--erro,
 .area-texto--erro {
-  border-color: var(--cor-erro);
+  border-color: var(--red);
 }
 
 .entrada--erro:focus,
 .selecao--erro:focus,
 .area-texto--erro:focus {
-  box-shadow: 0 0 0 3px var(--cor-erro-fundo);
+  box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.16);
 }
 
+/* Textarea e o unico controle que cresce: altura livre a partir de 56px. */
 .area-texto {
-  min-height: 84px;
+  height: auto;
+  min-height: 56px;
+  padding: 8px 10px;
+  line-height: 1.45;
   resize: vertical;
 }
 
 .selecao {
-  /* Seta desenhada em SVG inline: sem biblioteca de icones. */
+  /* Seta desenhada em SVG inline: sem biblioteca de icones. O `stroke` e o
+     --ink-3 do desenho, escrito em hexa porque data: URI nao le variavel. */
   appearance: none;
   -webkit-appearance: none;
-  padding-right: 36px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235a5f7a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236E6E73' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 11px center;
+  background-position: right 10px center;
 }
 
-/* Caixa de marcacao (filtros) */
+/* Caixa de marcacao. O texto pode ter duas linhas (a dica vai junto), entao o
+   alinhamento e pelo topo e a caixa ganha o deslocamento da primeira linha. */
 .marcar {
   display: inline-flex;
-  align-items: center;
-  gap: var(--e-2);
-  font-size: 13.5px;
-  color: var(--cor-texto-suave);
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--ink);
   cursor: pointer;
   user-select: none;
 }
 
 .marcar input {
+  flex: none;
   width: 16px;
   height: 16px;
-  accent-color: var(--cor-destaque);
+  margin: 1px 0 0;
+  accent-color: var(--accent);
   cursor: pointer;
 }
 
-/* Barra de filtros acima da tabela */
+/* Texto de apoio: o "ultimo: R$ ..." do autocomplete e o aviso de referencia
+   desativada. Mesmo tamanho da dica; muda so a cor no modificador. */
+.campo__apoio {
+  margin-top: -2px;
+  font-size: 11px;
+  color: var(--ink-4);
+}
+
+.campo__apoio--aviso {
+  color: var(--orange-ink);
+}
+
+/* Barra de filtros acima da tabela: sem cartao, so uma linha de controles com
+   o que conta a esquerda e o que filtra a direita. */
 .filtros {
   display: flex;
   align-items: center;
-  gap: var(--e-4);
+  justify-content: space-between;
+  gap: var(--e-3);
   flex-wrap: wrap;
-  padding: var(--e-3) var(--e-4);
-  margin-bottom: var(--e-4);
-  background: var(--solido);
-  border: 1px solid var(--linha);
-  border-radius: var(--raio-m);
-  box-shadow: var(--sombra-p);
 }
 
 .filtros .selecao {
   width: auto;
   min-width: 190px;
-  padding-top: 6px;
-  padding-bottom: 6px;
 }
 
 .filtros__rotulo {
   font-size: 13px;
-  font-weight: 600;
-  color: var(--cor-texto-suave);
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+/* Contagem "24 ativas · 2 inativas", montada no servidor. */
+.filtros__contagem {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.filtros__direita {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+/* --- interruptor -------------------------------------------------------
+   O <input type="checkbox"> continua sendo o controle: ele e que envia o GET
+   e e ele que recebe o foco do teclado. Some da tela (nao com `display:none`,
+   que o tiraria da ordem de tabulacao) e o trilho desenhado ao lado reflete
+   o estado por seletores de irmao.
+*/
+
+.interruptor {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+  user-select: none;
+}
+
+.interruptor input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.interruptor__trilho {
+  position: relative;
+  flex: none;
+  width: 34px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--control-border);
+  transition: background-color 0.15s;
+}
+
+.interruptor__trilho::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s;
+}
+
+.interruptor input:checked + .interruptor__trilho {
+  background: var(--accent);
+}
+
+.interruptor input:checked + .interruptor__trilho::after {
+  transform: translateX(14px);
+}
+
+/* O foco tem de aparecer: o input em si e invisivel. */
+.interruptor input:focus-visible + .interruptor__trilho {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* --- 5.4 Tabela -------------------------------------------------------- */
 
 /* Rola na horizontal em tela estreita, sem empurrar a pagina. */
+/* Rola na horizontal em tela estreita, sem empurrar a pagina.
+
+   `position: relative` nao e decoracao: o `.so-leitor` do cabecalho de acoes e
+   absoluto, e sem um ancestral posicionado ele se ancora no bloco inicial - no
+   ponto onde a tabela ROLADA termina, muito alem da janela. A pagina inteira
+   ganhava rolagem horizontal por causa de um span de 1px (licao da rodada 12,
+   que valia so para a matriz e agora vale para toda tabela que rola). */
 .tabela-caixa {
+  position: relative;
   overflow-x: auto;
-  background: var(--solido);
-  border: 1px solid var(--linha);
-  border-radius: var(--raio-m);
-  box-shadow: var(--sombra-m);
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   -webkit-overflow-scrolling: touch;
 }
 
@@ -741,24 +1210,26 @@ body {
   font-size: 14px;
 }
 
+/* A cor sai de --ink-3 e nao do apelido --cor-texto-fraco (--ink-4): em
+   versalete de 11,5px, 3,5:1 nao se le. E tambem o que o desenho pede para o
+   cabecalho de tabela. Correcao minima de contraste da rodada 17, para as
+   telas ainda nao refeitas nao regredirem. */
 .tabela th {
-  padding: var(--e-3) var(--e-4);
+  padding: 9px 12px;
   text-align: left;
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--cor-texto-fraco);
-  background: rgba(26, 27, 46, 0.025);
-  border-bottom: 1px solid var(--linha-forte);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-3);
+  background: var(--surface-alt);
+  border-bottom: 1px solid var(--line-soft);
   white-space: nowrap;
 }
 
 .tabela td {
-  padding: var(--e-3) var(--e-4);
-  border-bottom: 1px solid var(--linha);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-soft);
   vertical-align: middle;
-  color: var(--cor-texto);
+  color: var(--ink);
 }
 
 .tabela tbody tr:last-child td {
@@ -766,7 +1237,7 @@ body {
 }
 
 .tabela tbody tr:hover td {
-  background: var(--cor-destaque-fantasma);
+  background: var(--surface-alt);
 }
 
 .tabela__principal {
@@ -787,14 +1258,11 @@ body {
   display: inline;
 }
 
-/* Linha de registro inativo: recuada visualmente, mas ainda legivel. */
+/* Linha de registro inativo: recuada visualmente, mas ainda legivel. O nome
+   e que esmaece (regra em 5.1, com a lista de cadastro); a linha inteira em
+   cinza tiraria a leitura das demais colunas. */
 .linha--inativa td {
-  color: var(--cor-texto-fraco);
-  background: rgba(26, 27, 46, 0.018);
-}
-
-.linha--inativa .tabela__principal {
-  font-weight: 500;
+  background: var(--surface-alt);
 }
 
 /* --- Barra proporcional (macro `barra_pct`) -----------------------------
@@ -806,9 +1274,9 @@ body {
 
 .barra {
   display: block;
-  height: 8px;
-  border-radius: var(--raio-pill);
-  background: rgba(26, 27, 46, 0.06);
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line-soft);
   overflow: hidden;
 }
 
@@ -816,20 +1284,63 @@ body {
   display: block;
   height: 100%;
   min-width: 2px;
-  border-radius: var(--raio-pill);
-  background: var(--cor-destaque);
+  border-radius: 3px;
+  background: var(--accent);
 }
+
+/* --- lista de cadastro ---
+   Nome, situacao e acoes. O cabecalho existe so para leitor de tela, entao a
+   largura das colunas e declarada aqui, e nao herdada do conteudo do <th>. */
+.tabela--cadastro {
+  min-width: 0;
+}
+
+.tabela--cadastro td {
+  height: 46px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.tabela--cadastro td:first-child,
+.tabela--cadastro th:first-child {
+  padding-left: 20px;
+}
+
+.tabela--cadastro td:last-child,
+.tabela--cadastro th:last-child {
+  padding-right: 20px;
+}
+
+.tabela--cadastro .tabela__principal {
+  font-weight: 500;
+}
+
+.tabela--cadastro .tabela__acoes {
+  width: 170px;
+}
+
+/* A ultima linha fica sem divisoria: a borda do cartao ja fecha a lista. */
+.tabela--cadastro tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Registro inativo: o nome esmaece, o resto da linha continua legivel. */
+.linha--inativa .tabela__principal {
+  color: var(--ink-4);
+}
+
+/* Campo dentro de uma barra de filtros: rotulo e controle lado a lado. */
 
 /* --- 5.5 Badge --------------------------------------------------------- */
 
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 2px 10px;
+  gap: 6px;
+  padding: 3px 9px;
   border-radius: var(--raio-pill);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -842,18 +1353,18 @@ body {
 }
 
 .badge--ativo {
-  background: var(--cor-sucesso-fundo);
-  color: var(--cor-sucesso);
+  background: var(--green-soft);
+  color: var(--green-ink);
 }
 
 .badge--inativo {
-  background: var(--cor-neutra-fundo);
-  color: var(--cor-neutra);
+  background: var(--line-soft);
+  color: var(--ink-3);
 }
 
 .badge--neutro {
-  background: var(--cor-neutra-fundo);
-  color: var(--cor-neutra);
+  background: var(--line-soft);
+  color: var(--ink-3);
 }
 
 .badge--neutro::before {
@@ -862,7 +1373,7 @@ body {
 
 .badge--destaque {
   background: var(--cor-destaque-fantasma);
-  color: var(--cor-destaque);
+  color: var(--accent-texto);
 }
 
 .badge--destaque::before {
@@ -871,13 +1382,13 @@ body {
 
 
 .badge--essencial {
-  background: var(--cor-sucesso-fundo);
-  color: var(--cor-sucesso);
+  background: var(--green-soft);
+  color: var(--green-ink);
 }
 
 .badge--naoessencial {
-  background: var(--cor-aviso-fundo);
-  color: var(--cor-aviso);
+  background: var(--orange-soft);
+  color: var(--orange-ink);
 }
 
 /* --- 5.6 Flash --------------------------------------------------------- */
@@ -935,7 +1446,7 @@ body {
 }
 
 .flash--info {
-  color: var(--cor-destaque);
+  color: var(--accent-texto);
   border-color: var(--cor-destaque-borda);
   background: linear-gradient(var(--cor-destaque-fantasma),
                               var(--cor-destaque-fantasma)),
@@ -945,53 +1456,93 @@ body {
 /* --- 5.8 Estado vazio -------------------------------------------------- */
 
 .vazio {
-  padding: var(--e-7) var(--e-5);
+  padding: 28px 20px;
   text-align: center;
-  color: var(--cor-texto-suave);
+  font-size: 13px;
+  color: var(--ink-4);
 }
 
 .vazio__titulo {
   margin-bottom: var(--e-1);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  color: var(--cor-texto);
+  color: var(--ink);
 }
 
 .vazio__texto {
-  font-size: 14px;
+  font-size: 13px;
 }
 
 /* --- 5.9 Lancamento de despesa ----------------------------------------
-   Formulario e tabela desta tela sao superficie de leitura: quase opacos,
-   nunca vidro (ver a regra de legibilidade no topo do arquivo).
+   O formulario e uma grade de 12 colunas: a primeira linha e o que se digita
+   (data, valor, descricao) e a segunda e o que se escolhe (subcategoria, o
+   que ela implica, conta e pessoa). Os vaos vem do desenho.
 */
 
-/* Dois campos lado a lado que viram um por linha no celular.
-   A tela de receitas usa as mesmas regras desta secao: os seletores
-   .grade-lancamento / .form-lancamento / .tabela--receitas sao apelidos
-   acrescentados aqui, para nao copiar declaracao nenhuma. */
-.grade-despesa,
+/* Cartao do formulario: um degrau mais folgado que o cartao padrao em cima e
+   mais apertado embaixo, porque a linha de acoes ja tem o proprio respiro. */
+.form-despesa {
+  padding: 20px 20px 16px;
+  /* A grade responde a largura DESTE cartao, e nao a da janela: com a sidebar
+     de 232px, "900px de formulario" e uma janela de 1188. Consulta de
+     contentor diz o que se quer dizer, e continua certa se a sidebar mudar. */
+  container-type: inline-size;
+}
+
+.form-lancar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Receitas continuam com a grade de dois campos por linha: sao cinco campos e
+   nenhum deles se beneficiaria de doze colunas. A tela ganha o visual
+   definitivo na rodada 19. */
 .grade-lancamento {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--e-4);
+  gap: 14px;
 }
 
-.grade-despesa .campo + .campo,
+.form-lancamento .campo + .campo,
+.form-lancamento .campo + .grade-lancamento,
+.form-lancamento .grade-lancamento + .campo {
+  margin-top: 16px;
+}
+
 .grade-lancamento .campo + .campo {
   margin-top: 0;
 }
 
-.form-despesa .campo + .campo,
-.form-despesa .campo + .grade-despesa,
-.form-despesa .grade-despesa + .campo,
-.form-lancamento .campo + .campo,
-.form-lancamento .campo + .grade-lancamento,
-.form-lancamento .grade-lancamento + .campo {
-  margin-top: var(--e-4);
+.grade-form {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 14px;
 }
 
-/* Valor: o campo que mais recebe atencao, entao e maior que os demais. */
+.vao-2  { grid-column: span 2; }
+.vao-3  { grid-column: span 3; }
+.vao-4  { grid-column: span 4; }
+.vao-5  { grid-column: span 5; }
+.vao-6  { grid-column: span 6; }
+.vao-12 { grid-column: span 12; }
+
+/* Dois por linha e depois um por linha. O `[class*=vao-]` alcanca os seis
+   vaos de uma vez: a regra e "todos", nao "estes". */
+@container (max-width: 900px) {
+  .grade-form > [class*="vao-"] {
+    grid-column: span 6;
+  }
+}
+
+@container (max-width: 600px) {
+  .grade-form > [class*="vao-"] {
+    grid-column: span 12;
+  }
+}
+
+/* Valor: mesma altura dos demais, mas o numero pesa mais - e o campo que se
+   confere antes de apertar Enter. */
 .entrada-moeda {
   position: relative;
   display: flex;
@@ -1000,65 +1551,127 @@ body {
 
 .entrada-moeda__prefixo {
   position: absolute;
-  left: 12px;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--cor-texto-fraco);
+  left: 10px;
+  font-size: 13px;
+  color: var(--ink-4);
   pointer-events: none;
 }
 
 /* O recuo que abre espaco para o prefixo pertence ao COMPONENTE, e nao ao
-   tamanho do campo. Ate a rodada 15 ele so existia dentro de .entrada--grande,
-   entao a caixa de tamanho normal do orcamento escrevia por baixo do "R$".
-   O valor e o mesmo 42px que .entrada--grande ja usava - de proposito: assim
-   as telas de lancamento nao mudam um pixel. */
+   tamanho do campo: a caixa de tamanho normal do orcamento usa o mesmo. */
 .entrada-moeda .entrada {
-  padding-left: 42px;
+  padding-left: 32px;
 }
 
 .entrada--grande {
-  padding: 12px 12px 12px 42px;
-  font-size: 20px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Resumo da classificacao devolvido pelo HTMX. */
-.classificacao-resumo {
-  margin-top: var(--e-2);
-  font-size: 13px;
-  color: var(--cor-texto-suave);
-}
-
-.classificacao-resumo__cat {
+  font-size: 15px;
   font-weight: 600;
-  color: var(--cor-texto);
 }
 
-.campo--prioridade {
-  margin-top: var(--e-3);
-  padding: var(--e-3);
-  border: 1px dashed var(--cor-destaque-borda);
-  border-radius: var(--raio-m);
-  background: var(--cor-destaque-fantasma);
+/* --- classificacao derivada ---
+   Nao e campo: e o que a subcategoria implica. Tem a altura de um campo para
+   a linha da grade fechar, e nenhuma borda, para nao parecer editavel. */
+.classificacao {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--control-h);
+  min-width: 0;
+  font-size: 13px;
 }
 
-/* Bloco recolhido: <details> nativo, sem JavaScript para abrir e fechar. */
+.classificacao__cat {
+  font-weight: 500;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.classificacao__vazio {
+  color: var(--ink-disabled);
+}
+
+.classificacao__nota {
+  font-size: 11px;
+  color: var(--ink-4);
+}
+
+/* --- prioridade: quatro botoes e o "sem" ---
+   Sao radios de verdade (mesmo `name`, mesmos valores do select antigo). O
+   input some da tela mas continua focavel; quem desenha o botao e o <span>
+   irmao, que le o estado por :checked. */
+.prioridade {
+  display: flex;
+  gap: 6px;
+  height: var(--control-h);
+}
+
+.prioridade__opcao {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+}
+
+.prioridade__opcao input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.prioridade__marca {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--control-border);
+  border-radius: var(--control-radius);
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.prioridade__marca:hover {
+  border-color: var(--ink-3);
+}
+
+.prioridade__opcao input:checked + .prioridade__marca {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+
+/* O foco precisa aparecer no botao: o input em si e invisivel. */
+.prioridade__opcao input:focus-visible + .prioridade__marca {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* --- mais opcoes ---
+   <details> nativo, sem JavaScript para abrir e fechar. */
 .mais-opcoes {
-  margin-top: var(--e-5);
-  border-top: 1px solid var(--linha);
-  padding-top: var(--e-3);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .mais-opcoes__resumo {
   display: inline-flex;
+  align-self: flex-start;
   align-items: center;
-  gap: var(--e-2);
-  padding: var(--e-2) 0;
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--cor-destaque);
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent-texto);
   cursor: pointer;
   list-style: none;
   user-select: none;
@@ -1068,54 +1681,94 @@ body {
   display: none;
 }
 
-.mais-opcoes__resumo::before {
-  content: "";
-  width: 0;
-  height: 0;
-  border-left: 5px solid currentColor;
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-  transition: transform 0.15s;
+.mais-opcoes__seta {
+  transition: transform 0.2s ease;
 }
 
-.mais-opcoes[open] > .mais-opcoes__resumo::before {
+.mais-opcoes[open] > .mais-opcoes__resumo .mais-opcoes__seta {
   transform: rotate(90deg);
 }
 
-.mais-opcoes__corpo {
-  padding-top: var(--e-2);
+/* --- linha de acoes ---
+   Botao e dica a esquerda, confirmacao a direita. */
+.form-despesa__acoes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
 }
 
-.form-despesa__acoes,
+/* Receitas e configuracoes continuam com a linha de acoes simples: botao e,
+   quando houver, o indicador ao lado. */
 .form-lancamento__acoes {
   display: flex;
   align-items: center;
-  gap: var(--e-3);
-  margin-top: var(--e-5);
-  padding-top: var(--e-4);
-  border-top: 1px solid var(--linha);
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
 }
 
-.btn--grande {
-  padding: 12px 22px;
-  font-size: 15px;
+.form-despesa__principal {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-/* Confirmacao discreta na propria pagina: nao ha recarga, entao nao ha flash. */
+.form-despesa__dica {
+  font-size: 12px;
+  color: var(--ink-4);
+}
+
+/* Enquanto grava, o indicador toma o lugar da dica: os dois ocupam a mesma
+   posicao e nada se desloca na tela. O htmx alterna a visibilidade pelo
+   .htmx-request no formulario. */
+.form-despesa__gravando {
+  font-size: 12px;
+  color: var(--ink-4);
+}
+
+.htmx-request .form-despesa__dica {
+  display: none;
+}
+
+/* --- confirmacao do que foi gravado ---
+   Sem caixa e sem fundo, so o texto verde com o visto. Some sozinha: a
+   animacao segura a opacidade por 3,2s e apaga em 0,3s. Como o elemento nasce
+   de novo a cada gravacao (viaja junto com o formulario), ela recomeca do
+   zero em cada uma - nenhum temporizador em JavaScript. */
 .aviso-inline:empty {
   display: none;
 }
 
 .aviso-inline {
-  margin-top: var(--e-3);
-  padding: var(--e-2) var(--e-4);
-  border: 1px solid rgba(23, 121, 94, 0.28);
-  border-radius: var(--raio-m);
-  background: var(--cor-sucesso-fundo);
-  color: var(--cor-sucesso);
-  font-size: 13.5px;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--green-ink);
+  animation: sumir-aviso 3.5s ease-out forwards;
 }
+
+@keyframes sumir-aviso {
+  0%, 91% { opacity: 1; }
+  100%    { opacity: 0; }
+}
+
+/* Quem pediu menos movimento nao ganha um aviso que pisca: ele fica. */
+@media (prefers-reduced-motion: reduce) {
+  .aviso-inline {
+    animation: none;
+  }
+}
+
+/* --- autocomplete: apoio do campo valor --- */
 
 /* Guarda de pre-requisitos. */
 .pendencias {
@@ -1131,54 +1784,56 @@ body {
   justify-content: space-between;
   gap: var(--e-3);
   padding: var(--e-3) 0;
-  border-top: 1px solid var(--linha);
-  font-size: 14px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 13px;
 }
 
-/* Lista de recentes. */
-.secao-recentes {
-  margin-top: var(--e-6);
-}
-
-.recentes-cabecalho {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--e-4);
-  flex-wrap: wrap;
-  margin-bottom: var(--e-3);
-}
+/* --- total do mes, na barra superior --- */
 
 .total-mes {
   display: flex;
   align-items: baseline;
-  gap: var(--e-2);
-  flex-wrap: wrap;
-}
-
-.total-mes__rotulo {
-  font-size: 13px;
-  color: var(--cor-texto-suave);
+  gap: 8px;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--ink-3);
 }
 
 .total-mes__valor {
-  font-size: 20px;
+  font-size: 15px;
   font-weight: 700;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
+  color: var(--ink);
 }
 
 .total-mes__contagem {
-  font-size: 12.5px;
-  color: var(--cor-texto-fraco);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* --- lista de recentes --- */
+
+/* Oito colunas nao cabem em largura de tablet: a tabela rola por dentro da
+   .tabela-caixa, que e o padrao do projeto. No celular ela larga o minimo e
+   quatro colunas descem para a linha de apoio (secao 7). */
+.tabela--recentes {
+  min-width: 980px;
+  white-space: nowrap;
+}
+
+/* O handoff poe  na tabela inteira, e com os dados curtos dele isso
+   cabe. Com dado real nao: "Manutencao e/ou reforma habitacao - Reforma e/ou
+   reparos" sozinha empurra a tabela para alem de 1152px em 1440, e Valor e
+   Acoes - as duas colunas que mais importam - saem da tela por padrao. A
+   classificacao e a unica coluna longa e secundaria: ela quebra, o resto nao. */
+.tabela--recentes .col-classificacao {
+  white-space: normal;
 }
 
 .tabela--despesas .col-valor,
 .tabela--receitas .col-valor,
 .tabela--config .col-valor {
   text-align: right;
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -1186,6 +1841,51 @@ body {
 .tabela--receitas .col-data,
 .tabela--config .col-data {
   white-space: nowrap;
+  color: var(--ink-3);
+}
+
+/* A coluna de acoes nao pula de largura quando o texto de um botao troca. */
+.tabela__acoes {
+  width: 120px;
+}
+
+.acoes-linha {
+  display: inline-flex;
+  gap: 4px;
+}
+
+/* Linha recem-gravada: pisca uma vez no tom claro do acento e para. */
+.linha--nova td {
+  animation: piscar-linha 1.2s ease-out;
+}
+
+@keyframes piscar-linha {
+  from { background: var(--accent-soft); }
+  to   { background: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .linha--nova td {
+    animation: none;
+  }
+}
+
+/* Rodape com os dois totais. */
+.recentes-rodape {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  background: var(--surface-alt);
+  border-top: 1px solid var(--line-soft);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.recentes-rodape b {
+  font-weight: 600;
+  color: var(--ink);
 }
 
 /* No desktop a classificacao tem coluna propria; no celular ela desce para
@@ -1204,12 +1904,10 @@ body {
   align-items: flex-start;
   gap: var(--e-4);
   flex-wrap: wrap;
-  padding: var(--e-3) var(--e-4);
-  margin-bottom: var(--e-4);
-  background: var(--solido);
-  border: 1px solid var(--linha);
-  border-radius: var(--raio-m);
-  box-shadow: var(--sombra-p);
+  padding: 14px 20px;
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
 /* O mes fica sempre visivel, inclusive no celular. */
@@ -1223,12 +1921,10 @@ body {
 .filtro-mes .selecao {
   width: auto;
   min-width: 170px;
-  padding-top: 7px;
-  padding-bottom: 7px;
 }
 
 .btn--icone {
-  padding: 8px;
+  padding: 0 10px;
   line-height: 0;
 }
 
@@ -1265,25 +1961,22 @@ body {
 .filtro-campo {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 6px;
   min-width: 0;
 }
 
+/* Mesmo rotulo dos campos de formulario: nao ha razao para o filtro ter uma
+   tipografia so dele. */
 .filtro-campo__rotulo {
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--cor-texto-fraco);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
 }
 
 .filtro-campo .selecao,
 .filtro-campo .entrada {
   width: auto;
   min-width: 150px;
-  padding-top: 6px;
-  padding-bottom: 6px;
-  font-size: 13.5px;
 }
 
 .filtro-campo--busca .entrada {
@@ -1297,19 +1990,15 @@ body {
 
 /* --- a) faixa de totais: card de moldura --- */
 
+/* Cartao padrao (a classe .card entra no template). O backdrop-filter saiu na
+   rodada 18: desde que o vidro deixou o cartao ele desfocava fundo opaco, ou
+   seja, custava uma camada de composicao para nao fazer nada. */
 .faixa-totais {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--e-5);
   flex-wrap: wrap;
-  padding: var(--e-4) var(--e-5);
-  background: var(--vidro-forte);
-  -webkit-backdrop-filter: blur(var(--desfoque));
-  backdrop-filter: blur(var(--desfoque));
-  border: 1px solid var(--vidro-borda);
-  border-radius: var(--raio-g);
-  box-shadow: var(--sombra-m);
 }
 
 .faixa-totais__principal {
@@ -1320,20 +2009,20 @@ body {
 }
 
 .faixa-totais__rotulo {
-  font-size: 13px;
-  color: var(--cor-texto-suave);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
 }
 
 .faixa-totais__valor {
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 700;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
 }
 
 .faixa-totais__contagem {
-  font-size: 12.5px;
-  color: var(--cor-texto-fraco);
+  font-size: 12px;
+  color: var(--ink-3);
 }
 
 .faixa-totais__divisao {
@@ -1362,16 +2051,16 @@ body {
   grid-template-columns: minmax(120px, 1.4fr) minmax(60px, 3fr) auto 46px;
   align-items: center;
   gap: var(--e-3);
-  padding: 5px 0;
-  font-size: 13.5px;
+  padding: 9px 0;
+  font-size: 13px;
 }
 
 .resumo-item + .resumo-item {
-  border-top: 1px solid var(--linha);
+  border-top: 1px solid var(--line-soft);
 }
 
 .resumo-item__nome {
-  font-weight: 600;
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1382,44 +2071,31 @@ body {
 
 .resumo-item__valor {
   text-align: right;
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
+  font-weight: 500;
   white-space: nowrap;
 }
 
 .resumo-item__pct {
   text-align: right;
-  font-size: 12.5px;
-  color: var(--cor-texto-fraco);
-  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--ink-3);
 }
 
 /* --- c) paginacao --- */
 
-.paginacao {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--e-3);
-  flex-wrap: wrap;
-  margin-top: var(--e-3);
-}
-
-.paginacao__contagem {
-  font-size: 13px;
-  color: var(--cor-texto-suave);
-  font-variant-numeric: tabular-nums;
-}
-
+/* A paginacao virou o rodape do cartao da tabela (.recentes-rodape, em 5.9);
+   sobraram os botoes e o texto entre eles. */
 .paginacao__botoes {
   display: flex;
   align-items: center;
-  gap: var(--e-2);
+  gap: 6px;
+  margin-left: auto;
 }
 
 .paginacao__pagina {
-  font-size: 12.5px;
-  color: var(--cor-texto-fraco);
+  margin: 0 6px;
+  font-size: 12px;
+  color: var(--ink-3);
 }
 
 /* --- 5.11 Autocomplete de descricao ------------------------------------
@@ -1443,56 +2119,58 @@ body {
   z-index: 40;
   max-height: 320px;
   overflow-y: auto;
-  background: var(--solido-sutil);
-  border: 1px solid var(--linha-forte);
-  border-radius: var(--raio-m);
-  box-shadow: var(--sombra-g);
+  padding: 6px;
+  background: var(--surface);
+  border-radius: 10px;
+  box-shadow: var(--shadow-popover);
   -webkit-overflow-scrolling: touch;
 }
 
 .sugestoes__lista {
   margin: 0;
-  padding: 4px;
+  padding: 0;
   list-style: none;
 }
 
+/* Descricao a esquerda, apoio a direita, numa linha so: e uma lista para
+   bater o olho, nao para ler. */
 .sugestoes__item {
   display: flex;
-  flex-direction: column;
-  gap: 1px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 8px 10px;
-  border-radius: var(--raio-p);
+  border-radius: var(--control-radius-sm);
+  font-size: 13px;
   cursor: pointer;
 }
 
 .sugestoes__item:hover,
 .sugestoes__item--ativo {
-  background: var(--cor-destaque-fantasma);
-}
-
-.sugestoes__item--ativo {
-  box-shadow: inset 0 0 0 1px var(--cor-destaque-borda);
+  background: var(--bg);
 }
 
 .sugestoes__descricao {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--cor-texto);
+  font-weight: 500;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sugestoes__apoio {
   display: flex;
   align-items: baseline;
   gap: var(--e-2);
-  font-size: 12.5px;
-  color: var(--cor-texto-suave);
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sugestoes__usos {
-  margin-left: auto;
-  font-size: 11.5px;
-  color: var(--cor-texto-fraco);
-  font-variant-numeric: tabular-nums;
+  color: var(--ink-4);
 }
 
 /* Texto de apoio: o "ultimo: R$ ..." e o aviso de referencia desativada. */
@@ -1614,15 +2292,20 @@ body {
    5.13.2) e o visual comum delas (.tabela--resumo, tambem em 5.13.2). O que e
    so da Anual (graficos) fica em 5.13.1; o que e so da Mensal, em 5.14.
 
-   Grade de cards de moldura: 4 colunas no desktop, 2 no tablet, 1 no celular
-   (a de celular fica na secao 7, com o resto do responsivo). O vidro esta so
-   na moldura do .card, que ja vem da secao 5.1; aqui mora o miolo - rotulo
-   pequeno em cima, numero grande embaixo, linha de apoio quando houver.
+   Depois da rodada 17 a divisao ficou assim: a Anual usa .painel-grade (a
+   grade 4/2/1, que e o "como hoje" que o prompt manda preservar) e
+   .painel-graficos, mas o miolo dos cards dela agora e .kpi / .indicador, em
+   5.13.3. A Mensal e o acompanhamento do orcamento continuam em .painel-card
+   ate a rodada 19. Duas grades, um arranjo: quando a Mensal for refeita,
+   .painel-card sai e sobra .kpi.
 */
 
 /* Barra de seletores dos dois paineis: um campo na Anual (ano), tres na
    Mensal (ano, mes, ordem). Ate a rodada 14 levava o nome do unico campo que
-   tinha, e por isso mudou de nome quando a Mensal chegou com mais dois. */
+   tinha, e por isso mudou de nome quando a Mensal chegou com mais dois.
+
+   A Anual nao a usa mais: o ano dela virou o seletor segmentado da barra
+   superior (5.13.3). Continua servindo a Mensal e o orcamento. */
 .filtro-barra {
   display: flex;
   align-items: flex-end;
@@ -1630,10 +2313,9 @@ body {
   gap: var(--e-3);
   padding: var(--e-3) var(--e-4);
   margin-bottom: var(--e-4);
-  background: var(--solido);
-  border: 1px solid var(--linha);
-  border-radius: var(--raio-m);
-  box-shadow: var(--sombra-p);
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
 .filtro-barra .selecao {
@@ -1641,13 +2323,13 @@ body {
   min-width: 130px;
   padding-top: 6px;
   padding-bottom: 6px;
-  font-size: 13.5px;
+  font-size: 13px;
 }
 
 .painel-grade {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--e-4);
+  gap: 14px;
 }
 
 /* Entre 768px e ~1100px cabem duas colunas: com quatro, um valor como
@@ -1662,17 +2344,17 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--e-1);
-  padding: var(--e-4) var(--e-5);
+  padding: 18px 20px;
 }
 
 /* Mesmo rotulo em versalete dos filtros da consulta: e o que diz o que o
    numero significa, sem competir com ele. */
 .painel-card__rotulo {
   font-size: 11.5px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--cor-texto-fraco);
+  color: var(--ink-3);
 }
 
 .painel-card__valor {
@@ -1680,27 +2362,30 @@ body {
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.15;
-  font-variant-numeric: tabular-nums;
-  color: var(--cor-texto);
+  color: var(--ink);
 }
 
 /* Saldo negativo e taxa de poupanca negativa: o sinal sozinho passa batido. */
 .painel-card__valor--negativo {
-  color: var(--cor-erro);
+  color: var(--red);
 }
 
 /* Nome do mes, divisor da media, descricao e data do pico. A descricao vem do
    que a pessoa digitou e pode ser longa: quebra em vez de esticar a grade. */
 .painel-card__apoio {
-  font-size: 12.5px;
-  color: var(--cor-texto-suave);
+  font-size: 12px;
+  color: var(--ink-3);
   overflow-wrap: anywhere;
 }
 
 /* --- 5.13.1 Graficos do ano -------------------------------------------
-   Duas colunas acima de 1100px, uma abaixo. A moldura continua sendo o .card
-   de vidro; a area do grafico e superficie de leitura, quase opaca, como
-   tabela e formulario (regra de legibilidade do topo do arquivo).
+   Duas colunas acima de 1100px, uma abaixo. O handoff pede
+   `auto-fit, minmax(340px, 1fr)`, que em 1440px da TRES colunas e deixa o
+   quarto grafico sozinho na segunda linha; duas colunas mantem o 2x2 do
+   desenho e e o padrao de graficos do projeto desde a rodada 11.
+
+   A moldura e o .card; a area do grafico nao tem superficie propria (no tema
+   antigo tinha, porque o cartao era de vidro e o canvas precisava de fundo).
 
    A altura do canvas e fixada AQUI, e nao pelo Chart.js: com
    maintainAspectRatio:false o canvas cresce ate o tamanho do pai, e um pai
@@ -1710,8 +2395,7 @@ body {
 .painel-graficos {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--e-4);
-  margin-top: var(--e-4);
+  gap: 14px;
 }
 
 /* minmax(0, ...) tambem aqui: com `1fr` puro o minimo da coluna e o
@@ -1726,17 +2410,13 @@ body {
 
 .grafico__area {
   position: relative;      /* base do canvas responsivo do Chart.js */
-  height: 320px;
-  margin-top: var(--e-3);
-  padding: var(--e-3);
-  background: var(--solido);
-  border: 1px solid var(--linha);
-  border-radius: var(--raio-m);
+  height: 230px;
+  margin-top: 14px;
 }
 
 /* --- 5.13.2 Tabelas dos paineis ---------------------------------------
-   Tabelas empilhadas, cada uma dentro do .card de vidro; a tabela em si e
-   superficie de leitura (.tabela-caixa, quase opaca), como nas demais telas.
+   Tabelas empilhadas, cada uma dentro do .card; a .tabela-caixa e quem rola
+   na horizontal quando falta largura.
 
    Sem grade aqui de proposito: elas ocupam a largura toda, e uma grade de
    uma coluna so daria a chance de repetir o problema do `1fr` com filho largo
@@ -1748,14 +2428,17 @@ body {
    Mensal, mais a do detalhe expansivel. O que e de uma so vira modificador
    com nome proprio (.tabela--mensal, .tabela--resumo--estreita,
    .tabela--matriz em 5.14, .tabela--detalhe em 5.14.1).
+
+   .painel-tabelas e o empilhamento da Mensal. A Anual deixou de usa-lo na
+   rodada 17: la o espacamento entre blocos vem do gap de .painel (5.13.3).
 */
 
 .painel-tabelas {
-  margin-top: var(--e-4);
+  margin-top: 14px;
 }
 
 .painel-tabelas > .card + .card {
-  margin-top: var(--e-4);
+  margin-top: 14px;
 }
 
 .painel-tabelas .tabela-caixa {
@@ -1765,18 +2448,17 @@ body {
 
 /* Numeros alinhados a direita e com digito de largura fixa: em doze linhas, a
    virgula precisa cair sempre na mesma coluna - e na matriz isso vale para a
-   grade inteira. */
+   grade inteira. (tabular-nums e global, no body; aqui fica o alinhamento.) */
 .tabela--resumo .col-num {
   text-align: right;
   white-space: nowrap;
-  font-variant-numeric: tabular-nums;
 }
 
 /* Linha de totais: pesa mais que as de cima e fecha a tabela por baixo. */
 .tabela--resumo tfoot td {
   font-weight: 700;
-  background: rgba(26, 27, 46, 0.025);
-  border-top: 1px solid var(--linha-forte);
+  background: var(--surface-alt);
+  border-top: 1px solid var(--line-soft);
   border-bottom: none;
 }
 
@@ -1790,16 +2472,10 @@ body {
   display: none;
 }
 
-/* Vermelho so no numero, nunca no travessao: quem pinta e o <span> que a
-   macro `dinheiro` do template emite apenas quando ha valor negativo. */
-.tabela--mensal .negativo {
-  color: var(--cor-erro);
-}
-
 /* --- coluna de participacao: numero e barra na mesma celula ---
-   Da tabela por categoria da Anual e das duas de participacao da Mensal; a
-   mensal e a matriz nao tem esta coluna, e para elas as duas regras abaixo
-   nao encontram nada. */
+   Das duas tabelas de participacao da Mensal; na Anual a barra passou a ter
+   coluna propria (5.13.3). A mensal e a matriz nao tem esta coluna, e para
+   elas as regras abaixo nao encontram nada. */
 
 .tabela--resumo .col-pct {
   width: 38%;
@@ -1822,8 +2498,7 @@ body {
   flex: 0 0 46px;
   text-align: right;
   font-size: 13px;
-  color: var(--cor-texto-suave);
-  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
 }
 
 /* No rodape o numero e total, nao apoio: acompanha o peso da linha. */
@@ -1834,7 +2509,329 @@ body {
 .tabela__vazio {
   padding: var(--e-6) var(--e-4);
   text-align: center;
-  color: var(--cor-texto-suave);
+  color: var(--ink-3);
+}
+
+/* --- 5.13.3 Visao Anual (desenho da rodada 17) -------------------------
+   O que existe so nesta tela: o seletor de ano segmentado da barra superior,
+   os quatro KPIs, o cartao dos nove indicadores e o visual das duas tabelas.
+   Quando a Mensal for refeita (rodada 19), o que for comum as duas sobe para
+   5.13 e este bloco encolhe.
+*/
+
+/* --- seletor de ano segmentado ---
+   Sao links (<a>), nao radio nem select: trocar de ano ja era um GET com
+   recarga da pagina inteira, e link e exatamente isso - navegavel por
+   teclado, abrivel em outra aba e sem uma linha de JavaScript. O ano em
+   exibicao carrega aria-current="page", e e ele que o seletor pinta. */
+.anos {
+  display: flex;
+  padding: 2px;
+  background: var(--fill);
+  border-radius: var(--radius-control);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.anos__item {
+  padding: 4px 12px;
+  border-radius: var(--radius-chip);
+  color: var(--ink-3);
+  transition: color 0.15s;
+}
+
+.anos__item:hover {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.anos__item[aria-current="page"] {
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  color: var(--ink);
+}
+
+/* --- 1. os quatro KPIs --- */
+
+.kpi__rotulo {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+/* clamp: o valor precisa caber numa coluna de 1/4 da largura sem quebrar, e
+   R$ 562.416,07 em 28px nao cabe em tela de 1280. */
+.kpi__valor {
+  margin-top: 8px;
+  font-size: clamp(20px, 1.6vw, 28px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+/* As duas cores vem do servidor, pelo nome da classe: saldo que sobra no
+   acento, saldo (ou taxa) negativo em vermelho. */
+.kpi__valor--acento {
+  color: var(--accent);
+}
+
+.kpi__valor--negativo {
+  color: var(--red);
+}
+
+/* Trilho de 3px sob o valor. No cartao de receita ele vai cheio, em verde -
+   e a receita que e o total; no de despesa, o preenchimento vermelho mede a
+   fatia da receita que ja foi gasta. */
+.kpi__trilho {
+  margin-top: 8px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--fill);
+  overflow: hidden;
+}
+
+.kpi__preenchimento {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+}
+
+.kpi__preenchimento--receita {
+  background: var(--green);
+}
+
+.kpi__preenchimento--despesa {
+  background: var(--red);
+}
+
+.kpi__apoio {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+
+/* --- 2. os nove indicadores, num cartao so --- */
+
+.indicadores {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 32px;
+  padding: 6px 20px;
+  font-size: 13px;
+}
+
+.indicador {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--e-3);
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+/* A ultima FILEIRA nao leva divisoria - senao a linha de baixo do cartao
+   ficaria duplicada com a borda dele. Sao nove itens: em tres colunas os tres
+   ultimos fecham a grade; em duas e em uma, so o nono. */
+@media (min-width: 1100px) {
+  .indicador:nth-last-child(-n + 3) {
+    border-bottom: none;
+  }
+}
+
+@media (max-width: 1099px) {
+  .indicadores {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .indicador:last-child {
+    border-bottom: none;
+  }
+}
+
+/* O rotulo nao quebra: quem cede espaco e o valor, que e onde mora a nota
+   comprida do pico ("ITBI - Aquisicao do terreno do cartorio · 13/01/2025").
+   Sem isto o flex reparte a linha e "Pico de despesa" sai em duas. */
+.indicador__rotulo {
+  flex: none;
+  color: var(--ink-3);
+}
+
+.indicador__valor {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 600;
+  text-align: right;
+}
+
+/* A nota vem do servidor sem separador; o ponto e desenho, e desenho e CSS. */
+.indicador__nota {
+  font-weight: 400;
+  color: var(--ink-4);
+}
+
+.indicador__nota::before {
+  content: "· ";
+}
+
+/* A nota do pico e a descricao digitada mais a data: nao cabe ao lado do
+   valor, e desce uma linha - sem o ponto, que so separa nota de valor. */
+.indicador__nota--bloco {
+  display: block;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.indicador__nota--bloco::before {
+  content: none;
+}
+
+/* --- 4 e 5. as duas tabelas --- */
+
+/* A tabela encosta nas bordas do cartao: quem afasta e o padding das celulas
+   das pontas. `min-width: 0` desfaz o minimo de 560px da .tabela; nao ha
+   rolagem interna a 1440px, e o handoff pede min-width 960px com rolagem
+   abaixo de ~1200px, que o projeto nao segue - no celular a tabela mensal
+   esconde colunas e usa a linha de apoio (secao 7), como desde a rodada 11. */
+.tabela--anual {
+  min-width: 0;
+  font-size: 13px;
+}
+
+/* A .tabela-caixa perde a superficie propria: o cartao ja e a superficie, e
+   duas bordas concentricas a 1px de distancia sao um erro visivel. Ela
+   continua sendo quem rola na horizontal se faltar largura. */
+.card--tabela .tabela-caixa {
+  margin-top: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.tabela--anual th {
+  padding: 9px 12px;
+  font-size: 11px;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.tabela--anual td {
+  padding: 10px 12px;
+}
+
+/* Primeira e ultima coluna alinhadas com o cabecalho do cartao (20px). */
+.tabela--anual th:first-child,
+.tabela--anual td:first-child {
+  padding-left: 20px;
+}
+
+.tabela--anual th:last-child,
+.tabela--anual td:last-child {
+  padding-right: 20px;
+}
+
+.tabela--anual tbody tr:last-child td {
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.tabela--anual tfoot td {
+  padding-top: 12px;
+  padding-bottom: 12px;
+  font-weight: 600;
+  border-top: none;
+}
+
+/* Na linha de totais so "Total" e o saldo pesam 700; o resto fica em 600. */
+.tabela--anual tfoot .col-mes,
+.tabela--anual tfoot .col-saldo {
+  font-weight: 700;
+}
+
+/* --- tabela mes a mes --- */
+
+.tabela--mensal .col-mes {
+  font-weight: 500;
+}
+
+.tabela--mensal .col-saldo {
+  font-weight: 600;
+}
+
+/* Saldo do ano no acento, como o KPI: e o mesmo numero. */
+.tabela--anual tfoot .col-saldo {
+  color: var(--accent);
+}
+
+/* Numeros de apoio um tom abaixo do mes e do saldo, que sao o que se le
+   primeiro na linha. */
+.tabela--mensal tbody .col-num {
+  color: var(--ink-2);
+}
+
+/* Mes sem lancamento nenhum (a classe vem do servidor): a linha inteira
+   esmaece. Nao e zero, e ausencia - e acumulado e taxa ja vem como
+   travessao. O saldo perde tambem o vermelho, porque zero nao e negativo. */
+.tabela--mensal .linha--vazia td,
+.tabela--mensal .linha--vazia .col-num,
+.tabela--mensal .linha--vazia .col-saldo {
+  color: var(--ink-disabled);
+}
+
+/* --- tabela por categoria ---
+   Quatro colunas, como no desenho: nome, barra, total e percentual. A barra
+   ganhou coluna propria (na Mensal ela continua dentro da celula do
+   percentual, com .pct-celula). O cabecalho da coluna da barra existe so
+   para o leitor de tela: uma barra nao precisa de rotulo visivel. */
+
+/* 260px como no desenho, mas sem `white-space: nowrap` nem ellipsis: a maior
+   categoria real ("Manutencao e/ou reforma habitacao") cabe folgada em 13px, e
+   no celular o nome precisa poder quebrar em duas linhas. */
+.tabela--categorias .col-categoria {
+  width: 260px;
+  font-weight: 500;
+}
+
+.tabela--categorias .col-barra {
+  width: auto;
+}
+
+.tabela--categorias .col-num {
+  width: 130px;
+  font-weight: 500;
+}
+
+.tabela--categorias .col-pct {
+  width: 56px;
+  text-align: right;
+  color: var(--ink-3);
+}
+
+.tabela--categorias tfoot .col-pct {
+  color: inherit;
+}
+
+/* Entre 768 e ~1100px os 260px do nome mais os 186px de total e percentual
+   nao deixam largura para a barra: ela vira um risco de 40px e para de
+   informar. O nome passa a ocupar o que precisa (pode quebrar em duas linhas)
+   e a barra ganha uma fatia declarada. A tabela continua sem rolar por dentro,
+   como desde a rodada 16. */
+@media (max-width: 1099px) {
+  .tabela--categorias .col-categoria {
+    width: auto;
+  }
+
+  .tabela--categorias .col-barra {
+    width: 26%;
+  }
+}
+
+/* Sem hover na tabela por categoria: nao ha nada para onde ir a partir de uma
+   linha dela, e o realce sugeriria que ha. */
+.tabela--categorias tbody tr:hover td {
+  background: transparent;
 }
 
 /* --- 5.14 Visao mensal --------------------------------------------------
@@ -2198,6 +3195,91 @@ body {
   border-top: 1px solid var(--linha);
 }
 
+/* --- 5.15.1 Acompanhamento do orcamento --------------------------------
+   O outro modo da mesma tela: em vez da faixa de receita planejada, quatro
+   cards de realizado x planejado; em vez da tabela de montagem, a de
+   planejado x realizado com percentual consumido.
+
+   Reaproveita .painel-grade e .painel-card (5.13), .tabela--resumo e
+   .pct-celula (5.13.2), .linha-subgrupo (5.14.1) e .tabela-caixa.
+
+   A COR NAO E DECIDIDA AQUI. `acompanhamento.situacao()` devolve `ok`,
+   `alerta` ou `estouro`, o template escreve `consumo--<estado>` e estas tres
+   regras so pintam. As faixas (90%, 100%) sao regra de negocio e vivem no
+   Python; mudar a cor aqui nao muda quando ela aparece, e vice-versa.
+*/
+
+.orcamento-cards {
+  margin-top: var(--e-4);
+}
+
+/* O percentual consumido do card Despesas, embaixo da linha de apoio. */
+.orcamento-card__consumo {
+  margin-top: var(--e-1);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+/* --- as tres faixas ---
+   `ok` nao pinta nada: o normal e a maioria das linhas, e colorir tudo faria
+   o alerta e o estouro sumirem no meio. Ambar e vermelho reusam as cores
+   semanticas da secao 1 (--cor-aviso ja existia, do .flash--aviso; nao foi
+   preciso inventar uma cor de alerta). */
+
+/* O numero pega a cor em TODOS os niveis - linha, subtotal e rodape. No
+   rodape e preciso o seletor mais longo para vencer a regra da 5.13.2, que
+   manda o percentual do rodape herdar a cor da linha de totais; sem ele, a
+   barra ficaria vermelha e o numero preto ao lado dela. */
+.consumo--alerta .pct-celula__numero,
+.tabela--acompanhamento tfoot .consumo--alerta .pct-celula__numero,
+.orcamento-card__consumo.consumo--alerta {
+  color: var(--cor-aviso);
+}
+
+.consumo--estouro .pct-celula__numero,
+.tabela--acompanhamento tfoot .consumo--estouro .pct-celula__numero,
+.orcamento-card__consumo.consumo--estouro {
+  color: var(--cor-erro);
+  font-weight: 600;
+}
+
+/* A barra acompanha o numero: e o mesmo dado, e ver a barra vermelha cheia
+   diz "estourou" antes de o olho chegar no numero. */
+.consumo--alerta .barra__preenchimento {
+  background: var(--cor-aviso);
+}
+
+.consumo--estouro .barra__preenchimento {
+  background: var(--cor-erro);
+}
+
+/* --- fora do orcamento ---
+   Bloco a parte, depois da tabela: nao e erro nem linha faltando, e o que o
+   plano nao previu. Fica visualmente separado para nao se confundir com o
+   planejado, e some quando nao ha nada nele. */
+
+.orcamento-fora {
+  margin-top: var(--e-5);
+  padding-top: var(--e-4);
+  border-top: 1px solid var(--linha);
+}
+
+.orcamento-fora__titulo {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--cor-texto);
+}
+
+.orcamento-fora .tabela-caixa {
+  margin-top: var(--e-3);
+}
+
+/* Duas colunas so; a de valor nao precisa de mais que o proprio numero. */
+.tabela--fora {
+  min-width: 0;
+}
+
 /* ==========================================================================
    6. TELA DE LOGIN
    Sem sidebar: card unico centrado. Aqui o vidro e a moldura, e os campos
@@ -2220,15 +3302,22 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--e-2);
+  gap: 10px;
   margin-bottom: var(--e-5);
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
 }
 
-.login-marca svg {
-  color: var(--cor-destaque);
+/* A marca da tela de entrada e a mesma da sidebar, um degrau maior. */
+.login-marca .marca__quadrado {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+}
+
+.login-marca .marca__nome {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--ink);
 }
 
 .login-caixa .card {
@@ -2246,8 +3335,10 @@ body {
    ========================================================================== */
 
 @media (max-width: 767px) {
+  /* Sem sidebar em coluna nao ha faixa escura a pintar. */
   .app {
     display: block;
+    background: none;
   }
 
   /* Barra fixa no topo */
@@ -2272,14 +3363,10 @@ body {
     display: flex;
     align-items: center;
     gap: var(--e-2);
-    font-size: 17px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: var(--cor-texto);
-  }
-
-  .topo-mobile__marca svg {
-    color: var(--cor-destaque);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--ink);
   }
 
   .menu-botao {
@@ -2290,17 +3377,18 @@ body {
     height: 40px;
     padding: 0;
     background: transparent;
-    border: 1px solid var(--linha-forte);
-    border-radius: var(--raio-p);
-    color: var(--cor-texto);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-control);
+    color: var(--ink);
   }
 
   .menu-botao:hover {
-    background: var(--cor-destaque-fantasma);
-    color: var(--cor-destaque);
+    border-color: var(--accent);
+    color: var(--accent);
   }
 
-  /* A sidebar desce como painel abaixo da barra */
+  /* A sidebar desce como painel abaixo da barra. `height: auto` desfaz o
+     100vh do desktop; `position: fixed` desfaz o sticky. */
   .sidebar {
     position: fixed;
     top: var(--topo-mobile);
@@ -2308,11 +3396,11 @@ body {
     right: 0;
     bottom: auto;
     width: auto;
+    height: auto;
     max-height: calc(100vh - var(--topo-mobile));
     overflow-y: auto;
     padding: var(--e-4);
-    border-right: none;
-    border-bottom: 1px solid var(--vidro-borda);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: var(--sombra-g);
     transform: translateY(-8px);
     opacity: 0;
@@ -2331,20 +3419,64 @@ body {
     display: none;
   }
 
+  /* --- as secoes recolhiveis nao valem no celular ---
+     O painel do menu ja e um so, aberto por botao; recolher secoes dentro dele
+     seria dois niveis de abrir para chegar a um link. Tudo visivel, como antes
+     da rodada 17: a lista aparece mesmo com o atributo `hidden` (que o JS nem
+     escreve abaixo de 768px), o chevron sai e o cabecalho volta a ser rotulo -
+     nao ha o que clicar. */
+  .nav-grupo__lista[hidden] {
+    display: flex;
+  }
+
+  .nav-grupo__seta {
+    display: none;
+  }
+
+  .nav-grupo__titulo {
+    pointer-events: none;
+    cursor: default;
+  }
+
   .conteudo {
-    margin-left: 0;
+    display: block;
+  }
+
+  .conteudo__corpo {
     padding: var(--e-4) var(--e-4) var(--e-6);
   }
 
+  /* A barra superior deixa de ser sticky: quem gruda no topo do celular e a
+     .topo-mobile, e duas barras grudadas comeriam metade da tela. */
   .pagina-cabecalho {
+    position: static;
     flex-direction: column;
     align-items: stretch;
     gap: var(--e-3);
     padding: var(--e-4);
+    background: var(--surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .pagina-cabecalho__texto {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
   }
 
   .pagina-acoes .btn {
     width: 100%;
+  }
+
+  /* O seletor de ano ocupa a largura toda e divide o espaco entre os anos. */
+  .anos {
+    width: 100%;
+  }
+
+  .anos__item {
+    flex: 1 1 auto;
+    text-align: center;
   }
 
   .filtros {
@@ -2371,19 +3503,60 @@ body {
 
   /* --- Lancamento de despesa no celular --- */
 
-  .grade-despesa,
+  /* A grade de 12 colunas ja vira uma coluna sozinha, pela consulta de
+     contentor da secao 5.9: em 390px o cartao mede ~343px, bem abaixo dos
+     600px do ultimo degrau. Aqui fica so o que a consulta nao alcanca. */
   .grade-lancamento {
     grid-template-columns: 1fr;
   }
 
-  .grade-despesa .campo + .campo,
   .grade-lancamento .campo + .campo {
-    margin-top: var(--e-4);
+    margin-top: 0;
+  }
+
+  .form-despesa {
+    padding: var(--e-4);
+  }
+
+  .form-despesa__acoes {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .form-despesa__principal {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .form-despesa__acoes .btn--grande,
   .form-lancamento__acoes .btn--grande {
     width: 100%;
+  }
+
+  /* Cinco botoes de prioridade em 343px dao 60px cada: cabe, e o alvo de
+     toque continua com 36px de altura. */
+  .prioridade {
+    gap: 4px;
+  }
+
+  /* A barra de filtros dos cadastros empilha, e o interruptor vai para a
+     esquerda junto com a contagem. */
+  .filtros {
+    align-items: stretch;
+  }
+
+  .filtros__direita {
+    justify-content: space-between;
+  }
+
+  .campo--em-linha {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .campo--em-linha .selecao {
+    width: 100%;
+    min-width: 0;
   }
 
   .pendencias li {
@@ -2396,11 +3569,37 @@ body {
   }
 
   /* A tabela de recentes nao rola na horizontal: as colunas secundarias
-     somem e a classificacao passa a viver embaixo da descricao. */
+     somem e a classificacao passa a viver embaixo da descricao. O `nowrap` da
+     .tabela--recentes tem de sair junto - `nowrap` herdado estica tabela no
+     celular, licao da rodada 12. */
   .tabela--despesas,
   .tabela--receitas,
-  .tabela--config {
+  .tabela--config,
+  .tabela--recentes {
     min-width: 0;
+    white-space: normal;
+  }
+
+  /* Lista de cadastro em 390px: as celulas encolhem e a coluna de acoes vira
+     o que couber. */
+  .tabela--cadastro td,
+  .tabela--cadastro th {
+    padding-left: var(--e-3);
+    padding-right: var(--e-3);
+  }
+
+  .tabela--cadastro td:first-child,
+  .tabela--cadastro th:first-child {
+    padding-left: var(--e-4);
+  }
+
+  .tabela--cadastro td:last-child,
+  .tabela--cadastro th:last-child {
+    padding-right: var(--e-4);
+  }
+
+  .tabela--cadastro .tabela__acoes {
+    width: 1%;
   }
 
   .tabela--despesas .col-data,
@@ -2432,19 +3631,37 @@ body {
     padding-left: var(--e-2);
   }
 
+  /* O invólucro .acoes-linha e uma fileira no desktop; aqui ele empilha. Nas
+     listas de cadastro isso e novo: ate a rodada 17 os dois botoes ficavam
+     lado a lado e a tabela rolava por dentro. Empilhados, ela cabe em 390px. */
+  .tabela--despesas .acoes-linha,
+  .tabela--receitas .acoes-linha,
+  .tabela--config .acoes-linha,
+  .tabela--cadastro .acoes-linha {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--e-1);
+    width: 100%;
+  }
+
   .tabela--despesas .tabela__acoes .btn,
   .tabela--receitas .tabela__acoes .btn,
-  .tabela--config .tabela__acoes .btn {
-    display: block;
+  .tabela--config .tabela__acoes .btn,
+  .tabela--cadastro .tabela__acoes .btn {
+    display: flex;
     width: 100%;
+    min-width: 0;
+    min-height: 0;
     padding: 7px 8px;
     text-align: center;
   }
 
-  .tabela--despesas .tabela__acoes .btn + .btn,
-  .tabela--receitas .tabela__acoes .btn + .btn,
-  .tabela--config .tabela__acoes .btn + .btn {
-    margin-top: var(--e-1);
+  /* A linha do cadastro deixa de ter altura fixa quando os botoes empilham. */
+  .tabela--cadastro td {
+    height: auto;
+    padding-top: var(--e-2);
+    padding-bottom: var(--e-2);
   }
 
   .tabela--despesas .linha-secundaria,
@@ -2500,7 +3717,7 @@ body {
     padding: var(--e-2) 0;
     font-size: 13.5px;
     font-weight: 600;
-    color: var(--cor-destaque);
+    color: var(--accent-texto);
     cursor: pointer;
     list-style: none;
     user-select: none;
@@ -2614,8 +3831,21 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .painel-card {
+  .painel-card,
+  .kpi,
+  .grafico {
     padding: var(--e-4);
+  }
+
+  /* Os nove indicadores tambem viram uma coluna. */
+  .indicadores {
+    grid-template-columns: 1fr;
+    padding: 2px var(--e-4);
+  }
+
+  /* O gap de 18px entre blocos e desktop; em 390px 14px basta. */
+  .painel {
+    gap: 14px;
   }
 
   /* Seletores empilhados: lado a lado, em 390px, os tres da Mensal nao
@@ -2672,9 +3902,9 @@ body {
 
      Os seletores sao de descendencia, entao alcancam tambem as celulas da
      tabela do detalhe, que e aninhada numa de painel. E de proposito: o
-     respiro proprio dela vem depois, no fim desta secao, e vence por ordem -
-     mas o `letter-spacing` do cabecalho ela nao sobrescreve, e herda daqui.
-     Era assim antes da unificacao e continua sendo. */
+     respiro proprio dela vem depois, no fim desta secao, e vence por ordem.
+     O `letter-spacing` do cabecalho o detalhe redeclara com o mesmo valor (no
+     fim desta secao), para nao depender de estar aninhado aqui dentro. */
   .tabela--resumo th,
   .tabela--resumo td {
     padding: var(--e-2) 5px;
@@ -2684,6 +3914,43 @@ body {
   .tabela--resumo th {
     font-size: 10.5px;
     letter-spacing: 0.03em;
+  }
+
+  /* Os 20px das colunas das pontas (5.13.3) sao desenho de desktop e vencem a
+     regra generica acima por especificidade; em 390px eles comeriam um decimo
+     da tela de cada lado. */
+  .tabela--anual th,
+  .tabela--anual td,
+  .tabela--anual th:first-child,
+  .tabela--anual td:first-child,
+  .tabela--anual th:last-child,
+  .tabela--anual td:last-child {
+    padding: var(--e-2) 5px;
+  }
+
+  /* A coluna do percentual e estreita e fixa; a barra fica com o resto. Sem
+     isto a regra de 42% da .tabela--resumo, que vem depois, se aplicaria as
+     duas colunas de participacao da tabela por categoria. */
+  .tabela--categorias .col-categoria,
+  .tabela--categorias .col-num {
+    width: auto;
+  }
+
+  /* A barra precisa de largura reservada. Percentual nao resolve: em auto
+     layout ele so vale depois dos minimos, e a folga vai quase toda para o
+     nome, que tem palavra longa. `min-width` na PROPRIA barra entra no
+     min-content da celula, e ai o algoritmo tem de respeita-la - o nome quebra
+     em mais uma linha em vez de comer a coluna inteira. */
+  .tabela--categorias .col-barra {
+    width: 28%;
+  }
+
+  .tabela--categorias .col-barra .barra {
+    min-width: 46px;
+  }
+
+  .tabela--categorias .col-pct {
+    width: 44px;
   }
 
   /* Mes e apoio sao um bloco so: a borda fica embaixo do par, nao entre os
@@ -2756,6 +4023,15 @@ body {
     font-size: 12.5px;
   }
 
+  /* O cabecalho do detalhe usa o mesmo espacejamento das tabelas de painel, de
+     proposito: as duas sao a mesma familia de tabela e o olho compara melhor
+     cabecalhos iguais. Ate a rodada 15 o valor chegava por heranca, porque o
+     seletor da 5.14 e de descendencia e o detalhe e aninhado numa tabela de
+     painel; declarado aqui, para de depender de onde a tabela esta. */
+  .tabela--detalhe th {
+    letter-spacing: 0.03em;
+  }
+
   /* Um icone no lugar da palavra: em 390px "Editar" comeria a coluna do
      valor. O aria-label do link mantem o nome acessivel. */
   .tabela--detalhe .icone {
@@ -2811,6 +4087,9 @@ body {
     max-width: none;
   }
 
+  /* Os quatro cards do acompanhamento seguem a grade dos paineis: uma coluna
+     abaixo de 768px, que ja vem de .painel-grade. Nada proprio a fazer. */
+
   /* --- Autocomplete no celular --- */
 
   /* Itens mais altos: alvo confortavel para o polegar. */
@@ -2844,29 +4123,25 @@ body {
    ========================================================================== */
 
 .pilha > * + * { margin-top: var(--e-4); }
-.pilha-p > * + * { margin-top: var(--e-2); }
-
-.linha-flex {
-  display: flex;
-  align-items: center;
-  gap: var(--e-2);
-  flex-wrap: wrap;
-}
 
 .entre { justify-content: space-between; }
 .direita { margin-left: auto; }
+
+/* Valor negativo. Vive num <span>, e nunca na celula, para o travessao de
+   "sem valor" nao sair vermelho junto - e a regra de formatacao do projeto.
+   Nasceu presa a .tabela--mensal na rodada 11; virou utilitario na 16, quando
+   se viu que o rodape da Montagem do orcamento emitia a classe desde a 15 e
+   nunca ficava vermelho, por estar fora daquela tabela. */
+.negativo { color: var(--cor-erro); }
 
 .texto-suave { color: var(--cor-texto-suave); }
 .texto-fraco { color: var(--cor-texto-fraco); }
 .texto-p { font-size: 13px; }
 .texto-mono { font-family: var(--fonte-mono); }
-.negrito { font-weight: 600; }
 
 .mt-0 { margin-top: 0; }
-.mt-2 { margin-top: var(--e-2); }
 .mt-4 { margin-top: var(--e-4); }
 .mt-5 { margin-top: var(--e-5); }
-.mb-4 { margin-bottom: var(--e-4); }
 
 .nada { display: none !important; }
 

@@ -20,7 +20,7 @@ from flask import abort, flash, redirect, render_template, request, url_for
 from flask_login import login_required
 from psycopg import errors
 
-from freedom.orcamento import bp, servico
+from freedom.orcamento import acompanhamento, bp, servico
 from freedom.orcamento.forms import LinhaForm, NovaLinhaForm, ReceitaForm
 from freedom.orcamento.servico import RegraDoOrcamento
 from freedom.util import MESES
@@ -30,12 +30,26 @@ from freedom.util import MESES
 CONFLITO = 409
 
 
-def _corpo(ano_mes, **extra):
-    """O bloco inteiro do mês, que é a resposta de toda escrita bem-sucedida."""
+def _corpo(ano_mes, modo=None, periodo=acompanhamento.MES, **extra):
+    """O bloco inteiro do mês, no modo pedido.
+
+    Toda escrita da montagem responde com ele. O `modo` viaja porque encerrar
+    e reabrir podem ser disparados dos DOIS modos, e a resposta tem de voltar
+    no modo em que a pessoa estava — senão encerrar do acompanhamento jogaria
+    a tela para a montagem sem ninguém pedir.
+    """
+    if modo == acompanhamento.ACOMPANHAMENTO:
+        cabecalho = servico.cabecalho_do_mes(ano_mes)
+        if cabecalho is None:
+            abort(404)
+        return render_template(
+            "orcamento/_acompanhamento.html", cab=cabecalho,
+            a=acompanhamento.painel(ano_mes, periodo), **extra)
+
     painel = servico.painel_do_mes(ano_mes)
     if painel is None:
         abort(404)
-    return render_template("orcamento/_corpo.html", p=painel, **extra)
+    return render_template("orcamento/_corpo.html", p=painel, cab=painel, **extra)
 
 
 def _recolocar(ano_mes, **extra):
@@ -84,9 +98,26 @@ def orcamento_tela():
     orcados = servico.meses_com_orcamento()
     ano_mes = servico.mes_escolhido(request.args.get("ano"),
                                     request.args.get("mes"), orcados)
+    cabecalho = servico.cabecalho_do_mes(ano_mes) if ano_mes else None
+
+    # Modo e período seguem a regra dos demais seletores: valor fora da lista
+    # cai no padrão em silêncio. O padrão do modo depende do mês (ver
+    # `acompanhamento.modo_padrao`), então só é calculado quando há mês.
+    modo = acompanhamento.modo_valido(request.args.get("modo"))
+    if cabecalho is not None and modo is None:
+        modo = acompanhamento.modo_padrao(ano_mes, cabecalho)
+    periodo = acompanhamento.periodo_valido(request.args.get("periodo"))
+
     return render_template(
         "orcamento/orcamento.html",
-        p=servico.painel_do_mes(ano_mes) if ano_mes else None,
+        cab=cabecalho,
+        modo=modo,
+        periodo=periodo,
+        p=(servico.painel_do_mes(ano_mes)
+           if cabecalho is not None and modo == acompanhamento.MONTAGEM else None),
+        a=(acompanhamento.painel(ano_mes, periodo)
+           if cabecalho is not None and modo == acompanhamento.ACOMPANHAMENTO
+           else None),
         ano_mes=ano_mes,
         # Rótulos prontos: quem sabe escrever "setembro de 2026" é o servidor,
         # como em toda outra tela deste projeto.
@@ -132,7 +163,10 @@ def orcamento_encerrar(mes):
         servico.encerrar(ano_mes)
     except RegraDoOrcamento as regra:
         return _aviso(str(regra))
-    return _recolocar(ano_mes)
+    return _recolocar(
+        ano_mes,
+        modo=acompanhamento.modo_valido(request.args.get("modo")),
+        periodo=acompanhamento.periodo_valido(request.args.get("periodo")))
 
 
 @bp.route("/<mes>/reabrir", methods=["POST"])
@@ -143,7 +177,10 @@ def orcamento_reabrir(mes):
         servico.reabrir(ano_mes)
     except RegraDoOrcamento as regra:
         return _aviso(str(regra))
-    return _recolocar(ano_mes)
+    return _recolocar(
+        ano_mes,
+        modo=acompanhamento.modo_valido(request.args.get("modo")),
+        periodo=acompanhamento.periodo_valido(request.args.get("periodo")))
 
 
 @bp.route("/<mes>/excluir", methods=["POST"])

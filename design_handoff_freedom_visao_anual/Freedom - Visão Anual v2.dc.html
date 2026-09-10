@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<style>
+body{margin:0;background:#F5F5F7;}
+a{color:#30B0C7;text-decoration:none}a:hover{color:#2A9DB2}
+</style>
+</helmet>
+<div data-screen-label="Visão Anual" style="display:flex;min-height:100vh;background:#F5F5F7;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',Helvetica,sans-serif;color:#1D1D1F;-webkit-font-smoothing:antialiased">
+  <aside style="width:232px;flex:none;background:#1D1D1F;color:#E5E5EA;padding:24px 12px 16px;display:flex;flex-direction:column;gap:1px;position:sticky;top:0;height:100vh;box-sizing:border-box">
+    <div style="display:flex;align-items:center;gap:10px;padding:0 10px 24px"><div style="width:26px;height:26px;border-radius:7px;background:#30B0C7"></div><div style="font-size:15px;font-weight:600;color:#fff;letter-spacing:-.01em">Freedom</div></div>
+
+    <button onClick="{{ togglePainel }}" style="display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:0;cursor:pointer;font:inherit;font-size:11px;font-weight:600;color:#8E8E93;padding:6px 10px;text-transform:uppercase;letter-spacing:.06em;border-radius:6px" style-hover="color:#C7C7CC">Painel<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .2s;transform:rotate({{ painelRot }})"><path d="m6 9 6 6 6-6"></path></svg></button>
+    <sc-if value="{{ painelOpen }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;flex-direction:column;gap:1px">
+      <a href="#" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;font-size:13px;font-weight:500;color:#fff;background:rgba(255,255,255,.12)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M16 2v4"></path><path d="M3 10h18"></path><path d="M8 2v4"></path><path d="M17 14h-6"></path><path d="M13 18H7"></path></svg>Visão Anual</a>
+      <a href="#" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;font-size:13px;color:#C7C7CC" style-hover="background:rgba(255,255,255,.06);color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none;color:#8E8E93"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path><path d="M8 14h.01"></path><path d="M12 14h.01"></path><path d="M16 14h.01"></path><path d="M8 18h.01"></path><path d="M12 18h.01"></path><path d="M16 18h.01"></path></svg>Visão Mensal</a>
+      <a href="#" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;font-size:13px;color:#C7C7CC" style-hover="background:rgba(255,255,255,.06);color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none;color:#8E8E93"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>Orçamento</a>
+    </div>
+    </sc-if>
+
+    <button onClick="{{ toggleLanc }}" style="display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:0;cursor:pointer;font:inherit;font-size:11px;font-weight:600;color:#8E8E93;padding:6px 10px;margin-top:14px;text-transform:uppercase;letter-spacing:.06em;border-radius:6px" style-hover="color:#C7C7CC">Lançamentos<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .2s;transform:rotate({{ lancRot }})"><path d="m6 9 6 6 6-6"></path></svg></button>
+    <sc-if value="{{ lancOpen }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;flex-direction:column;gap:1px">
+      <a href="#" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;font-size:13px;color:#C7C7CC" style-hover="background:rgba(255,255,255,.06);color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none;color:#8E8E93"><circle cx="12" cy="12" r="10"></circle><path d="M8 12h8"></path><path d="M12 8v8"></path></svg>Lançar despesa</a>
+      <a href="#" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;font-size:13px;color:#C7C7CC" style-hover="background:rgba(255,255,255,.06);color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none;color:#8E8E93"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>Consultar despesas</a>
+      <a href="#" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;font-size:13px;color:#C7C7CC" style-hover="background:rgba(255,255,255,.06);color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none;color:#8E8E93"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>Receitas</a>
+    </div>
+    </sc-if>
+
+    <button onClick="{{ toggleCad }}" style="display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:0;cursor:pointer;font:inherit;font-size:11px;font-weight:600;color:#8E8E93;padding:6px 10px;margin-top:14px;text-transform:uppercase;letter-spacing:.06em;border-radius:6px" style-hover="color:#C7C7CC">Cadastros<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .2s;transform:rotate({{ cadRot }})"><path d="m6 9 6 6 6-6"></path></svg></button>
+    <sc-if value="{{ cadOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;gap:1px">
+      <a href="#" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;font-size:13px;color:#C7C7CC" style-hover="background:rgba(255,255,255,.06);color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none;color:#8E8E93"><path d="m15 5 6.3 6.3a2.4 2.4 0 0 1 0 3.4L17 19"></path><path d="M9.586 5.586A2 2 0 0 0 8.172 5H3a1 1 0 0 0-1 1v5.172a2 2 0 0 0 .586 1.414L8.29 18.29a2.426 2.426 0 0 0 3.42 0l3.58-3.58a2.426 2.426 0 0 0 0-3.42z"></path><circle cx="6.5" cy="9.5" r=".5" fill="currentColor"></circle></svg>Categorias</a>
+      <a href="#" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;font-size:13px;color:#C7C7CC" style-hover="background:rgba(255,255,255,.06);color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none;color:#8E8E93"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"></path><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"></circle></svg>Subcategorias</a>
+      <a href="#" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;font-size:13px;color:#C7C7CC" style-hover="background:rgba(255,255,255,.06);color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none;color:#8E8E93"><line x1="3" x2="21" y1="22" y2="22"></line><line x1="6" x2="6" y1="18" y2="11"></line><line x1="10" x2="10" y1="18" y2="11"></line><line x1="14" x2="14" y1="18" y2="11"></line><line x1="18" x2="18" y1="18" y2="11"></line><polygon points="12 2 20 7 4 7"></polygon></svg>Contas</a>
+      <a href="#" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;font-size:13px;color:#C7C7CC" style-hover="background:rgba(255,255,255,.06);color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none;color:#8E8E93"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>Pessoas</a>
+      <a href="#" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;font-size:13px;color:#C7C7CC" style-hover="background:rgba(255,255,255,.06);color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none;color:#8E8E93"><rect width="20" height="12" x="2" y="6" rx="2"></rect><circle cx="12" cy="12" r="2"></circle><path d="M6 12h.01M18 12h.01"></path></svg>Fontes de receita</a>
+      <a href="#" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;font-size:13px;color:#C7C7CC" style-hover="background:rgba(255,255,255,.06);color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none;color:#8E8E93"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>Configurações</a>
+    </div>
+    </sc-if>
+
+    <div style="margin-top:auto;display:flex;align-items:center;gap:10px;padding:14px 10px 0;border-top:1px solid rgba(255,255,255,.1)">
+      <div style="width:28px;height:28px;border-radius:50%;background:#30B0C7;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600">T</div>
+      <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;color:#fff">Tiago</div><div style="font-size:11px;color:#8E8E93">tiago</div></div>
+      <a href="#" title="Sair" style="display:flex;color:#8E8E93;padding:4px" style-hover="color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" x2="9" y1="12" y2="12"></line></svg></a>
+    </div>
+  </aside>
+
+  <main style="flex:1;min-width:0;display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 28px;background:rgba(255,255,255,.75);border-bottom:1px solid #E0E0E5;backdrop-filter:blur(20px);position:sticky;top:0;z-index:2">
+      <div style="display:flex;align-items:center;gap:16px"><h1 style="margin:0;font-size:17px;font-weight:600;letter-spacing:-.01em">Visão Anual</h1><span style="font-size:13px;color:#6E6E73">O ano inteiro num relance</span></div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <div style="display:flex;background:#E5E5EA;border-radius:7px;padding:2px;font-size:12px;font-weight:500"><span style="padding:4px 12px;border-radius:5px;color:#6E6E73">2025</span><span style="padding:4px 12px;border-radius:5px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.1)">2026</span></div>
+        <a href="#" style="display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 14px;border-radius:7px;background:#30B0C7;color:#fff;font-size:13px;font-weight:500" style-hover="background:#2A9DB2"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>Lançar despesa</a>
+      </div>
+    </div>
+    <div style="padding:24px 28px 40px;display:flex;flex-direction:column;gap:18px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px">
+      <div style="background:#fff;border-radius:14px;padding:18px 20px;box-shadow:0 1px 3px rgba(0,0,0,.06),0 0 0 1px rgba(0,0,0,.03)"><div style="font-size:12px;font-weight:500;color:#6E6E73">Receita anual</div><div style="font-size:clamp(20px,1.6vw,28px);font-weight:700;letter-spacing:-.03em;margin-top:8px;font-variant-numeric:tabular-nums;white-space:nowrap">R$ 562.416,07</div><div style="margin-top:8px;height:3px;border-radius:2px;background:#34C759"></div></div>
+      <div style="background:#fff;border-radius:14px;padding:18px 20px;box-shadow:0 1px 3px rgba(0,0,0,.06),0 0 0 1px rgba(0,0,0,.03)"><div style="font-size:12px;font-weight:500;color:#6E6E73">Despesa anual</div><div style="font-size:clamp(20px,1.6vw,28px);font-weight:700;letter-spacing:-.03em;margin-top:8px;font-variant-numeric:tabular-nums;white-space:nowrap">R$ 405.447,29</div><div style="margin-top:8px;height:3px;border-radius:2px;background:#E5E5EA;overflow:hidden"><div style="width:72%;height:100%;background:#FF3B30"></div></div></div>
+      <div style="background:#fff;border-radius:14px;padding:18px 20px;box-shadow:0 1px 3px rgba(0,0,0,.06),0 0 0 1px rgba(0,0,0,.03)"><div style="font-size:12px;font-weight:500;color:#6E6E73">Saldo anual</div><div style="font-size:clamp(20px,1.6vw,28px);font-weight:700;letter-spacing:-.03em;margin-top:8px;font-variant-numeric:tabular-nums;white-space:nowrap;color:#30B0C7">R$ 156.968,78</div><div style="margin-top:8px;font-size:12px;color:#6E6E73">5 de 9 meses no azul</div></div>
+      <div style="background:#fff;border-radius:14px;padding:18px 20px;box-shadow:0 1px 3px rgba(0,0,0,.06),0 0 0 1px rgba(0,0,0,.03)"><div style="font-size:12px;font-weight:500;color:#6E6E73">Taxa de poupança</div><div style="font-size:clamp(20px,1.6vw,28px);font-weight:700;letter-spacing:-.03em;margin-top:8px;font-variant-numeric:tabular-nums;white-space:nowrap">27,9%</div><div style="margin-top:8px;font-size:12px;color:#6E6E73">Média mensal R$ 45.049,70</div></div>
+    </div>
+    <div style="background:#fff;border-radius:14px;padding:6px 20px;box-shadow:0 1px 3px rgba(0,0,0,.06),0 0 0 1px rgba(0,0,0,.03);display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:0 32px;font-size:13px">
+      <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #F0F0F2"><span style="color:#6E6E73">Despesas essenciais</span><span style="font-weight:600;font-variant-numeric:tabular-nums">R$ 55.065,48</span></div>
+      <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #F0F0F2"><span style="color:#6E6E73">Despesas não essenciais</span><span style="font-weight:600;font-variant-numeric:tabular-nums">R$ 350.381,81</span></div>
+      <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #F0F0F2"><span style="color:#6E6E73">Pico de despesa</span><span style="font-weight:600;font-variant-numeric:tabular-nums;text-align:right">R$ 63.000,00 <span style="color:#86868B;font-weight:400;display:block;font-size:11px">Provisão (TEMP) · 05/09</span></span></div>
+      <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #F0F0F2"><span style="color:#6E6E73">% essencial</span><span style="font-weight:600;font-variant-numeric:tabular-nums">13,6%</span></div>
+      <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #F0F0F2"><span style="color:#6E6E73">% não essencial</span><span style="font-weight:600;font-variant-numeric:tabular-nums">86,4%</span></div>
+      <div style="display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #F0F0F2"><span style="color:#6E6E73">Despesa média / mês</span><span style="font-weight:600;font-variant-numeric:tabular-nums">R$ 45.049,70 <span style="color:#86868B;font-weight:400">· 9 meses</span></span></div>
+      <div style="display:flex;justify-content:space-between;padding:11px 0"><span style="color:#6E6E73">Melhor mês (saldo)</span><span style="font-weight:600;font-variant-numeric:tabular-nums">R$ 78.055,50 <span style="color:#86868B;font-weight:400">· Janeiro</span></span></div>
+      <div style="display:flex;justify-content:space-between;padding:11px 0"><span style="color:#6E6E73">Mês de maior gasto</span><span style="font-weight:600;font-variant-numeric:tabular-nums">R$ 82.455,91 <span style="color:#86868B;font-weight:400">· Setembro</span></span></div>
+      <div style="display:flex;justify-content:space-between;padding:11px 0"><span style="color:#6E6E73">Meses no azul</span><span style="font-weight:600;font-variant-numeric:tabular-nums">5 de 9</span></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px">
+      <div style="background:#fff;border-radius:14px;padding:18px 20px;box-shadow:0 1px 3px rgba(0,0,0,.06),0 0 0 1px rgba(0,0,0,.03)"><div style="font-size:14px;font-weight:600">Receitas × Despesas</div><div style="position:relative;height:230px;margin-top:14px"><canvas id="c1"></canvas></div></div>
+      <div style="background:#fff;border-radius:14px;padding:18px 20px;box-shadow:0 1px 3px rgba(0,0,0,.06),0 0 0 1px rgba(0,0,0,.03)"><div style="font-size:14px;font-weight:600">Essenciais × Não essenciais</div><div style="position:relative;height:230px;margin-top:14px"><canvas id="c2"></canvas></div></div>
+      <div style="background:#fff;border-radius:14px;padding:18px 20px;box-shadow:0 1px 3px rgba(0,0,0,.06),0 0 0 1px rgba(0,0,0,.03)"><div style="font-size:14px;font-weight:600">Poupança acumulada</div><div style="position:relative;height:230px;margin-top:14px"><canvas id="c3"></canvas></div></div>
+      <div style="background:#fff;border-radius:14px;padding:18px 20px;box-shadow:0 1px 3px rgba(0,0,0,.06),0 0 0 1px rgba(0,0,0,.03)"><div style="font-size:14px;font-weight:600">Não essenciais por prioridade</div><div style="position:relative;height:230px;margin-top:14px"><canvas id="c4"></canvas></div></div>
+    </div>
+    <div style="background:#fff;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.06),0 0 0 1px rgba(0,0,0,.03);overflow:hidden">
+      <div style="font-size:14px;font-weight:600;padding:16px 20px;border-bottom:1px solid #F0F0F2">Mês a mês</div>
+      <div style="overflow-x:auto">
+      <table style="width:100%;min-width:960px;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap">
+        <thead><tr style="background:#FAFAFC">
+          <th style="text-align:left;font-size:11px;font-weight:600;color:#6E6E73;padding:9px 20px;border-bottom:1px solid #F0F0F2">Mês</th>
+          <th style="text-align:right;font-size:11px;font-weight:600;color:#6E6E73;padding:9px 12px;border-bottom:1px solid #F0F0F2">Receitas</th>
+          <th style="text-align:right;font-size:11px;font-weight:600;color:#6E6E73;padding:9px 12px;border-bottom:1px solid #F0F0F2">Despesas</th>
+          <th style="text-align:right;font-size:11px;font-weight:600;color:#6E6E73;padding:9px 12px;border-bottom:1px solid #F0F0F2">Essenciais</th>
+          <th style="text-align:right;font-size:11px;font-weight:600;color:#6E6E73;padding:9px 12px;border-bottom:1px solid #F0F0F2">Não essenciais</th>
+          <th style="text-align:right;font-size:11px;font-weight:600;color:#6E6E73;padding:9px 12px;border-bottom:1px solid #F0F0F2">Saldo</th>
+          <th style="text-align:right;font-size:11px;font-weight:600;color:#6E6E73;padding:9px 12px;border-bottom:1px solid #F0F0F2">Acumulado</th>
+          <th style="text-align:right;font-size:11px;font-weight:600;color:#6E6E73;padding:9px 20px;border-bottom:1px solid #F0F0F2">Poupança</th>
+        </tr></thead>
+        <tbody>
+        <sc-for list="{{ months }}" as="m" hint-placeholder-count="12">
+          <tr style-hover="background:#FAFAFC">
+            <td style="padding:10px 20px;border-bottom:1px solid #F0F0F2;font-weight:500;color:{{ m.nameColor }}">{{ m.name }}</td>
+            <td style="padding:10px 12px;border-bottom:1px solid #F0F0F2;text-align:right;color:{{ m.dim }}">{{ m.rec }}</td>
+            <td style="padding:10px 12px;border-bottom:1px solid #F0F0F2;text-align:right;color:{{ m.dim }}">{{ m.desp }}</td>
+            <td style="padding:10px 12px;border-bottom:1px solid #F0F0F2;text-align:right;color:{{ m.dim }}">{{ m.ess }}</td>
+            <td style="padding:10px 12px;border-bottom:1px solid #F0F0F2;text-align:right;color:{{ m.dim }}">{{ m.ne }}</td>
+            <td style="padding:10px 12px;border-bottom:1px solid #F0F0F2;text-align:right;font-weight:600;color:{{ m.saldoColor }}">{{ m.saldo }}</td>
+            <td style="padding:10px 12px;border-bottom:1px solid #F0F0F2;text-align:right;color:{{ m.dim }}">{{ m.acum }}</td>
+            <td style="padding:10px 20px;border-bottom:1px solid #F0F0F2;text-align:right;color:{{ m.taxaColor }}">{{ m.taxa }}</td>
+          </tr>
+        </sc-for>
+        <tr style="background:#FAFAFC">
+          <td style="padding:12px 20px;font-weight:700">Total</td>
+          <td style="padding:12px;text-align:right;font-weight:600">R$ 562.416,07</td>
+          <td style="padding:12px;text-align:right;font-weight:600">R$ 405.447,29</td>
+          <td style="padding:12px;text-align:right;font-weight:600">R$ 55.065,48</td>
+          <td style="padding:12px;text-align:right;font-weight:600">R$ 350.381,81</td>
+          <td style="padding:12px;text-align:right;font-weight:700;color:#30B0C7">R$ 156.968,78</td>
+          <td style="padding:12px;text-align:right;font-weight:600">R$ 156.968,78</td>
+          <td style="padding:12px 20px;text-align:right;font-weight:600">27,9%</td>
+        </tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+    <div style="background:#fff;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.06),0 0 0 1px rgba(0,0,0,.03);overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:16px 20px;border-bottom:1px solid #F0F0F2"><div style="font-size:14px;font-weight:600">Despesas por categoria</div><div style="font-size:12px;color:#6E6E73">{{ catCount }} categorias</div></div>
+      <div style="padding:4px 20px 8px">
+      <sc-for list="{{ cats }}" as="c" hint-placeholder-count="10">
+        <div style="display:grid;grid-template-columns:260px 1fr 130px 56px;gap:16px;align-items:center;padding:9px 0;border-bottom:1px solid #F0F0F2;font-size:13px">
+          <div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.name }}</div>
+          <div style="height:6px;border-radius:3px;background:#F0F0F2;overflow:hidden"><div style="height:100%;border-radius:3px;background:#30B0C7;width:{{ c.w }}"></div></div>
+          <div style="text-align:right;font-variant-numeric:tabular-nums;font-weight:500">{{ c.total }}</div>
+          <div style="text-align:right;color:#6E6E73;font-variant-numeric:tabular-nums">{{ c.pct }}</div>
+        </div>
+      </sc-for>
+      <div style="display:grid;grid-template-columns:260px 1fr 130px 56px;gap:16px;padding:12px 0 8px;font-size:13px;font-weight:700"><div>Total</div><div></div><div style="text-align:right;font-variant-numeric:tabular-nums">R$ 405.447,29</div><div style="text-align:right">100%</div></div>
+      </div>
+    </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showEmptyMonths&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Tabela&quot;},&quot;topCategories&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:21,&quot;min&quot;:5,&quot;max&quot;:21,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Categorias&quot;}}">
+class Component extends DCLogic {
+  state = { painel: true, lanc: true, cad: false };
+  charts = [];
+  ids = ['c1','c2','c3','c4'];
+  M = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set'];
+  REC = [132836.59,7061.27,66030.65,7239.81,86366.61,79199.49,38783.68,44061.97,100836.00];
+  DESP = [54781.09,36893.63,28082.39,23324.71,42770.06,35839.10,41016.07,60284.33,82455.91];
+  ESS = [6482.99,5892.48,9216.23,7171.57,6394.34,6125.01,6143.74,6976.84,662.28];
+  NE = [48298.10,31001.15,18866.16,16153.14,36375.72,29714.09,34872.33,53307.49,81793.63];
+  ACUM = [78055.50,48223.14,86171.40,70086.50,113683.05,157043.44,154811.05,138588.69,156968.78];
+  TAXA = ['58,8%','-422,5%','57,5%','-222,2%','50,5%','54,7%','-5,8%','-36,8%','18,2%'];
+  PRIO = [[6,5,4,4,5,5,5,5,2],[8,6,5,3,7,6,6,7,3],[10,7,4,3,8,7,8,10,4],[24,13,6,6,16,12,16,31,73]].map(a => a.map(v => v * 1000));
+  CATS = [['Locomoção',118267.13,29.2],['Lazer',52724.56,13.0],['Serviços domésticos',46949.24,11.6],['Saúde',32653.33,8.1],['Comodidades',28267.95,7.0],['Alimentação',26586.63,6.6],['Lazer - Alimentação fora de casa',12931.32,3.2],['Outros',12900.13,3.2],['Manutenção e/ou reforma habitação',11989.40,3.0],['Tributos',11885.87,2.9],['Vestuário',10733.06,2.6],['Educação',9614.00,2.4],['Cartório',7959.74,2.0],['Seguros',6980.77,1.7],['Desenvolvimento pessoal',5456.78,1.3],['Presente',2691.49,0.7],['Manutenção propriedades',2000.00,0.5],['Caridade',1884.00,0.5],['Água e esgoto',1204.69,0.3],['Energia elétrica',954.42,0.2],['Telefonia',812.78,0.2]];
+
+  fmt(n) { const s = Math.abs(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); return (n < 0 ? '–R$ ' : 'R$ ') + s; }
+
+  ready() { return window.Chart && this.ids.every(id => { const el = document.getElementById(id); return el && el.parentElement && el.parentElement.clientWidth > 0; }); }
+  tryBuild() {
+    if (!this.ready()) return false;
+    if (this.ids.every(id => Chart.getChart(document.getElementById(id)))) return true;
+    this.charts.forEach(c => c.destroy()); this.charts = [];
+    this.build(); return true;
+  }
+  componentDidMount() { const go = () => { if (!this.tryBuild()) this._t = setTimeout(go, 150); }; go(); }
+  componentDidUpdate() { this.tryBuild(); }
+  componentWillUnmount() { clearTimeout(this._t); this.charts.forEach(c => c.destroy()); }
+
+  build() {
+    Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Helvetica, sans-serif";
+    Chart.defaults.font.size = 11;
+    Chart.defaults.color = '#86868B';
+    const fmt = this.fmt;
+    const base = (stacked) => ({
+      responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 6, boxHeight: 6, padding: 18 } },
+        tooltip: { backgroundColor: '#1D1D1F', padding: 10, cornerRadius: 8, callbacks: { label: c => ' ' + c.dataset.label + ': ' + fmt(c.raw) } }
+      },
+      scales: {
+        x: { stacked, grid: { display: false }, border: { display: false } },
+        y: { stacked, beginAtZero: true, grid: { color: '#EEEEF0' }, border: { display: false, dash: [3, 4] }, ticks: { maxTicksLimit: 5, callback: v => v === 0 ? '0' : 'R$ ' + Math.round(v / 1000) + ' mil' } }
+      }
+    });
+    const mk = (id, cfg) => { const el = document.getElementById(id); if (el) this.charts.push(new Chart(el, cfg)); };
+    const bar = (label, data, color, r) => ({ label, data, backgroundColor: color, borderRadius: r, borderSkipped: r ? false : 'start', barPercentage: 0.75, categoryPercentage: 0.62 });
+    const line = (label, data, color, extra) => ({ label, data, borderColor: color, backgroundColor: color, borderWidth: 2, tension: 0.4, pointRadius: 3, pointHoverRadius: 5, pointBackgroundColor: '#fff', pointBorderWidth: 2, ...extra });
+    mk('c1', { type: 'bar', data: { labels: this.M, datasets: [bar('Receitas', this.REC, '#34C759', 6), bar('Despesas', this.DESP, '#FF3B30', 6)] }, options: base() });
+    mk('c2', { type: 'line', data: { labels: this.M, datasets: [line('Essenciais', this.ESS, '#30B0C7'), line('Não essenciais', this.NE, '#FF9500'), line('Total', this.DESP, '#8E8E93', { borderDash: [4, 4], pointRadius: 0, borderWidth: 1.5 })] }, options: base() });
+    const b3 = base(); b3.plugins.legend = { display: false };
+    mk('c3', { type: 'line', data: { labels: this.M, datasets: [line('Saldo acumulado', this.ACUM, '#30B0C7', { fill: true, backgroundColor: 'rgba(48,176,199,.12)' })] }, options: b3 });
+    const prio = ['#0E7C8A', '#30B0C7', '#8ED7E3', '#D3F0F5'];
+    mk('c4', { type: 'bar', data: { labels: this.M, datasets: ['P1 — mais importante', 'P2', 'P3', 'P4 — menos importante'].map((l, i) => bar(l, this.PRIO[i], prio[i], 0)) }, options: base(true) });
+  }
+
+  renderVals() {
+    const names = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const showEmpty = this.props.showEmptyMonths ?? true;
+    const months = names.map((name, i) => {
+      const has = i < 9;
+      const saldo = has ? this.REC[i] - this.DESP[i] : 0;
+      return {
+        name, has,
+        nameColor: has ? '#1D1D1F' : '#AEAEB2', dim: has ? '#3A3A3C' : '#AEAEB2',
+        rec: this.fmt(has ? this.REC[i] : 0), desp: this.fmt(has ? this.DESP[i] : 0),
+        ess: this.fmt(has ? this.ESS[i] : 0), ne: this.fmt(has ? this.NE[i] : 0),
+        saldo: this.fmt(saldo), saldoColor: !has ? '#AEAEB2' : saldo < 0 ? '#FF3B30' : '#1D1D1F',
+        acum: has ? this.fmt(this.ACUM[i]) : '—',
+        taxa: has ? this.TAXA[i] : '—', taxaColor: !has ? '#AEAEB2' : this.TAXA[i].startsWith('-') ? '#FF3B30' : '#3A3A3C'
+      };
+    }).filter(m => showEmpty || m.has);
+    const top = this.props.topCategories ?? 21;
+    const cats = this.CATS.slice(0, top).map(([name, total, pct]) => ({ name, total: this.fmt(total), pct: pct.toLocaleString('pt-BR', { minimumFractionDigits: 1 }) + '%', w: (pct / 29.2 * 100).toFixed(1) + '%' }));
+    const s = this.state;
+    const rot = o => o ? '0deg' : '-90deg';
+    return {
+      months, cats, catCount: cats.length,
+      painelOpen: s.painel, lancOpen: s.lanc, cadOpen: s.cad,
+      painelRot: rot(s.painel), lancRot: rot(s.lanc), cadRot: rot(s.cad),
+      togglePainel: () => this.setState({ painel: !s.painel }),
+      toggleLanc: () => this.setState({ lanc: !s.lanc }),
+      toggleCad: () => this.setState({ cad: !s.cad })
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -7,8 +7,8 @@
   nunca da soma das linhas da pagina.
 #}
 
-{# --- a) faixa de totais: card de moldura (vidro) --------------------------- #}
-<div class="faixa-totais">
+{# --- a) faixa de totais: cartao padrao ------------------------------------- #}
+<div class="card faixa-totais">
   <div class="faixa-totais__principal">
     <span class="faixa-totais__rotulo">Total em {{ rotulo_mes }}</span>
     <strong class="faixa-totais__valor">{{ m.reais(totais.total) }}</strong>
@@ -25,7 +25,7 @@
         <span class="texto-fraco texto-p">{{ totais.pct_essencial | numero(1) }}%</span>
       </div>
       <div class="divisao-item">
-        <span class="badge badge--naoessencial">Não Essencial</span>
+        <span class="badge badge--naoessencial">Não essencial</span>
         <strong>{{ m.reais(totais.nao_essencial) }}</strong>
         <span class="texto-fraco texto-p">{{ totais.pct_nao_essencial | numero(1) }}%</span>
       </div>
@@ -35,7 +35,7 @@
 
 {% if not quantidade %}
 
-  <div class="card card--solido mt-4">
+  <div class="card">
     {{ m.vazio("Nenhuma despesa encontrada",
                "Nenhum lançamento bate com os filtros deste mês. Ajuste os filtros ou limpe-os para recomeçar.") }}
   </div>
@@ -43,7 +43,7 @@
 {% else %}
 
   {# --- b) resumo por categoria: barra proporcional em CSS puro ------------- #}
-  <section class="card card--solido resumo-categorias mt-4">
+  <section class="card resumo-categorias">
     <h2 class="card__titulo">Por categoria</h2>
     <ul class="resumo-lista">
       {% for r in resumo %}
@@ -57,56 +57,75 @@
     </ul>
   </section>
 
-  {# --- c) tabela ---------------------------------------------------------- #}
-  <div class="tabela-caixa mt-4">
-    <table class="tabela tabela--despesas">
-      <thead>
-        <tr>
-          <th class="col-data">Data</th>
-          <th class="col-descricao">Descrição</th>
-          <th class="col-classificacao">Classificação</th>
-          <th class="col-pessoa">Pessoa</th>
-          <th class="col-conta">Conta</th>
-          <th class="col-essencialidade">Essencialidade</th>
-          <th class="col-valor">Valor</th>
-          <th class="tabela__acoes"><span class="so-leitor">Ações</span></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in linhas %}
-          {% include "lancamentos/_linha_consulta.html" %}
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+  {# --- c) tabela e paginacao, no mesmo cartao ------------------------------ #}
+  <section class="card card--tabela">
+    <div class="tabela-caixa">
+      <table class="tabela tabela--despesas tabela--recentes">
+        <thead>
+          <tr>
+            <th class="col-data">Data</th>
+            <th class="col-descricao">Descrição</th>
+            <th class="col-classificacao">Classificação</th>
+            <th class="col-pessoa">Pessoa</th>
+            <th class="col-conta">Conta</th>
+            <th class="col-essencialidade">Essencialidade</th>
+            <th class="col-valor">Valor</th>
+            <th class="tabela__acoes"><span class="so-leitor">Ações</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in linhas %}
+            {% include "lancamentos/_linha_consulta.html" %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
 
-  <nav class="paginacao" aria-label="Paginação">
-    <span class="paginacao__contagem">
-      {{ primeiro }}–{{ ultimo }} de {{ quantidade }}
-    </span>
-    <span class="paginacao__botoes">
-      {% if pagina > 1 %}
-        <button type="button" class="btn btn--secundario btn--pequeno"
-                hx-get="{{ url_for('lancamentos.despesas_consulta',
-                                   **query_string(filtros, pagina - 1)) }}"
-                hx-target="#resultados" hx-swap="innerHTML"
-                hx-push-url="true">Anterior</button>
-      {% else %}
-        <button type="button" class="btn btn--secundario btn--pequeno" disabled>Anterior</button>
-      {% endif %}
+    {# Rodape do cartao, como na lista de recentes: o que se ve a esquerda, a
+       navegacao a direita. Os botoes sao setas de 28px; o texto que diz em que
+       pagina se esta fica entre elas, porque so a seta nao informa isso. #}
+    <nav class="recentes-rodape" aria-label="Paginação">
+      <span class="recentes-rodape__total">
+        Exibindo <b>{{ primeiro }}–{{ ultimo }}</b> de <b>{{ quantidade }}</b>
+      </span>
+      <span class="paginacao__botoes">
+        {% if pagina > 1 %}
+          <button type="button" class="btn btn--secundario btn--quadrado"
+                  title="Página anterior"
+                  hx-get="{{ url_for('lancamentos.despesas_consulta',
+                                     **query_string(filtros, pagina - 1)) }}"
+                  hx-target="#resultados" hx-swap="innerHTML"
+                  hx-push-url="true">
+            <span class="so-leitor">Página anterior</span>
+            {{ m.icone("chevron-left", tamanho=14, tracado=2) }}
+          </button>
+        {% else %}
+          <button type="button" class="btn btn--secundario btn--quadrado" disabled>
+            <span class="so-leitor">Página anterior</span>
+            {{ m.icone("chevron-left", tamanho=14, tracado=2) }}
+          </button>
+        {% endif %}
 
-      <span class="paginacao__pagina">Página {{ pagina }} de {{ paginas }}</span>
+        <span class="paginacao__pagina">Página {{ pagina }} de {{ paginas }}</span>
 
-      {% if pagina < paginas %}
-        <button type="button" class="btn btn--secundario btn--pequeno"
-                hx-get="{{ url_for('lancamentos.despesas_consulta',
-                                   **query_string(filtros, pagina + 1)) }}"
-                hx-target="#resultados" hx-swap="innerHTML"
-                hx-push-url="true">Próxima</button>
-      {% else %}
-        <button type="button" class="btn btn--secundario btn--pequeno" disabled>Próxima</button>
-      {% endif %}
-    </span>
-  </nav>
+        {% if pagina < paginas %}
+          <button type="button" class="btn btn--secundario btn--quadrado"
+                  title="Próxima página"
+                  hx-get="{{ url_for('lancamentos.despesas_consulta',
+                                     **query_string(filtros, pagina + 1)) }}"
+                  hx-target="#resultados" hx-swap="innerHTML"
+                  hx-push-url="true">
+            <span class="so-leitor">Próxima página</span>
+            {{ m.icone("chevron-right", tamanho=14, tracado=2) }}
+          </button>
+        {% else %}
+          <button type="button" class="btn btn--secundario btn--quadrado" disabled>
+            <span class="so-leitor">Próxima página</span>
+            {{ m.icone("chevron-right", tamanho=14, tracado=2) }}
+          </button>
+        {% endif %}
+      </span>
+    </nav>
+  </section>
 
 {% endif %}

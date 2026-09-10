@@ -1,13 +1,37 @@
 {# Formulario re-renderizado fora do alvo principal, apos gravar ou apos erro. #}
 {% import "_macros.html" as m %}
-<form id="form-despesa" class="pilha" hx-swap-oob="true"
+<form id="form-despesa" class="form-lancar" hx-swap-oob="true"
       hx-post="{{ url_for('lancamentos.despesas_gravar') }}"
       hx-target="#lista-despesas" hx-swap="afterbegin">
   {{ m.campos_despesa(form, sub_selecionada,
                       url_for('lancamentos.despesas_classificacao'),
                       url_sugestoes=url_for('lancamentos.despesas_sugestoes')) }}
   <div class="form-despesa__acoes">
-    <button type="submit" class="btn btn--primario btn--grande">Lançar despesa</button>
-    <span class="htmx-indicator texto-fraco texto-p">gravando…</span>
+    <div class="form-despesa__principal">
+      <button type="submit" class="btn btn--primario btn--grande">
+        {{ m.icone("plus", tamanho=14, tracado=2.25) }}Lançar despesa
+      </button>
+      {# A dica e o indicador ocupam o MESMO lugar: enquanto grava, um troca
+         pelo outro e nada muda de posicao na tela. #}
+      <span class="form-despesa__dica">
+        Enter lança e mantém data, conta e pessoa para a próxima.
+      </span>
+      <span class="htmx-indicator form-despesa__gravando">gravando…</span>
+    </div>
+
+    {#
+      Confirmacao do que acabou de ser gravado. Fica DENTRO do formulario, que
+      ja e trocado inteiro a cada resposta: um swap out-of-band proprio
+      concorreria com o do formulario e a ordem entre os dois nao e garantida.
+      Como o elemento nasce de novo a cada gravacao, a animacao que o apaga em
+      ~3,5s (.aviso-inline) recomeca sozinha, sem uma linha de JavaScript.
+      O id continua o mesmo de sempre.
+    #}
+    <div id="aviso-lancamento" class="aviso-inline" role="status">
+      {%- if nova | default(false) -%}
+        {{ m.icone("check", tamanho=14, tracado=2.5) }}Lançado:
+        {{ item.descricao }} · {{ m.reais(item.valor) }}
+      {%- endif -%}
+    </div>
   </div>
 </form>

@@ -11,6 +11,7 @@ from psycopg import errors
 from freedom.cadastros import bp
 from freedom.cadastros.forms import PessoaForm
 from freedom.cadastros.servico import (
+    contagem,
     alternar_ativo,
     aplicar_erro_duplicado,
     executar,
@@ -44,6 +45,7 @@ def pessoas_lista():
     return render_template(
         "cadastros/pessoas_lista.html",
         linhas=linhas,
+        contagem=contagem("pessoas"),
         mostrar_inativos=mostrar_inativos,
     )
 

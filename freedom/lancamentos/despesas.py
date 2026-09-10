@@ -14,6 +14,7 @@ from freedom.lancamentos import bp
 from freedom.lancamentos.consulta import resultados_apos_exclusao
 from freedom.lancamentos.forms import DespesaForm
 from freedom.lancamentos.servico import (
+    LIMITE_RECENTES,
     NAO_ESSENCIAL,
     agrupar_por_categoria,
     contas_ativas,
@@ -21,11 +22,12 @@ from freedom.lancamentos.servico import (
     essencialidade_efetiva,
     linha,
     pessoas_ativas,
-    recentes,
+    recentes_com_excedente,
     subcategoria,
     subcategorias_ativas,
     sugestoes_de_descricao,
     total_do_mes,
+    total_exibido,
     ultimo_lancamento_do_usuario,
 )
 from freedom.util import destino_interno
@@ -82,7 +84,18 @@ def _prioridade_a_gravar(form, sub):
 
 
 def _contexto_lista():
-    return {"linhas": recentes(), "resumo": total_do_mes(date.today())}
+    """Lista de recentes e os dois números do rodapé.
+
+    `exibido` sai das MESMAS linhas que a tela recebe, e não de uma segunda
+    consulta: o rótulo diz "Total exibido", então o total tem de ser o das
+    linhas exibidas, sempre.
+    """
+    linhas, _ = recentes_com_excedente()
+    return {
+        "linhas": linhas,
+        "resumo": total_do_mes(date.today()),
+        "exibido": total_exibido(linhas),
+    }
 
 
 # --------------------------------------------------------------------------
@@ -222,11 +235,22 @@ def despesas_gravar():
             limpo.integra_ipca.data = form.integra_ipca.data
             limpo.mais_opcoes.data = form.mais_opcoes.data
 
+            # A lista do navegador tem de continuar sendo as quinze mais
+            # recentes: a linha nova entra por cima e a que passou a sobrar
+            # sai por swap out-of-band. Sem isso ela cresceria a cada
+            # lançamento em série e o "Total exibido" deixaria de descrevê-la.
+            visiveis, excedente = recentes_com_excedente()
             return render_template(
                 "lancamentos/_gravado.html",
                 item=linha(nova["id"]),
+                # A linha devolvida pelo POST pisca; a mesma parcial, renderizada
+                # no carregamento da página, não. Quem decide é este sinalizador,
+                # não o Jinja.
+                nova=True,
+                excedente=excedente,
                 form=limpo,
                 resumo=total_do_mes(date.today()),
+                exibido=total_exibido(visiveis),
                 sub_selecionada=None,
             )
 
@@ -348,8 +372,16 @@ def despesas_excluir(despesa_id):
         # Totais, resumo e paginacao mudam juntos: devolve o bloco inteiro.
         return resultados_apos_exclusao(request.args)
 
-    # Tela de lancamento: a <tr> some pelo hx-swap do proprio botao e aqui vai
-    # so o total do mes. Comportamento da rodada 4, inalterado.
+    # Tela de lancamento: a <tr> some pelo hx-swap do proprio botao. Aqui vao
+    # os dois totais e, se houver, a linha que voltou a caber nas quinze mais
+    # recentes - o inverso do que a gravacao faz. Sem ela a lista ficaria com
+    # quatorze linhas e o "Total exibido" contaria uma que nao esta na tela.
+    visiveis, _ = recentes_com_excedente()
+    completa = (visiveis[-1]
+                if len(visiveis) == LIMITE_RECENTES else None)
     return render_template(
-        "lancamentos/_total_oob.html", resumo=total_do_mes(date.today())
+        "lancamentos/_excluida.html",
+        resumo=total_do_mes(date.today()),
+        exibido=total_exibido(visiveis),
+        completa=completa,
     )

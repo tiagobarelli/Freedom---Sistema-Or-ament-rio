@@ -1,6 +1,7 @@
 """Leituras e composição da Visão Anual.
 
-A tela é um painel de treze cards, quatro gráficos e duas tabelas sobre um ano
+A tela é um painel de treze cards (quatro KPIs grandes e nove indicadores
+secundários), quatro gráficos e duas tabelas sobre um ano
 inteiro, e são cinco consultas: despesas agregadas por mês, receitas agregadas
 por mês, o maior lançamento individual do ano, as não essenciais agrupadas por
 mês e prioridade (gráfico 4) e as despesas agrupadas por categoria (tabela 2).
@@ -22,7 +23,7 @@ from datetime import date
 from decimal import Decimal
 
 from freedom.db import query_all, query_one
-from freedom.util import MESES, formatar_numero
+from freedom.util import MESES, formatar_numero, formatar_valor, fracao
 
 ZERO = Decimal("0.00")
 
@@ -47,6 +48,19 @@ PRIORIDADES = (
 # (ou lançada antes da regra) pode ter prioridade NULL. A série só aparece
 # quando existe alguma, para não poluir a legenda de quem sempre preenche.
 SEM_PRIORIDADE = "Sem prioridade"
+
+# Classes de CSS que os cards carregam. Ficam aqui, e não no Jinja, pela mesma
+# razão do travessão e do vermelho: quem decide o que a tela mostra é a
+# aplicação. O template só emite o nome que recebeu.
+VALOR_ACENTO = "kpi__valor--acento"        # saldo positivo, no teal do tema
+VALOR_NEGATIVO = "kpi__valor--negativo"    # saldo ou taxa negativos
+NOTA_BLOCO = "indicador__nota--bloco"      # nota do pico, em linha própria
+BARRA_RECEITA = "kpi__preenchimento--receita"
+BARRA_DESPESA = "kpi__preenchimento--despesa"
+
+# Linha da tabela mensal sem lançamento nenhum: nem despesa, nem receita. Não é
+# zero de verdade, é ausência, e por isso o mês inteiro fica esmaecido.
+LINHA_VAZIA = "linha--vazia"
 
 
 # --------------------------------------------------------------------------
@@ -247,30 +261,32 @@ def meses_do_eixo(divisor):
 # Composição dos cards
 # --------------------------------------------------------------------------
 
-def card(rotulo, valor=None, texto=None, apoio=None, negativo=False):
+def card(rotulo, valor=None, texto=None, apoio=None, negativo=False,
+         classe=None, barra=None):
     """Um card do painel.
 
     `valor` é dinheiro (Decimal) e o template o passa pela macro `reais`;
     `texto` já vem pronto (percentual, contagem ou travessão). Um dos dois,
-    nunca os dois.
+    nunca os dois. `apoio` é a nota complementar — o mês, o divisor da média,
+    a descrição e a data do pico.
+
+    `classe` e `barra` entraram na rodada 17, com o desenho novo:
+
+    - `classe` é o nome da classe CSS que o template emite (valor do KPI em
+      acento ou em vermelho, nota do pico numa linha própria). A regra que
+      escolhe cada uma é da aplicação, e por isso mora aqui: em Jinja não se
+      decide cor nem forma, do mesmo jeito que não se decide travessão.
+    - `barra` é o trilho de proporção dos dois primeiros KPIs, no formato
+      {"classe": ..., "pct": Decimal}. `None` quando não há barra a desenhar
+      (sem receita não existe a fração despesa ÷ receita).
 
     Sem underscore porque a Visão Mensal monta os cards dela com esta mesma
-    função: o formato que o template lê é um só, e não dois parecidos.
+    função: o formato que o template lê é um só, e não dois parecidos. Ela não
+    passa `classe` nem `barra`, e o template dela ignora os dois.
     """
     return {"rotulo": rotulo, "valor": valor, "texto": texto,
-            "apoio": apoio, "negativo": negativo}
-
-
-def fracao(parte, total):
-    """Fatia sobre o total, em pontos percentuais (Decimal), ou None.
-
-    None quando não há denominador: percentual sem base não é zero por cento,
-    é uma conta que não existe. Quem exibe troca por travessão.
-
-    Compartilhada com a Visão Mensal (barras das tabelas por categoria e por
-    pessoa), por isso sem underscore.
-    """
-    return parte / total * 100 if total else None
+            "apoio": apoio, "negativo": negativo,
+            "classe": classe, "barra": barra}
 
 
 def percentual(parte, total):
@@ -288,8 +304,19 @@ def _nome_do_mes(mes):
     return MESES[mes - 1].capitalize()
 
 
+def _plural_meses(quantidade):
+    """1 -> 'mês', qualquer outro -> 'meses'. Sai das notas dos cards."""
+    return "mês" if quantidade == 1 else "meses"
+
+
 def _cards(leitura, totais):
-    """Os treze cards do ano, na ordem em que aparecem na tela.
+    """Os treze cards do ano, separados nos dois blocos em que a tela os mostra.
+
+    Devolve {"kpis": [4], "indicadores": [9]} — os mesmos treze números de
+    sempre, agora em duas listas, porque o desenho da rodada 17 os separa: os
+    quatro grandes em cartões próprios e os nove restantes em linhas de um
+    cartão só, na ordem do handoff. Continua sendo UMA composição: quem lê o
+    ano lê uma vez, e os dois blocos saem dos mesmos totais.
 
     Ano sem lançamento nenhum não é caso de erro: os cards de dinheiro mostram
     R$ 0,00 e os de mês e pico mostram travessão.
@@ -321,41 +348,71 @@ def _cards(leitura, totais):
     azuis = [m for m in com_movimento
              if divisor and m <= divisor and saldo_do_mes(m) > 0]
 
-    return [
-        card("Receita Anual", valor=receita_anual),
-        card("Despesa Anual", valor=despesa_anual),
-        card("Saldo Anual", valor=saldo, negativo=saldo < 0),
+    # Uma conta, dois lugares: a nota da taxa de poupança ("Média mensal R$ X")
+    # e o indicador "Despesa média / mês" mostram este mesmo número.
+    media = (despesa_anual / divisor).quantize(ZERO) if divisor else None
+
+    # Fração do trilho vermelho do KPI de despesa. `fracao` já devolve None sem
+    # receita — é o caso em que o cartão troca a barra pelo travessão. Acima de
+    # 100% (gastou mais do que entrou) o trilho enche e para: barra é
+    # proporção, e proporção não passa do trilho. O número exato continua no
+    # card e na taxa de poupança.
+    consumo = fracao(despesa_anual, receita_anual)
+    cheia = Decimal(100)
+
+    kpis = [
+        card("Receita anual", valor=receita_anual,
+             barra={"classe": BARRA_RECEITA, "pct": cheia}),
+        card("Despesa anual", valor=despesa_anual,
+             barra=None if consumo is None
+                   else {"classe": BARRA_DESPESA, "pct": min(consumo, cheia)},
+             apoio=SEM_VALOR if consumo is None else None),
+        # Saldo é o número da tela: acento quando sobra, vermelho quando falta.
+        card("Saldo anual", valor=saldo, negativo=saldo < 0,
+             classe=VALOR_NEGATIVO if saldo < 0 else VALOR_ACENTO,
+             apoio=(f"{len(azuis)} de {divisor} {_plural_meses(divisor)} no azul"
+                    if divisor else None)),
         # O vermelho acompanha o percentual, nao o saldo: com receita zero o
         # card mostra travessao, e travessao vermelho nao quer dizer nada.
-        card("Taxa de Poupança",
+        card("Taxa de poupança",
              texto=percentual(saldo, receita_anual),
-             negativo=saldo < 0 and receita_anual > 0),
-        card("Despesas Essenciais", valor=essencial),
-        card("Despesas Não Essenciais", valor=nao_essencial),
-        card("Despesa Média / Mês",
-             valor=(despesa_anual / divisor).quantize(ZERO) if divisor else None,
+             negativo=saldo < 0 and receita_anual > 0,
+             classe=VALOR_NEGATIVO if saldo < 0 and receita_anual > 0 else None,
+             apoio=(f"Média mensal R$ {formatar_valor(media)}"
+                    if media is not None else None)),
+    ]
+
+    indicadores = [
+        card("Despesas essenciais", valor=essencial),
+        card("Despesas não essenciais", valor=nao_essencial),
+        # A única nota que não cabe ao lado do valor: descrição digitada pela
+        # pessoa mais a data. Vai numa linha própria, e é `classe` que diz isso.
+        card("Pico de despesa",
+             valor=pico["valor"] if pico else None,
+             texto=None if pico else SEM_VALOR,
+             apoio=f"{pico['descricao']} · {pico['data']:%d/%m/%Y}"
+                    if pico else None,
+             classe=NOTA_BLOCO),
+        card("% essencial", texto=percentual(essencial, despesa_anual)),
+        card("% não essencial", texto=percentual(nao_essencial, despesa_anual)),
+        card("Despesa média / mês",
+             valor=media,
              texto=None if divisor else SEM_VALOR,
-             apoio=f"em {divisor} {'mês' if divisor == 1 else 'meses'}"
-                    if divisor else None),
-        card("Melhor Mês (Saldo)",
+             apoio=(f"{divisor} {_plural_meses(divisor)}" if divisor else None)),
+        card("Melhor mês (saldo)",
              valor=saldo_do_mes(melhor) if melhor else None,
              texto=None if melhor else SEM_VALOR,
              apoio=_nome_do_mes(melhor) if melhor else None,
              negativo=bool(melhor) and saldo_do_mes(melhor) < 0),
-        card("Mês de Maior Gasto",
+        card("Mês de maior gasto",
              valor=despesas[maior_gasto]["total"] if maior_gasto else None,
              texto=None if maior_gasto else SEM_VALOR,
              apoio=_nome_do_mes(maior_gasto) if maior_gasto else None),
-        card("Pico de Despesa",
-             valor=pico["valor"] if pico else None,
-             texto=None if pico else SEM_VALOR,
-             apoio=f"{pico['descricao']} · {pico['data']:%d/%m/%Y}"
-                    if pico else None),
-        card("% Essencial", texto=percentual(essencial, despesa_anual)),
-        card("% Não Essencial", texto=percentual(nao_essencial, despesa_anual)),
-        card("Meses no Azul",
+        card("Meses no azul",
              texto=f"{len(azuis)} de {divisor}" if divisor else SEM_VALOR),
     ]
+
+    return {"kpis": kpis, "indicadores": indicadores}
 # --------------------------------------------------------------------------
 # Composição dos gráficos
 #
@@ -455,9 +512,13 @@ def _tabela_mensal(leitura, totais):
         # futura é raro, mas escondê-lo seria pior que exibi-lo.
         ainda_nao_chegou = divisor is not None and mes > divisor
 
+        # Mês sem despesa E sem receita: os zeros da linha não são resultado,
+        # são ausência de lançamento. A linha inteira sai esmaecida — quem
+        # decide isso é aqui, não o Jinja, como o travessão e o vermelho.
         linhas.append({
             "mes": MESES[mes - 1].capitalize(),
             "mes_curto": MESES_CURTOS[mes - 1],
+            "classe": None if despesa_do_mes or mes in receitas else LINHA_VAZIA,
             "receitas": receita,
             "despesas": despesa,
             "essenciais": despesa_do_mes["essencial"] if despesa_do_mes else ZERO,
@@ -474,6 +535,7 @@ def _tabela_mensal(leitura, totais):
         "total": {
             "mes": "Total",
             "mes_curto": "Total",
+            "classe": None,
             "receitas": totais["receita"],
             "despesas": totais["despesa"],
             "essenciais": totais["essencial"],
@@ -501,6 +563,10 @@ def _tabela_categorias(leitura, totais):
     ]
     return {
         "linhas": linhas,
+        # Contador do cabeçalho do cartão. Vem pronto, com o plural resolvido:
+        # contar linhas e escolher entre "categoria" e "categorias" seriam duas
+        # decisões em Jinja, e a tela não decide nada.
+        "contador": f"{len(linhas)} {'categoria' if len(linhas) == 1 else 'categorias'}",
         "total": {"total": despesa_anual,
                   "pct": fracao(despesa_anual, despesa_anual)},
     }

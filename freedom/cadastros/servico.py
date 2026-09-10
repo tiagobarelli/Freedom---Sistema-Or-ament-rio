@@ -9,7 +9,7 @@ from psycopg import errors
 # executar() mora em freedom.db desde que os lancamentos passaram a usa-la
 # tambem. Reexportada aqui para os cinco modulos de cadastro nao mudarem
 # de import.
-from freedom.db import executar  # noqa: F401
+from freedom.db import executar, query_one  # noqa: F401
 
 # As tabelas de referência têm coluna `ativo`, menos tb_contas, que usa `ativa`.
 # O nome vem sempre daqui, nunca de string interpolada em runtime.
@@ -113,3 +113,35 @@ def alternar_ativo(entidade, registro_id):
 
 def rotulo(entidade):
     return _ENTIDADES[entidade]["rotulo"]
+
+
+# Plural das cinco entidades para o contador da barra de filtros. Fica aqui,
+# ao lado do nome da tabela, e não no template: escolher entre "ativas" e
+# "ativos" é conhecimento da aplicação, como qualquer outro rótulo.
+_GENERO = {
+    "categorias": ("ativas", "inativas"),
+    "subcategorias": ("ativas", "inativas"),
+    "contas": ("ativas", "inativas"),
+    "pessoas": ("ativas", "inativas"),
+    "ref_receitas": ("ativas", "inativas"),
+}
+
+
+def contagem(entidade):
+    """"24 ativas · 2 inativas", pronto para a tela.
+
+    Uma consulta agregada, e não uma contagem sobre a lista: com o filtro
+    desligado a lista traz só os ativos, e o número de inativos — que é
+    justamente o que justifica o interruptor existir — não estaria lá.
+
+    Nome de tabela e de coluna vêm de `_ENTIDADES`, nunca do request.
+    """
+    config = _ENTIDADES[entidade]
+    coluna = config["coluna_ativo"]
+    linha = query_one(
+        f"SELECT count(*) FILTER (WHERE {coluna}) AS ativos,"
+        f"       count(*) FILTER (WHERE NOT {coluna}) AS inativos"
+        f"  FROM {config['tabela']}"
+    )
+    ativas, inativas = _GENERO[entidade]
+    return f"{linha['ativos']} {ativas} · {linha['inativos']} {inativas}"

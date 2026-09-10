@@ -15,6 +15,7 @@
 {% set url_consulta = url_for('lancamentos.despesas_consulta') %}
 
 {% block content %}
+<div class="painel">
   {#
     Os filtros ficam FORA de #resultados: o hx-get troca so o bloco de baixo,
     entao o estado dos campos sobrevive a cada consulta. hx-push-url mantem a
@@ -35,9 +36,7 @@
               hx-get="{{ url_for('lancamentos.despesas_consulta',
                                  **query_string(filtros, 1, mes=mes_anterior)) }}"
               hx-target="#resultados" hx-swap="innerHTML" hx-push-url="true">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
-             aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+        {{ m.icone("chevron-left", tamanho=14, tracado=2) }}
       </button>
 
       <select class="selecao" name="mes" aria-label="Mês">
@@ -54,9 +53,7 @@
               hx-get="{{ url_for('lancamentos.despesas_consulta',
                                  **query_string(filtros, 1, mes=mes_seguinte)) }}"
               hx-target="#resultados" hx-swap="innerHTML" hx-push-url="true">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
-             aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+        {{ m.icone("chevron-right", tamanho=14, tracado=2) }}
       </button>
     </div>
 
@@ -147,7 +144,7 @@
     <input type="hidden" name="pagina" value="1">
   </form>
 
-  <div id="resultados">
+  <div id="resultados" class="painel">
     {% include "lancamentos/_resultados.html" %}
   </div>
 
@@ -167,4 +164,5 @@
       }
     });
   </script>
+</div>
 {% endblock %}

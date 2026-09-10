@@ -239,6 +239,20 @@ def formatar_valor(valor):
     return formatar_numero(valor, 2)
 
 
+def fracao(parte, total):
+    """Fatia sobre o total, em pontos percentuais (Decimal), ou None.
+
+    None quando não há denominador: percentual sem base não é zero por cento,
+    é uma conta que não existe. Quem exibe troca por travessão.
+
+    Nasceu na Visão Anual, foi copiada duas vezes para o orçamento (montagem e
+    acompanhamento) e subiu para cá na rodada 17: são as barras das tabelas por
+    categoria e por pessoa, a taxa de poupança dos dois painéis e o percentual
+    consumido do orçamento — a mesma conta, com a mesma regra para o zero.
+    """
+    return parte / total * 100 if total else None
+
+
 # --------------------------------------------------------------------------
 # Ordenação alfabética
 # --------------------------------------------------------------------------

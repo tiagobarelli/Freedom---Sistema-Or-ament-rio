@@ -11,6 +11,7 @@ from psycopg import errors
 from freedom.cadastros import bp
 from freedom.cadastros.forms import ContaForm
 from freedom.cadastros.servico import (
+    contagem,
     alternar_ativo,
     aplicar_erro_duplicado,
     executar,
@@ -40,6 +41,7 @@ def contas_lista():
     return render_template(
         "cadastros/contas_lista.html",
         linhas=linhas,
+        contagem=contagem("contas"),
         mostrar_inativos=mostrar_inativos,
     )
 

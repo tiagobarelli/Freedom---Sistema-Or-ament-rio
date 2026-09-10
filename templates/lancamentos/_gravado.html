@@ -17,6 +17,15 @@
   <tr id="despesas-vazio" hx-swap-oob="delete"></tr>
 </template>
 
+{# A linha que deixou de estar entre as quinze mais recentes sai da tela. A
+   lista fica do tamanho que o cabecalho promete, e o "Total exibido" continua
+   descrevendo exatamente o que se ve. #}
+{% if excedente %}
+  <template>
+    <tr id="despesa-{{ excedente.id }}" hx-swap-oob="delete"></tr>
+  </template>
+{% endif %}
+
 <template>
   {% include "lancamentos/_formulario_oob.html" %}
 </template>
@@ -26,7 +35,5 @@
 </template>
 
 <template>
-  <div id="aviso-lancamento" class="aviso-inline" hx-swap-oob="true" role="status">
-    Despesa lançada.
-  </div>
+  {% include "lancamentos/_rodape_oob.html" %}
 </template>

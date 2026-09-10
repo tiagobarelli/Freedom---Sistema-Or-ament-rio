@@ -22,7 +22,7 @@ from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
 from freedom.db import executar, get_connection, query_all, query_one
-from freedom.util import MESES, chave_alfabetica
+from freedom.util import MESES, chave_alfabetica, fracao
 
 ZERO = Decimal("0.00")
 CENTAVO = Decimal("0.01")
@@ -410,9 +410,34 @@ def excluir_mes(ano_mes):
 # Composição da tela
 # --------------------------------------------------------------------------
 
-def _fracao(parte, total):
-    """Percentual, ou None quando não há denominador (a tela mostra '—')."""
-    return parte / total * 100 if total else None
+def cabecalho_do_mes(ano_mes):
+    """O estado do mês: período, aberto/encerrado e o que se pode fazer com ele.
+
+    Separado de `painel_do_mes` porque os DOIS modos da tela mostram o mesmo
+    cabeçalho, e o acompanhamento não precisa das médias de doze meses que o
+    painel de montagem calcula. `painel_do_mes` monta em cima deste, para os
+    dois não divergirem.
+    """
+    cabecalho = mes(ano_mes)
+    if cabecalho is None:
+        return None
+    return {
+        "ano_mes": ano_mes,
+        "periodo": nome_do_periodo(ano_mes),
+        "aberto": cabecalho["encerrado_em"] is None,
+        "encerrado_em": cabecalho["encerrado_em"],
+        "receita": cabecalho["receita_planejada"],
+        "quantidade": query_one(
+            "SELECT COUNT(*) AS n FROM tb_orcamentos WHERE ano_mes = %s",
+            (ano_mes,))["n"],
+        "pode_reabrir": not existe_mes_posterior(ano_mes),
+        # Textos prontos para o template: quem sabe escrever "2026-09" na URL e
+        # "outubro de 2026" na frase é o servidor, como em toda tela daqui.
+        "mes_url": texto_do_mes(ano_mes),
+        "seguinte_url": texto_do_mes(mes_seguinte(ano_mes)),
+        "seguinte_periodo": nome_do_periodo(mes_seguinte(ano_mes)),
+        "seguinte_criavel": pode_criar(mes_seguinte(ano_mes)),
+    }
 
 
 def painel_do_mes(ano_mes):
@@ -456,26 +481,14 @@ def painel_do_mes(ano_mes):
     poupanca = receita - planejado
 
     return {
-        "ano_mes": ano_mes,
-        "periodo": nome_do_periodo(ano_mes),
-        "aberto": cabecalho["encerrado_em"] is None,
-        "encerrado_em": cabecalho["encerrado_em"],
-        "receita": receita,
+        **cabecalho_do_mes(ano_mes),
         "grupos": grupos,
-        "quantidade": sum(len(g["linhas"]) for g in grupos),
         "total": {
             "planejado": planejado,
             "media": sum((g["media"] for g in grupos), ZERO),
             "realizado": sum((g["realizado"] for g in grupos), ZERO),
             "poupanca": poupanca,
-            "taxa": _fracao(poupanca, receita),
+            "taxa": fracao(poupanca, receita),
         },
         "disponiveis": subcategorias_disponiveis(ano_mes),
-        "pode_reabrir": not existe_mes_posterior(ano_mes),
-        # Textos prontos para o template: quem sabe escrever "2026-09" na URL e
-        # "outubro de 2026" na frase é o servidor, como em toda tela daqui.
-        "mes_url": texto_do_mes(ano_mes),
-        "seguinte_url": texto_do_mes(mes_seguinte(ano_mes)),
-        "seguinte_periodo": nome_do_periodo(mes_seguinte(ano_mes)),
-        "seguinte_criavel": pode_criar(mes_seguinte(ano_mes)),
     }

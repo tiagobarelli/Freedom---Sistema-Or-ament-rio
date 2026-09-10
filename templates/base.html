@@ -17,11 +17,11 @@
 #}
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token() }}"}'>
 
-  {# Formas desfocadas do fundo: sem elas o vidro nao tem o que desfocar. #}
-  <div class="fundo-formas" aria-hidden="true">
-    <span></span><span></span><span></span>
-  </div>
-
+  {#
+    Aqui ficavam tres formas desfocadas de fundo, que existiam so para o vidro
+    do tema antigo ter o que desfocar. Sairam na rodada 17 com o vidro: o fundo
+    agora e uma cor chapada (--bg) e toda superficie de conteudo e opaca.
+  #}
   {% block corpo %}{% endblock %}
 
   {# Script de uma tela so (o Chart.js da Visao Anual). O que toda tela usa

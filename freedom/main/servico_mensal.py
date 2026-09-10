@@ -29,8 +29,8 @@ idêntico ao card Despesas.
 from datetime import date
 
 from freedom.db import query_all, query_one
-from freedom.main.servico import ZERO, card, fracao, percentual
-from freedom.util import MESES, chave_alfabetica
+from freedom.main.servico import ZERO, card, percentual
+from freedom.util import MESES, chave_alfabetica, fracao
 
 # Ordem das categorias na tabela 1 e nas linhas da matriz. A tabela por pessoa
 # não entra: ela é sempre por total, porque são poucas linhas e a pergunta ali

@@ -7,6 +7,7 @@ from psycopg import errors
 from freedom.cadastros import bp
 from freedom.cadastros.forms import CategoriaForm
 from freedom.cadastros.servico import (
+    contagem,
     alternar_ativo,
     aplicar_erro_duplicado,
     executar,
@@ -37,6 +38,7 @@ def categorias_lista():
     return render_template(
         "cadastros/categorias_lista.html",
         linhas=linhas,
+        contagem=contagem("categorias"),
         mostrar_inativos=mostrar_inativos,
     )
 

@@ -1,0 +1,12 @@
+# Dependências só de desenvolvimento. A aplicação não importa nada daqui:
+# `requirements.txt` continua sendo a lista do que roda em produção.
+#
+# Playwright dirige um Chromium de verdade para a validação de cada rodada
+# (números lidos do DOM, capturas comparadas por SHA-256, celular em 390px).
+# Depois de instalar o pacote é preciso baixar o navegador uma vez:
+#
+#     pip install -r requirements-dev.txt
+#     playwright install chromium
+#
+# O navegador fica em %LOCALAPPDATA%\ms-playwright, fora do projeto.
+playwright

@@ -10,10 +10,11 @@
 {% set url_receitas = url_for('lancamentos.receitas_tela') %}
 
 {% block content %}
+<div class="painel">
 
   {# --- a) formulário de lançamento ------------------------------------- #}
   {% if pendencias %}
-    <div class="card card--solido">
+    <div class="card">
       {{ m.vazio("Falta cadastro antes de lançar",
                  "Uma receita precisa de fonte e pessoa. Ainda falta:") }}
       <ul class="pendencias">
@@ -26,7 +27,7 @@
       </ul>
     </div>
   {% else %}
-    <div class="card card--solido form-lancamento">
+    <div class="card form-lancamento">
       {% include "lancamentos/_receita_formulario.html" %}
     </div>
     {# Preenchido pelo swap out-of-band depois de gravar. #}
@@ -39,7 +40,7 @@
     URL em dia, o que faz a tela ser reproduzível por link e o botão voltar
     desfazer o último filtro.
   #}
-  <form id="filtros-receitas" class="filtros-consulta mt-5"
+  <form id="filtros-receitas" class="filtros-consulta"
         hx-get="{{ url_receitas }}"
         hx-target="#resultados-receitas"
         hx-swap="innerHTML"
@@ -53,9 +54,7 @@
               hx-get="{{ url_for('lancamentos.receitas_tela',
                                  **query_string(filtros, 1, mes=mes_anterior)) }}"
               hx-target="#resultados-receitas" hx-swap="innerHTML" hx-push-url="true">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
-             aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+        {{ m.icone("chevron-left", tamanho=14, tracado=2) }}
       </button>
 
       <select class="selecao" name="mes" aria-label="Mês">
@@ -72,9 +71,7 @@
               hx-get="{{ url_for('lancamentos.receitas_tela',
                                  **query_string(filtros, 1, mes=mes_seguinte)) }}"
               hx-target="#resultados-receitas" hx-swap="innerHTML" hx-push-url="true">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
-             aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+        {{ m.icone("chevron-right", tamanho=14, tracado=2) }}
       </button>
     </div>
 
@@ -136,7 +133,7 @@
   </form>
 
   {# --- c) e d) totais, resumo e lista ---------------------------------- #}
-  <div id="resultados-receitas">
+  <div id="resultados-receitas" class="painel">
     {% include "lancamentos/_receitas_resultados.html" %}
   </div>
 
@@ -155,4 +152,5 @@
       }
     });
   </script>
+</div>
 {% endblock %}

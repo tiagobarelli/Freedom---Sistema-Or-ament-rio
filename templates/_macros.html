@@ -42,23 +42,32 @@
    a pagina nao recarrega e a posicao de rolagem nao se perde.
 #}
 {% macro acoes_linha(url_editar, url_alternar, ativo) %}
-  <a class="btn btn--discreto btn--pequeno" href="{{ url_editar }}">Editar</a>
-  <button type="button"
-          class="btn btn--secundario btn--pequeno"
-          hx-post="{{ url_alternar }}"
-          hx-target="closest tr"
-          hx-swap="outerHTML">
-    {{ "Desativar" if ativo else "Ativar" }}
-  </button>
+  <span class="acoes-linha">
+    <a class="btn btn--discreto btn--pequeno" href="{{ url_editar }}">Editar</a>
+    {# Largura minima: "Desativar" e "Ativar" tem tamanhos diferentes, e sem
+       ela a coluna pularia a cada troca de estado. #}
+    <button type="button"
+            class="btn btn--secundario btn--pequeno btn--largura-fixa"
+            hx-post="{{ url_alternar }}"
+            hx-target="closest tr"
+            hx-swap="outerHTML">
+      {{ "Desativar" if ativo else "Ativar" }}
+    </button>
+  </span>
 {% endmacro %}
 
 
-{# --- Cabecalho da tabela ------------------------------------------------- #}
-{% macro cabecalho_tabela(colunas) %}
-  <thead>
+{# --- Cabecalho da tabela -------------------------------------------------
+   Nas listas de cadastro o cabecalho nao aparece: "Nome" e "Situacao" sobre
+   duas colunas obvias so ocupam espaco. Mas ele continua existindo para quem
+   navega por leitor de tela, que anuncia a coluna a cada celula - por isso
+   .so-leitor no <thead> inteiro, e nao `display: none`.
+#}
+{% macro cabecalho_tabela(colunas, oculto=false) %}
+  <thead {{ 'class=so-leitor' | safe if oculto }}>
     <tr>
       {% for titulo in colunas %}<th>{{ titulo }}</th>{% endfor %}
-      <th class="tabela__acoes"><span class="so-leitor">Acoes</span></th>
+      <th class="tabela__acoes"><span class="so-leitor">Ações</span></th>
     </tr>
   </thead>
 {% endmacro %}
@@ -73,16 +82,56 @@
 {% endmacro %}
 
 
+{# --- Lista de cadastro ---------------------------------------------------
+   O mesmo cartao para as cinco entidades: tabela sem cabecalho visivel, ou o
+   estado vazio no lugar dela. Quem varia e a parcial da linha, que cada tela
+   passa pelo `caller`.
+#}
+{% macro lista_cadastro(linhas, colunas, titulo_vazio, texto_vazio) %}
+  <div class="card card--tabela">
+    {% if linhas %}
+      <div class="tabela-caixa">
+        <table class="tabela tabela--cadastro">
+          {{ cabecalho_tabela(colunas, oculto=true) }}
+          <tbody>{{ caller() }}</tbody>
+        </table>
+      </div>
+    {% else %}
+      {{ vazio(titulo_vazio, texto_vazio) }}
+    {% endif %}
+  </div>
+{% endmacro %}
+
+
 {# --- Filtro "mostrar inativos" ------------------------------------------
    Um GET simples: marcar a caixa envia o formulario e recarrega a lista.
+
+   O interruptor do desenho e desenhado em CSS EM VOLTA do checkbox de sempre:
+   o <input> continua sendo o controle (mesmo `name=inativos`, mesmo GET,
+   mesmo foco de teclado), so sai da tela. Trocar por dois botoes seria trocar
+   o mecanismo, e o mecanismo funciona.
 #}
 {% macro filtro_inativos(mostrar_inativos) %}
-  <label class="marcar">
+  <label class="interruptor">
     <input type="checkbox" name="inativos" value="1"
            {{ "checked" if mostrar_inativos }}
            onchange="this.form.submit()">
+    <span class="interruptor__trilho" aria-hidden="true"></span>
     Mostrar inativos
   </label>
+{% endmacro %}
+
+
+{# --- Barra de filtros das listas de cadastro -----------------------------
+   Contagem a esquerda, interruptor a direita. A contagem vem pronta do
+   servidor: com o filtro desligado a lista so tem ativos, entao o numero de
+   inativos nao poderia sair dela.
+#}
+{% macro filtros_cadastro(contagem, mostrar_inativos) %}
+  <form class="filtros" method="get">
+    <span class="filtros__contagem">{{ contagem }}</span>
+    <span class="filtros__direita">{{ filtro_inativos(mostrar_inativos) }}</span>
+  </form>
 {% endmacro %}
 
 
@@ -99,7 +148,7 @@
    Lancamentos
    ========================================================================== #}
 
-{% from "lancamentos/_classificacao_macro.html" import classificacao %}
+
 
 {# --- Valor em reais ------------------------------------------------------ #}
 {% macro reais(valor) -%}
@@ -124,20 +173,101 @@
 
 
 {# --- Badge de essencialidade efetiva, com a prioridade junto -------------- #}
+{#
+   "Não essencial" com N maiusculo so no comeco: e rotulo de exibicao. O valor
+   gravado continua sendo `Não Essencial`, o texto exato do CHECK do banco -
+   mesma separacao dos selects de CHECK, que mostram um rotulo amigavel e
+   gravam o valor da constraint.
+#}
 {% macro badge_essencialidade(essencialidade, prioridade=None) %}
-  {% if essencialidade == 'Essencial' %}
+  {%- if essencialidade == 'Essencial' -%}
     <span class="badge badge--essencial">Essencial</span>
-  {% else %}
-    <span class="badge badge--naoessencial">
-      Não Essencial{% if prioridade %} · P{{ prioridade }}{% endif %}
-    </span>
-  {% endif %}
+  {%- else -%}
+    <span class="badge badge--naoessencial">Não essencial{% if prioridade %} · P{{ prioridade }}{% endif %}</span>
+  {%- endif -%}
+{% endmacro %}
+
+
+{#
+  As duas peças que a rota de classificação devolve.
+
+  São macros, e não includes, porque precisam receber argumentos: um
+  {% include %} dentro de outra macro enxerga o contexto do template, não os
+  parâmetros de quem o chamou. Moram aqui, e não num arquivo próprio, porque
+  `campos_despesa` as chama e elas chamam `badge_essencialidade`: em arquivos
+  separados os dois se importariam em círculo.
+
+  Elas ficaram em lugares diferentes do formulário na rodada 18: o resumo da
+  classificação é a terceira coluna da segunda linha da grade, e a prioridade
+  desceu para "Mais opções". A rota continua sendo UMA (`#classificacao` é o
+  alvo declarado) e a prioridade viaja junto, fora de banda, pelo id próprio.
+#}
+
+{# --- resumo derivado da subcategoria ---------------------------------------
+   Vai dentro de #classificacao, que tem a altura de um campo. Sem
+   subcategoria escolhida, o espaço não fica em branco: diz de onde o valor
+   virá.
+#}
+{% macro classificacao_resumo(sub, efetiva, override=None) %}
+  {%- if sub -%}
+    <span class="classificacao__cat" title="{{ sub.categoria_nome }}">{{ sub.categoria_nome }}</span>
+    {{ badge_essencialidade(efetiva) }}
+    {%- if override %}<span class="classificacao__nota" title="Sobrescrita nesta despesa">sobrescrita</span>{% endif -%}
+  {%- else -%}
+    <span class="classificacao__vazio">Vem da subcategoria</span>
+  {%- endif -%}
+{% endmacro %}
+
+
+{#
+  Os valores têm de bater com `PRIORIDADES` em `lancamentos/forms.py`: é lá
+  que o SelectField valida o que chega. Os rótulos são curtos porque são
+  botões numa fileira de quatro; o "—" é o "Sem prioridade" do select antigo,
+  e sem ele não haveria como tirar a prioridade de uma despesa ao editá-la.
+#}
+{% set OPCOES_PRIORIDADE = [
+  ("1", "P1", "1 — mais importante"),
+  ("2", "P2", "2"),
+  ("3", "P3", "3"),
+  ("4", "P4", "4 — menos importante"),
+  ("",  "—",  "Sem prioridade"),
+] %}
+
+{# --- prioridade: quatro botões e o "sem" -----------------------------------
+   O contêiner existe SEMPRE, mesmo vazio: é ele o alvo da troca fora de banda,
+   e um alvo que some não pode ser trocado. Quando a essencialidade efetiva é
+   Essencial ele fica vazio e `hidden` — não com opacidade, que deixaria os
+   radios clicáveis e enviaria prioridade numa despesa essencial.
+#}
+{% macro bloco_prioridade(efetiva, prioridade="", oob=false) %}
+  <div id="bloco-prioridade" class="campo vao-4"
+       {% if oob %}hx-swap-oob="true"{% endif %}
+       {% if efetiva != 'Não Essencial' %}hidden{% endif %}>
+    {% if efetiva == 'Não Essencial' %}
+      <span class="campo__rotulo" id="rotulo-prioridade">Prioridade</span>
+      <div class="prioridade" role="group" aria-labelledby="rotulo-prioridade">
+        {% for valor, rotulo, titulo in OPCOES_PRIORIDADE %}
+          <label class="prioridade__opcao" title="{{ titulo }}">
+            <input type="radio" name="prioridade" value="{{ valor }}"
+                   {% if prioridade == valor %}checked{% endif %}>
+            <span class="prioridade__marca">{{ rotulo }}</span>
+          </label>
+        {% endfor %}
+      </div>
+      <p class="campo__dica">P1 mais importante · P4 menos · “—” sem prioridade</p>
+    {% endif %}
+  </div>
 {% endmacro %}
 
 
 {# --- Campos do formulario de despesa -------------------------------------
    Uma macro so, usada pela tela de lancamento e pela de edicao, para a
    marcacao nao ser copiada entre as duas.
+
+   Grade de 12 colunas (rodada 18). A primeira linha e o que se digita - data,
+   valor, descricao; a segunda e o que se escolhe - subcategoria, o que ela
+   implica, conta e pessoa. Os vaos (.vao-N) sao o `grid-column: span N` do
+   desenho; abaixo de 900px todos viram 6 e abaixo de 600px viram 12.
 #}
 {#
    `url_sugestoes` liga o autocomplete. A tela de edicao chama sem ele: editar
@@ -147,15 +277,18 @@
                         url_sugestoes=None) %}
   {{ form.hidden_tag() }}
 
-  <div class="grade-despesa">
-    <div class="campo">
+  {% set efetiva = form.essencialidade.data
+                   or (sub_selecionada.essencialidade if sub_selecionada else none) %}
+
+  <div class="grade-form">
+    <div class="campo vao-3">
       {{ form.data.label(class="campo__rotulo") }}
       {{ form.data(class="entrada" ~ (" entrada--erro" if form.data.errors else ""),
                    type="date") }}
       {% for e in form.data.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
     </div>
 
-    <div class="campo campo--valor">
+    <div class="campo campo--valor vao-3">
       {{ form.valor.label(class="campo__rotulo") }}
       <div class="entrada-moeda">
         <span class="entrada-moeda__prefixo" aria-hidden="true">R$</span>
@@ -168,83 +301,84 @@
       <p class="campo__apoio" id="valor-apoio" hidden></p>
       {% for e in form.valor.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
     </div>
-  </div>
 
-  <div class="campo campo--descricao">
-    {{ form.descricao.label(class="campo__rotulo") }}
-    {# autofocus: apos gravar, o HTMX devolve este formulario por swap e
-       reposiciona o cursor aqui, que e onde o proximo lancamento comeca. #}
-    {#
-      hx-params="none" + hx-vals: sem isso o HTMX mandaria o valor sob o name
-      do campo (descricao=...), e a rota fala ?q=.
-    #}
-    {% if url_sugestoes %}
-      <div class="sugestoes" id="sugestoes">
-        {{ form.descricao(
-             class="entrada" ~ (" entrada--erro" if form.descricao.errors else ""),
-             autocomplete="off", maxlength=200, autofocus=true,
-             role="combobox", aria_expanded="false", aria_autocomplete="list",
-             aria_controls="sugestoes-lista",
-             **{"hx-get": url_sugestoes,
-                "hx-trigger": "keyup changed delay:250ms",
-                "hx-target": "#sugestoes-painel",
-                "hx-swap": "innerHTML",
-                "hx-vals": 'js:{"q": document.getElementById("descricao").value}'}) }}
-        <div class="sugestoes__painel" id="sugestoes-painel"></div>
+    <div class="campo campo--descricao vao-6">
+      {{ form.descricao.label(class="campo__rotulo") }}
+      {# autofocus: apos gravar, o HTMX devolve este formulario por swap e
+         reposiciona o cursor aqui, que e onde o proximo lancamento comeca. #}
+      {#
+        hx-params="none" + hx-vals: sem isso o HTMX mandaria o valor sob o name
+        do campo (descricao=...), e a rota fala ?q=.
+      #}
+      {% if url_sugestoes %}
+        <div class="sugestoes" id="sugestoes">
+          {{ form.descricao(
+               class="entrada" ~ (" entrada--erro" if form.descricao.errors else ""),
+               autocomplete="off", maxlength=200, autofocus=true,
+               placeholder="Ex.: Varejão Serve Bem",
+               role="combobox", aria_expanded="false", aria_autocomplete="list",
+               aria_controls="sugestoes-lista",
+               **{"hx-get": url_sugestoes,
+                  "hx-trigger": "keyup changed delay:250ms",
+                  "hx-target": "#sugestoes-painel",
+                  "hx-swap": "innerHTML",
+                  "hx-vals": 'js:{"q": document.getElementById("descricao").value}'}) }}
+          <div class="sugestoes__painel" id="sugestoes-painel"></div>
+        </div>
+        <p class="campo__apoio campo__apoio--aviso" id="sugestao-aviso" hidden></p>
+      {% else %}
+        {{ form.descricao(class="entrada" ~ (" entrada--erro" if form.descricao.errors else ""),
+                          autocomplete="off", maxlength=200, autofocus=true) }}
+      {% endif %}
+      {% for e in form.descricao.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
+    </div>
+
+    <div class="campo vao-5">
+      {{ form.subcategoria_id.label(class="campo__rotulo") }}
+      {#
+        Select montado a mao, e nao pelo widget do WTForms, por dois motivos:
+        o dict de optgroups nao aceita uma opcao solta antes dos grupos, e sem
+        essa opcao em branco o navegador pre-seleciona a primeira subcategoria
+        da lista - o que faria a classificacao exibida discordar do que o
+        servidor sabe, e deixaria gravar uma despesa sem ninguem escolher nada.
+      #}
+      <select class="selecao{{ ' selecao--erro' if form.subcategoria_id.errors }}"
+              id="subcategoria_id" name="subcategoria_id" required
+              hx-get="{{ url_classificacao }}"
+              hx-trigger="change"
+              hx-target="#classificacao"
+              hx-swap="innerHTML"
+              hx-include="#form-despesa">
+        <option value="">Escolha a subcategoria</option>
+        {% for nome_categoria, itens in form.grupos %}
+          <optgroup label="{{ nome_categoria }}">
+            {% for valor, rotulo in itens %}
+              <option value="{{ valor }}"
+                      {{ 'selected' if form.subcategoria_id.data == valor }}>{{ rotulo }}</option>
+            {% endfor %}
+          </optgroup>
+        {% endfor %}
+      </select>
+      {% for e in form.subcategoria_id.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
+    </div>
+
+    {# Nao e campo: e o que a subcategoria implica, so leitura. Tem rotulo e
+       altura de campo para a linha da grade fechar. O conteudo continua vindo
+       do servidor - este <div> e o alvo do hx-get acima. #}
+    <div class="campo vao-3">
+      <span class="campo__rotulo">Classificação</span>
+      <div class="classificacao" id="classificacao">
+        {{ classificacao_resumo(sub_selecionada, efetiva, form.essencialidade.data or none) }}
       </div>
-      <p class="campo__apoio campo__apoio--aviso" id="sugestao-aviso" hidden></p>
-    {% else %}
-      {{ form.descricao(class="entrada" ~ (" entrada--erro" if form.descricao.errors else ""),
-                        autocomplete="off", maxlength=200, autofocus=true) }}
-    {% endif %}
-    {% for e in form.descricao.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
-  </div>
+    </div>
 
-  <div class="campo">
-    {{ form.subcategoria_id.label(class="campo__rotulo") }}
-    {#
-      Select montado a mao, e nao pelo widget do WTForms, por dois motivos:
-      o dict de optgroups nao aceita uma opcao solta antes dos grupos, e sem
-      essa opcao em branco o navegador pre-seleciona a primeira subcategoria
-      da lista - o que faria a classificacao exibida discordar do que o
-      servidor sabe, e deixaria gravar uma despesa sem ninguem escolher nada.
-    #}
-    <select class="selecao{{ ' selecao--erro' if form.subcategoria_id.errors }}"
-            id="subcategoria_id" name="subcategoria_id" required
-            hx-get="{{ url_classificacao }}"
-            hx-trigger="change"
-            hx-target="#classificacao"
-            hx-swap="innerHTML"
-            hx-include="#form-despesa">
-      <option value="">Escolha a subcategoria</option>
-      {% for nome_categoria, itens in form.grupos %}
-        <optgroup label="{{ nome_categoria }}">
-          {% for valor, rotulo in itens %}
-            <option value="{{ valor }}"
-                    {{ 'selected' if form.subcategoria_id.data == valor }}>{{ rotulo }}</option>
-          {% endfor %}
-        </optgroup>
-      {% endfor %}
-    </select>
-    {% for e in form.subcategoria_id.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
-  </div>
-
-  {# Contêiner de id fixo: a rota de classificacao troca so o conteudo daqui. #}
-  <div id="classificacao">
-    {{ classificacao(sub_selecionada,
-                     form.essencialidade.data or (sub_selecionada.essencialidade
-                                                  if sub_selecionada else none),
-                     form.prioridade.data or "",
-                     form.essencialidade.data or none) }}
-  </div>
-
-  <div class="grade-despesa">
-    <div class="campo">
+    <div class="campo vao-2">
       {{ form.conta_id.label(class="campo__rotulo") }}
       {{ form.conta_id(class="selecao" ~ (" selecao--erro" if form.conta_id.errors else "")) }}
       {% for e in form.conta_id.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
     </div>
-    <div class="campo">
+
+    <div class="campo vao-2">
       {{ form.pessoa_id.label(class="campo__rotulo") }}
       {{ form.pessoa_id(class="selecao" ~ (" selecao--erro" if form.pessoa_id.errors else "")) }}
       {% for e in form.pessoa_id.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
@@ -252,9 +386,12 @@
   </div>
 
   <details class="mais-opcoes" id="mais-opcoes" {{ "open" if form.mais_opcoes_aberto }}>
-    <summary class="mais-opcoes__resumo">Mais opções</summary>
-    <div class="mais-opcoes__corpo">
-      <div class="campo">
+    <summary class="mais-opcoes__resumo">
+      {{ icone("chevron-right", tamanho=12, tracado=2.5,
+               classe="icone mais-opcoes__seta") }}Mais opções
+    </summary>
+    <div class="mais-opcoes__corpo grade-form">
+      <div class="campo vao-4">
         {{ form.essencialidade.label(class="campo__rotulo") }}
         {{ form.essencialidade(class="selecao",
                                **{"hx-get": url_classificacao,
@@ -267,23 +404,29 @@
         </p>
       </div>
 
-      <label class="marcar mt-4">
-        {{ form.integra_ipca() }} Integra o agregado deflacionado pelo IPCA
-      </label>
-      <p class="campo__dica">
-        Desmarque em gastos pontuais que distorceriam a série histórica.
-      </p>
+      {{ bloco_prioridade(efetiva, form.prioridade.data or "") }}
 
-      <div class="campo">
+      <div class="campo vao-4">
+        <span class="campo__rotulo">Série histórica</span>
+        <label class="marcar">
+          {{ form.integra_ipca() }}
+          <span>
+            Integra o agregado deflacionado pelo IPCA
+            <span class="campo__dica">
+              Desmarque em gastos pontuais que distorceriam a série.
+            </span>
+          </span>
+        </label>
+      </div>
+
+      <div class="campo vao-12">
         {{ form.observacoes.label(class="campo__rotulo") }}
-        {{ form.observacoes(class="area-texto", rows=3) }}
+        {{ form.observacoes(class="area-texto", rows=2, placeholder="Opcional") }}
         {% for e in form.observacoes.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
       </div>
     </div>
   </details>
 {% endmacro %}
-
-
 {# --- Campos do formulario de receita -------------------------------------
    Macro propria, e nao a `campos_despesa` parametrizada: receita nao tem
    subcategoria, conta, essencialidade, prioridade, IPCA nem o bloco "Mais
@@ -388,3 +531,89 @@
     {% for erro in f.errors %}<p class="campo__erro">{{ erro }}</p>{% endfor %}
   </div>
 {% endmacro %}
+
+
+{# ==========================================================================
+   Icones
+   ========================================================================== #}
+
+{# --- Icone Lucide, SVG inline --------------------------------------------
+   Os quinze icones do desenho, copiados do prototipo do handoff. Inline, e
+   nao por biblioteca: uma dependencia de CDN (unpkg) quebraria a regra de
+   nenhuma requisicao externa, e um sprite externo seria mais um arquivo para
+   um total de 15 caminhos.
+
+   16x16 e stroke-width 1.75, como no desenho; `plus` e a excecao (14x14,
+   2.25), porque vai dentro do botao primario e precisa pesar como o texto ao
+   lado. `currentColor` deixa a cor com o CSS - o icone acende junto com o
+   item de menu ativo sem regra propria. `aria-hidden` porque todo icone daqui
+   acompanha um rotulo visivel; nenhum e o unico conteudo de um controle.
+
+   Lucide, licenca ISC (registrada no README, em "Dependencias de front-end").
+#}
+{% set _CAMINHOS_ICONE = {
+  "calendar-range":
+    '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/>'
+    '<path d="M3 10h18"/><path d="M8 2v4"/><path d="M17 14h-6"/><path d="M13 18H7"/>',
+  "calendar-days":
+    '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/>'
+    '<path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/>'
+    '<path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/>',
+  "pie-chart":
+    '<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>',
+  "circle-plus":
+    '<circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/>',
+  "search":
+    '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  "trending-up":
+    '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
+  "tags":
+    '<path d="m15 5 6.3 6.3a2.4 2.4 0 0 1 0 3.4L17 19"/>'
+    '<path d="M9.586 5.586A2 2 0 0 0 8.172 5H3a1 1 0 0 0-1 1v5.172a2 2 0 0 0 .586 1.414'
+    'L8.29 18.29a2.426 2.426 0 0 0 3.42 0l3.58-3.58a2.426 2.426 0 0 0 0-3.42z"/>'
+    '<circle cx="6.5" cy="9.5" r=".5" fill="currentColor"/>',
+  "tag":
+    '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414'
+    'l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/>'
+    '<circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>',
+  "landmark":
+    '<line x1="3" x2="21" y1="22" y2="22"/><line x1="6" x2="6" y1="18" y2="11"/>'
+    '<line x1="10" x2="10" y1="18" y2="11"/><line x1="14" x2="14" y1="18" y2="11"/>'
+    '<line x1="18" x2="18" y1="18" y2="11"/><polygon points="12 2 20 7 4 7"/>',
+  "users":
+    '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>'
+    '<path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  "banknote":
+    '<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/>'
+    '<path d="M6 12h.01M18 12h.01"/>',
+  "settings":
+    '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0'
+    'l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51'
+    'a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0'
+    'l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25'
+    'a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08'
+    'a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38'
+    'a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>'
+    '<circle cx="12" cy="12" r="3"/>',
+  "log-out":
+    '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>'
+    '<polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>',
+  "chevron-down":
+    '<path d="m6 9 6 6 6-6"/>',
+  "chevron-right":
+    '<path d="m9 18 6-6-6-6"/>',
+  "chevron-left":
+    '<path d="m15 18-6-6 6-6"/>',
+  "check":
+    '<path d="M20 6 9 17l-5-5"/>',
+  "plus":
+    '<path d="M5 12h14"/><path d="M12 5v14"/>',
+} %}
+
+{% macro icone(nome, tamanho=16, tracado=1.75, classe="icone") -%}
+  <svg class="{{ classe }}" width="{{ tamanho }}" height="{{ tamanho }}"
+       viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       stroke-width="{{ tracado }}" stroke-linecap="round"
+       stroke-linejoin="round" aria-hidden="true"
+  >{{ _CAMINHOS_ICONE[nome] | safe }}</svg>
+{%- endmacro %}

@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#F5F5F7;}
+a{color:#30B0C7;text-decoration:none}a:hover{color:#2A9DB2}
+input,select,textarea,button{font-family:inherit}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#30B0C7 !important;box-shadow:0 0 0 3px rgba(48,176,199,.18)}
+input::placeholder{color:#AEAEB2}
+@keyframes flashRow{from{background:#E6F6F9}to{background:#fff}}
+</style>
+</helmet>
+<div style="display:flex;min-height:100vh;background:#F5F5F7;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',Helvetica,sans-serif;color:#1D1D1F;-webkit-font-smoothing:antialiased">
+  <aside style="width:232px;flex:none;background:#1D1D1F;color:#E5E5EA;padding:24px 12px 16px;display:flex;flex-direction:column;gap:1px;position:sticky;top:0;height:100vh;box-sizing:border-box">
+    <div style="display:flex;align-items:center;gap:10px;padding:0 10px 24px"><div style="width:26px;height:26px;border-radius:7px;background:#30B0C7"></div><div style="font-size:15px;font-weight:600;color:#fff;letter-spacing:-.01em">Freedom</div></div>
+    <div style="font-size:11px;font-weight:600;color:#8E8E93;padding:6px 10px;text-transform:uppercase;letter-spacing:.06em">Painel</div>
+    <a href="#" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;font-size:13px;color:#C7C7CC" style-hover="background:rgba(255,255,255,.06);color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none;color:#8E8E93"><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M16 2v4"></path><path d="M3 10h18"></path><path d="M8 2v4"></path><path d="M17 14h-6"></path><path d="M13 18H7"></path></svg>Visão Anual</a>
+    <a href="#" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;font-size:13px;color:#C7C7CC" style-hover="background:rgba(255,255,255,.06);color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none;color:#8E8E93"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>Visão Mensal</a>
+    <a href="#" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;font-size:13px;color:#C7C7CC" style-hover="background:rgba(255,255,255,.06);color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none;color:#8E8E93"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>Orçamento</a>
+    <div style="font-size:11px;font-weight:600;color:#8E8E93;padding:6px 10px;margin-top:14px;text-transform:uppercase;letter-spacing:.06em">Lançamentos</div>
+    <a href="#" onClick="{{ goDespesa }}" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;font-size:13px;font-weight:{{ despW }};color:{{ despC }};background:{{ despBg }}" style-hover="background:rgba(255,255,255,.1);color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none;color:{{ despIc }}"><circle cx="12" cy="12" r="10"></circle><path d="M8 12h8"></path><path d="M12 8v8"></path></svg>Lançar despesa</a>
+    <a href="#" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;font-size:13px;color:#C7C7CC" style-hover="background:rgba(255,255,255,.06);color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none;color:#8E8E93"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>Consultar despesas</a>
+    <a href="#" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;font-size:13px;color:#C7C7CC" style-hover="background:rgba(255,255,255,.06);color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none;color:#8E8E93"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>Receitas</a>
+    <div style="font-size:11px;font-weight:600;color:#8E8E93;padding:6px 10px;margin-top:14px;text-transform:uppercase;letter-spacing:.06em">Cadastros</div>
+    <a href="#" onClick="{{ goCat }}" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;font-size:13px;font-weight:{{ catW }};color:{{ catC }};background:{{ catBg }}" style-hover="background:rgba(255,255,255,.1);color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none;color:{{ catIc }}"><path d="m15 5 6.3 6.3a2.4 2.4 0 0 1 0 3.4L17 19"></path><path d="M9.586 5.586A2 2 0 0 0 8.172 5H3a1 1 0 0 0-1 1v5.172a2 2 0 0 0 .586 1.414L8.29 18.29a2.426 2.426 0 0 0 3.42 0l3.58-3.58a2.426 2.426 0 0 0 0-3.42z"></path><circle cx="6.5" cy="9.5" r=".5" fill="currentColor"></circle></svg>Categorias</a>
+    <a href="#" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;font-size:13px;color:#C7C7CC" style-hover="background:rgba(255,255,255,.06);color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none;color:#8E8E93"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"></path><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"></circle></svg>Subcategorias</a>
+    <a href="#" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;font-size:13px;color:#C7C7CC" style-hover="background:rgba(255,255,255,.06);color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none;color:#8E8E93"><line x1="3" x2="21" y1="22" y2="22"></line><line x1="6" x2="6" y1="18" y2="11"></line><line x1="10" x2="10" y1="18" y2="11"></line><line x1="14" x2="14" y1="18" y2="11"></line><line x1="18" x2="18" y1="18" y2="11"></line><polygon points="12 2 20 7 4 7"></polygon></svg>Contas</a>
+    <a href="#" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;font-size:13px;color:#C7C7CC" style-hover="background:rgba(255,255,255,.06);color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none;color:#8E8E93"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>Pessoas</a>
+    <a href="#" style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;font-size:13px;color:#C7C7CC" style-hover="background:rgba(255,255,255,.06);color:#fff"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none;color:#8E8E93"><rect width="20" height="12" x="2" y="6" rx="2"></rect><circle cx="12" cy="12" r="2"></circle><path d="M6 12h.01M18 12h.01"></path></svg>Fontes de receita</a>
+    <div style="margin-top:auto;display:flex;align-items:center;gap:10px;padding:14px 10px 0;border-top:1px solid rgba(255,255,255,.1)">
+      <div style="width:28px;height:28px;border-radius:50%;background:#30B0C7;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600">T</div>
+      <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;color:#fff">Tiago</div><div style="font-size:11px;color:#8E8E93">tiago</div></div>
+    </div>
+  </aside>
+
+  <main style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+  <sc-if value="{{ isDespesa }}" hint-placeholder-val="{{ true }}">
+  <div data-screen-label="Lançar despesa" style="display:flex;flex-direction:column;flex:1">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 28px;background:rgba(255,255,255,.75);border-bottom:1px solid #E0E0E5;backdrop-filter:blur(20px);position:sticky;top:0;z-index:2">
+      <div style="display:flex;align-items:center;gap:16px;min-width:0"><h1 style="margin:0;font-size:17px;font-weight:600;letter-spacing:-.01em;white-space:nowrap">Lançar despesa</h1><span style="font-size:13px;color:#6E6E73;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Despesa no cartão entra com a data da compra, como qualquer outra.</span></div>
+      <div style="display:flex;align-items:baseline;gap:8px;white-space:nowrap;font-size:12px;color:#6E6E73">Setembro de 2026<span style="font-size:15px;font-weight:700;color:#1D1D1F;font-variant-numeric:tabular-nums">{{ monthTotal }}</span>{{ monthCount }} lançamentos</div>
+    </div>
+
+    <div style="padding:24px 28px 40px;display:flex;flex-direction:column;gap:18px">
+    <form onSubmit="{{ submit }}" style="background:#fff;border-radius:14px;padding:20px 20px 16px;box-shadow:0 1px 3px rgba(0,0,0,.06),0 0 0 1px rgba(0,0,0,.03);display:flex;flex-direction:column;gap:16px">
+      <div style="display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px">
+        <label style="grid-column:span 3;display:flex;flex-direction:column;gap:6px;min-width:0"><span style="font-size:12px;font-weight:500;color:#6E6E73">Data</span><input type="date" value="{{ f.data }}" onChange="{{ setData }}" style="height:36px;border:1px solid #D2D2D7;border-radius:8px;padding:0 10px;font-size:13px;color:#1D1D1F;background:#fff;box-sizing:border-box;width:100%"></label>
+        <label style="grid-column:span 3;display:flex;flex-direction:column;gap:6px;min-width:0"><span style="font-size:12px;font-weight:500;color:#6E6E73">Valor</span><div style="position:relative"><span style="position:absolute;left:10px;top:0;height:36px;display:flex;align-items:center;font-size:13px;color:#86868B">R$</span><input inputMode="decimal" placeholder="0,00" value="{{ f.valor }}" onChange="{{ setValor }}" style="height:36px;border:1px solid #D2D2D7;border-radius:8px;padding:0 10px 0 32px;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;color:#1D1D1F;background:#fff;box-sizing:border-box;width:100%"></div><sc-if value="{{ lastValor }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;color:#86868B;margin-top:-2px">último: {{ lastValor }}</span></sc-if></label>
+        <div style="grid-column:span 6;display:flex;flex-direction:column;gap:6px;min-width:0;position:relative">
+          <span style="font-size:12px;font-weight:500;color:#6E6E73">Descrição</span>
+          <input placeholder="Ex.: Varejão Serve Bem" value="{{ f.desc }}" onChange="{{ setDesc }}" onFocus="{{ openAc }}" onBlur="{{ closeAc }}" autoComplete="off" style="height:36px;border:1px solid #D2D2D7;border-radius:8px;padding:0 10px;font-size:13px;color:#1D1D1F;background:#fff;box-sizing:border-box;width:100%">
+          <sc-if value="{{ acOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;top:64px;left:0;right:0;z-index:5;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12),0 0 0 1px rgba(0,0,0,.06);padding:6px;display:flex;flex-direction:column;gap:2px">
+            <div style="font-size:11px;font-weight:600;color:#86868B;padding:6px 10px 4px;text-transform:uppercase;letter-spacing:.05em">Usadas antes · preenche classificação e conta</div>
+            <sc-for list="{{ acItems }}" as="s" hint-placeholder-count="3">
+              <button type="button" onMouseDown="{{ s.pick }}" style="display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;background:none;border:0;padding:8px 10px;border-radius:7px;cursor:pointer;font-size:13px;color:#1D1D1F" style-hover="background:#F5F5F7"><span style="font-weight:500">{{ s.nome }}</span><span style="font-size:12px;color:#6E6E73;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.meta }}</span></button>
+            </sc-for>
+          </div>
+          </sc-if>
+        </div>
+        <label style="grid-column:span 5;display:flex;flex-direction:column;gap:6px;min-width:0"><span style="font-size:12px;font-weight:500;color:#6E6E73">Subcategoria</span><select value="{{ f.sub }}" onChange="{{ setSub }}" style="height:36px;border:1px solid #D2D2D7;border-radius:8px;padding:0 10px;font-size:13px;color:#1D1D1F;background:#fff;box-sizing:border-box;width:100%"><option value="">Escolha a subcategoria</option><sc-for list="{{ subGroups }}" as="g" hint-placeholder-count="4"><optgroup label="{{ g.cat }}"><sc-for list="{{ g.subs }}" as="o" hint-placeholder-count="2"><option value="{{ o }}">{{ o }}</option></sc-for></optgroup></sc-for></select></label>
+        <div style="grid-column:span 3;display:flex;flex-direction:column;gap:6px;min-width:0"><span style="font-size:12px;font-weight:500;color:#6E6E73">Classificação</span><div style="height:36px;display:flex;align-items:center;gap:8px;min-width:0;font-size:13px;color:#6E6E73"><sc-if value="{{ hasSub }}" hint-placeholder-val="{{ true }}"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#1D1D1F;font-weight:500">{{ f.cat }}</span><span style="display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:500;background:{{ fBadgeBg }};color:{{ fBadgeC }};white-space:nowrap;flex:none"><span style="width:6px;height:6px;border-radius:50%;background:currentColor"></span>{{ fBadge }}</span></sc-if><sc-if value="{{ noSub }}" hint-placeholder-val="{{ false }}"><span style="color:#AEAEB2">Vem da subcategoria</span></sc-if></div></div>
+        <label style="grid-column:span 2;display:flex;flex-direction:column;gap:6px;min-width:0"><span style="font-size:12px;font-weight:500;color:#6E6E73">Conta</span><select value="{{ f.conta }}" onChange="{{ setConta }}" style="height:36px;border:1px solid #D2D2D7;border-radius:8px;padding:0 10px;font-size:13px;color:#1D1D1F;background:#fff;box-sizing:border-box;width:100%"><option>Conta Corrente Nubank</option><option>Cartão de Crédito</option><option>Dinheiro</option></select></label>
+        <label style="grid-column:span 2;display:flex;flex-direction:column;gap:6px;min-width:0"><span style="font-size:12px;font-weight:500;color:#6E6E73">Pessoa</span><select value="{{ f.pessoa }}" onChange="{{ setPessoa }}" style="height:36px;border:1px solid #D2D2D7;border-radius:8px;padding:0 10px;font-size:13px;color:#1D1D1F;background:#fff;box-sizing:border-box;width:100%"><option>Família</option><option>Tiago</option></select></label>
+      </div>
+
+      <button type="button" onClick="{{ toggleMore }}" style="display:inline-flex;align-items:center;gap:6px;align-self:flex-start;background:none;border:0;padding:0;cursor:pointer;font-size:13px;font-weight:500;color:#30B0C7"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .2s;transform:rotate({{ moreRot }})"><path d="m9 18 6-6-6-6"></path></svg>Mais opções</button>
+      <sc-if value="{{ moreOpen }}" hint-placeholder-val="{{ true }}">
+      <div style="display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px;padding-top:2px">
+        <div style="grid-column:span 4;display:flex;flex-direction:column;gap:6px;min-width:0"><span style="font-size:12px;font-weight:500;color:#6E6E73">Essencialidade</span>
+          <div style="display:flex;background:#E5E5EA;border-radius:8px;padding:2px;height:36px;box-sizing:border-box;font-size:13px;font-weight:500">
+            <button type="button" onClick="{{ setEss }}" style="flex:1;border:0;border-radius:6px;cursor:pointer;background:{{ essBg }};color:{{ essC }};box-shadow:{{ essSh }}">Essencial</button>
+            <button type="button" onClick="{{ setNe }}" style="flex:1;border:0;border-radius:6px;cursor:pointer;background:{{ neBg }};color:{{ neC }};box-shadow:{{ neSh }}">Não essencial</button>
+          </div>
+          <span style="font-size:11px;color:#86868B">Sobrescreve a subcategoria só nesta despesa.</span>
+        </div>
+        <div style="grid-column:span 4;display:flex;flex-direction:column;gap:6px;min-width:0;opacity:{{ prioOp }}"><span style="font-size:12px;font-weight:500;color:#6E6E73">Prioridade</span>
+          <div style="display:flex;gap:6px;height:36px">
+            <sc-for list="{{ prios }}" as="p" hint-placeholder-count="4"><button type="button" onClick="{{ p.pick }}" style="flex:1;border:1px solid {{ p.bd }};border-radius:8px;cursor:pointer;background:{{ p.bg }};color:{{ p.c }};font-size:13px;font-weight:600">{{ p.label }}</button></sc-for>
+          </div>
+          <span style="font-size:11px;color:#86868B">P1 mais importante · P4 menos</span>
+        </div>
+        <div style="grid-column:span 4;display:flex;flex-direction:column;gap:6px;min-width:0"><span style="font-size:12px;font-weight:500;color:#6E6E73">Série histórica</span>
+          <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;cursor:pointer;padding-top:8px"><input type="checkbox" checked="{{ f.ipca }}" onChange="{{ toggleIpca }}" style="width:16px;height:16px;margin:1px 0 0;accent-color:#30B0C7;flex:none"><span>Integra o agregado deflacionado pelo IPCA<span style="display:block;font-size:11px;color:#86868B;margin-top:2px">Desmarque em gastos pontuais que distorceriam a série.</span></span></label>
+        </div>
+        <label style="grid-column:span 12;display:flex;flex-direction:column;gap:6px;min-width:0"><span style="font-size:12px;font-weight:500;color:#6E6E73">Observações</span><textarea rows="2" placeholder="Opcional" style="border:1px solid #D2D2D7;border-radius:8px;padding:8px 10px;font-size:13px;color:#1D1D1F;background:#fff;box-sizing:border-box;width:100%;resize:vertical;min-height:56px"></textarea></label>
+      </div>
+      </sc-if>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;border-top:1px solid #F0F0F2;padding-top:14px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:10px">
+          <button type="submit" style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 16px;border:0;border-radius:8px;background:#30B0C7;color:#fff;font-size:13px;font-weight:600;cursor:pointer" style-hover="background:#2A9DB2"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>Lançar despesa</button>
+          <span style="font-size:12px;color:#86868B">Enter lança e mantém data, conta e pessoa para a próxima.</span>
+        </div>
+        <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}"><div style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:#1D7F3B"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>{{ toast }}</div></sc-if>
+      </div>
+    </form>
+
+    <div style="background:#fff;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.06),0 0 0 1px rgba(0,0,0,.03);overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid #F0F0F2;gap:12px;flex-wrap:wrap">
+        <div style="font-size:14px;font-weight:600">Lançamentos recentes</div>
+        <div style="font-size:12px;color:#6E6E73">Clique em Editar para alterar na própria linha</div>
+      </div>
+      <div style="overflow-x:auto">
+      <table style="width:100%;min-width:980px;border-collapse:collapse;font-size:13px;white-space:nowrap">
+        <thead><tr style="background:#FAFAFC">
+          <th style="text-align:left;font-size:11px;font-weight:600;color:#6E6E73;padding:9px 20px;border-bottom:1px solid #F0F0F2">Data</th>
+          <th style="text-align:left;font-size:11px;font-weight:600;color:#6E6E73;padding:9px 12px;border-bottom:1px solid #F0F0F2">Descrição</th>
+          <th style="text-align:left;font-size:11px;font-weight:600;color:#6E6E73;padding:9px 12px;border-bottom:1px solid #F0F0F2">Classificação</th>
+          <th style="text-align:left;font-size:11px;font-weight:600;color:#6E6E73;padding:9px 12px;border-bottom:1px solid #F0F0F2">Pessoa</th>
+          <th style="text-align:left;font-size:11px;font-weight:600;color:#6E6E73;padding:9px 12px;border-bottom:1px solid #F0F0F2">Conta</th>
+          <th style="text-align:left;font-size:11px;font-weight:600;color:#6E6E73;padding:9px 12px;border-bottom:1px solid #F0F0F2">Essencialidade</th>
+          <th style="text-align:right;font-size:11px;font-weight:600;color:#6E6E73;padding:9px 12px;border-bottom:1px solid #F0F0F2">Valor</th>
+          <th style="width:120px;border-bottom:1px solid #F0F0F2"></th>
+        </tr></thead>
+        <tbody>
+        <sc-for list="{{ rows }}" as="r" hint-placeholder-count="8">
+          <tr style="background:{{ r.bg }};animation:{{ r.anim }}" style-hover="background:#FAFAFC">
+            <sc-if value="{{ r.editing }}" hint-placeholder-val="{{ false }}">
+              <td style="padding:8px 8px 8px 20px;border-bottom:1px solid #F0F0F2"><input type="date" value="{{ r.isoDate }}" onChange="{{ r.eDate }}" style="height:30px;border:1px solid #30B0C7;border-radius:6px;padding:0 8px;font-size:12px;width:130px;box-sizing:border-box"></td>
+              <td style="padding:8px;border-bottom:1px solid #F0F0F2"><input value="{{ r.desc }}" onChange="{{ r.eDesc }}" style="height:30px;border:1px solid #30B0C7;border-radius:6px;padding:0 8px;font-size:13px;font-weight:600;width:100%;min-width:180px;box-sizing:border-box"></td>
+              <td style="padding:8px;border-bottom:1px solid #F0F0F2;color:#6E6E73">{{ r.cls }}</td>
+              <td style="padding:8px;border-bottom:1px solid #F0F0F2"><select value="{{ r.pessoa }}" onChange="{{ r.ePessoa }}" style="height:30px;border:1px solid #D2D2D7;border-radius:6px;padding:0 6px;font-size:12px;background:#fff"><option>Família</option><option>Tiago</option></select></td>
+              <td style="padding:8px;border-bottom:1px solid #F0F0F2"><select value="{{ r.conta }}" onChange="{{ r.eConta }}" style="height:30px;border:1px solid #D2D2D7;border-radius:6px;padding:0 6px;font-size:12px;background:#fff"><option>Conta Corrente Nubank</option><option>Cartão de Crédito</option><option>Dinheiro</option></select></td>
+              <td style="padding:8px;border-bottom:1px solid #F0F0F2"><span style="display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:500;background:{{ r.badgeBg }};color:{{ r.badgeC }}"><span style="width:6px;height:6px;border-radius:50%;background:currentColor"></span>{{ r.badge }}</span></td>
+              <td style="padding:8px;border-bottom:1px solid #F0F0F2;text-align:right"><input value="{{ r.valorRaw }}" onChange="{{ r.eValor }}" style="height:30px;border:1px solid #30B0C7;border-radius:6px;padding:0 8px;font-size:13px;font-weight:600;text-align:right;width:110px;box-sizing:border-box;font-variant-numeric:tabular-nums"></td>
+              <td style="padding:8px 20px 8px 8px;border-bottom:1px solid #F0F0F2;text-align:right"><div style="display:inline-flex;gap:6px"><button onClick="{{ r.save }}" style="height:28px;padding:0 10px;border:0;border-radius:6px;background:#30B0C7;color:#fff;font-size:12px;font-weight:600;cursor:pointer">Salvar</button><button onClick="{{ r.cancel }}" style="height:28px;padding:0 10px;border:1px solid #D2D2D7;border-radius:6px;background:#fff;color:#1D1D1F;font-size:12px;font-weight:500;cursor:pointer">Cancelar</button></div></td>
+            </sc-if>
+            <sc-if value="{{ r.viewing }}" hint-placeholder-val="{{ true }}">
+              <td style="padding:10px 20px;border-bottom:1px solid #F0F0F2;color:#6E6E73;font-variant-numeric:tabular-nums">{{ r.data }}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #F0F0F2;font-weight:600">{{ r.desc }}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #F0F0F2;color:#6E6E73">{{ r.cls }}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #F0F0F2">{{ r.pessoa }}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #F0F0F2">{{ r.conta }}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #F0F0F2"><span style="display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:500;background:{{ r.badgeBg }};color:{{ r.badgeC }}"><span style="width:6px;height:6px;border-radius:50%;background:currentColor"></span>{{ r.badge }}</span></td>
+              <td style="padding:10px 12px;border-bottom:1px solid #F0F0F2;text-align:right;font-weight:600;font-variant-numeric:tabular-nums">{{ r.valor }}</td>
+              <td style="padding:10px 20px 10px 8px;border-bottom:1px solid #F0F0F2;text-align:right"><div style="display:inline-flex;gap:4px"><button onClick="{{ r.edit }}" style="height:28px;padding:0 10px;border:0;border-radius:6px;background:none;color:#30B0C7;font-size:12px;font-weight:500;cursor:pointer" style-hover="background:#E6F6F9">Editar</button><button onClick="{{ r.remove }}" style="height:28px;padding:0 10px;border:0;border-radius:6px;background:none;color:#6E6E73;font-size:12px;font-weight:500;cursor:pointer" style-hover="background:#FFF1F0;color:#D70015">Excluir</button></div></td>
+            </sc-if>
+          </tr>
+        </sc-for>
+        </tbody>
+      </table>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#FAFAFC;border-top:1px solid #F0F0F2;font-size:12px;color:#6E6E73;gap:12px;flex-wrap:wrap">
+        <div style="display:flex;gap:16px;align-items:baseline"><span>Total da página <b style="color:#1D1D1F;font-variant-numeric:tabular-nums">{{ pageTotal }}</b></span><span>Total do mês <b style="color:#1D1D1F;font-variant-numeric:tabular-nums">{{ monthTotal }}</b></span></div>
+        <div style="display:flex;align-items:center;gap:6px"><span style="margin-right:6px">{{ pageLabel }}</span><button onClick="{{ prevPage }}" style="width:28px;height:28px;border:1px solid #D2D2D7;border-radius:6px;background:#fff;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:#1D1D1F;opacity:{{ prevOp }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg></button><button onClick="{{ nextPage }}" style="width:28px;height:28px;border:1px solid #D2D2D7;border-radius:6px;background:#fff;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;color:#1D1D1F;opacity:{{ nextOp }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></button></div>
+      </div>
+    </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isCat }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="Categorias" style="display:flex;flex-direction:column;flex:1">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 28px;background:rgba(255,255,255,.75);border-bottom:1px solid #E0E0E5;backdrop-filter:blur(20px);position:sticky;top:0;z-index:2">
+      <div style="display:flex;align-items:center;gap:16px;min-width:0"><h1 style="margin:0;font-size:17px;font-weight:600;letter-spacing:-.01em">Categorias</h1><span style="font-size:13px;color:#6E6E73;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Nível superior das despesas. Também usado no orçamento.</span></div>
+      <button onClick="{{ startNew }}" style="display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 14px;border:0;border-radius:7px;background:#30B0C7;color:#fff;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap" style-hover="background:#2A9DB2"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>Nova categoria</button>
+    </div>
+    <div style="padding:24px 28px 40px;display:flex;flex-direction:column;gap:14px;max-width:960px;width:100%;box-sizing:border-box">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div style="position:relative;flex:1;min-width:220px;max-width:360px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;left:10px;top:11px;color:#86868B"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg><input placeholder="Buscar categoria" value="{{ q }}" onChange="{{ setQ }}" style="height:36px;border:1px solid #D2D2D7;border-radius:8px;padding:0 10px 0 30px;font-size:13px;background:#fff;box-sizing:border-box;width:100%"></div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <span style="font-size:12px;color:#6E6E73">{{ catSummary }}</span>
+          <label style="display:inline-flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;user-select:none"><button type="button" onClick="{{ toggleInactive }}" role="switch" style="width:34px;height:20px;border-radius:10px;border:0;padding:0;cursor:pointer;position:relative;background:{{ swBg }};transition:background .15s"><span style="position:absolute;top:2px;left:{{ swLeft }};width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .15s"></span></button>Mostrar inativos</label>
+        </div>
+      </div>
+
+      <div style="background:#fff;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.06),0 0 0 1px rgba(0,0,0,.03);overflow:hidden">
+        <sc-if value="{{ newOpen }}" hint-placeholder-val="{{ false }}">
+        <form onSubmit="{{ saveNew }}" style="display:flex;align-items:center;gap:10px;padding:12px 20px;background:#E6F6F9;border-bottom:1px solid #C9EBF1">
+          <input autoFocus placeholder="Nome da nova categoria" value="{{ newName }}" onChange="{{ setNewName }}" style="flex:1;height:34px;border:1px solid #30B0C7;border-radius:8px;padding:0 10px;font-size:13px;font-weight:500;background:#fff;box-sizing:border-box;min-width:0">
+          <button type="submit" style="height:32px;padding:0 14px;border:0;border-radius:7px;background:#30B0C7;color:#fff;font-size:13px;font-weight:600;cursor:pointer">Salvar</button>
+          <button type="button" onClick="{{ cancelNew }}" style="height:32px;padding:0 12px;border:1px solid #D2D2D7;border-radius:7px;background:#fff;color:#1D1D1F;font-size:13px;font-weight:500;cursor:pointer">Cancelar</button>
+        </form>
+        </sc-if>
+        <sc-for list="{{ catRows }}" as="c" hint-placeholder-count="10">
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) 110px 170px;align-items:center;gap:16px;padding:0 20px;min-height:46px;border-bottom:1px solid #F0F0F2;font-size:13px;background:{{ c.bg }};animation:{{ c.anim }}" style-hover="background:#FAFAFC">
+            <sc-if value="{{ c.editing }}" hint-placeholder-val="{{ false }}">
+              <form onSubmit="{{ c.save }}" style="display:flex;gap:8px;align-items:center;padding:6px 0"><input autoFocus value="{{ c.draft }}" onChange="{{ c.setDraft }}" style="flex:1;height:32px;border:1px solid #30B0C7;border-radius:7px;padding:0 10px;font-size:13px;font-weight:500;box-sizing:border-box;min-width:0"></form>
+              <div></div>
+              <div style="display:flex;justify-content:flex-end;gap:6px"><button onClick="{{ c.save }}" style="height:28px;padding:0 10px;border:0;border-radius:6px;background:#30B0C7;color:#fff;font-size:12px;font-weight:600;cursor:pointer">Salvar</button><button onClick="{{ c.cancel }}" style="height:28px;padding:0 10px;border:1px solid #D2D2D7;border-radius:6px;background:#fff;color:#1D1D1F;font-size:12px;font-weight:500;cursor:pointer">Cancelar</button></div>
+            </sc-if>
+            <sc-if value="{{ c.viewing }}" hint-placeholder-val="{{ true }}">
+              <div style="font-weight:500;color:{{ c.nameC }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.nome }}</div>
+              <div><span style="display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:500;background:{{ c.badgeBg }};color:{{ c.badgeC }}"><span style="width:6px;height:6px;border-radius:50%;background:currentColor"></span>{{ c.badge }}</span></div>
+              <div style="display:flex;justify-content:flex-end;gap:4px"><button onClick="{{ c.edit }}" style="height:28px;padding:0 10px;border:0;border-radius:6px;background:none;color:#30B0C7;font-size:12px;font-weight:500;cursor:pointer" style-hover="background:#E6F6F9">Editar</button><button onClick="{{ c.toggle }}" style="height:28px;padding:0 10px;border:0;border-radius:6px;background:none;color:#6E6E73;font-size:12px;font-weight:500;cursor:pointer;min-width:72px" style-hover="background:#F0F0F2;color:#1D1D1F">{{ c.action }}</button></div>
+            </sc-if>
+          </div>
+        </sc-for>
+        <sc-if value="{{ catEmpty }}" hint-placeholder-val="{{ false }}"><div style="padding:28px 20px;text-align:center;font-size:13px;color:#86868B">Nenhuma categoria encontrada.</div></sc-if>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showMoreDefault&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Formulário&quot;}}">
+class Component extends DCLogic {
+  SUB = {
+    'Alimentação': ['Mercado (Alimentação)', 'Padaria', 'Açougue'],
+    'Lazer': ['Cinema', 'Viagem', 'Streaming'],
+    'Lazer - Alimentação fora de casa': ['Restaurante', 'Cafeteria', 'Sorveteria'],
+    'Serviços domésticos': ['Diarista', 'Babá'],
+    'Seguros': ['Seguro automotivo', 'Seguro residencial'],
+    'Vestuário': ['Roupa casual', 'Calçados'],
+    'Comodidades': ['YouTube Premium', 'Spotify'],
+    'Saúde': ['Farmácia', 'Consulta']
+  };
+  HIST = [
+    ['Varejão Serve Bem', 'Alimentação', 'Mercado (Alimentação)', 'Cartão de Crédito', 'Família', true, 0, 57.54],
+    ['Horti Fruti', 'Alimentação', 'Mercado (Alimentação)', 'Cartão de Crédito', 'Família', true, 0, 96.5],
+    ['Solaretto Sorvetes', 'Lazer - Alimentação fora de casa', 'Sorveteria', 'Cartão de Crédito', 'Tiago', false, 3, 120],
+    ['Seguro - Peugeout', 'Seguros', 'Seguro automotivo', 'Cartão de Crédito', 'Tiago', false, 3, 310.92],
+    ['YouTube Premium', 'Comodidades', 'YouTube Premium', 'Cartão de Crédito', 'Tiago', false, 3, 53.9],
+    ['Joana - Diarista', 'Serviços domésticos', 'Diarista', 'Conta Corrente Nubank', 'Família', false, 3, 2700],
+    ['Casual Store (Hering)', 'Vestuário', 'Roupa casual', 'Cartão de Crédito', 'Tiago', false, 1, 739.96]
+  ];
+  META = { 'Mercado (Alimentação)': [true, 0], 'Padaria': [true, 0], 'Açougue': [true, 0], 'Diarista': [false, 3], 'Babá': [false, 4], 'Seguro automotivo': [false, 3], 'Seguro residencial': [false, 3], 'Farmácia': [true, 0], 'Consulta': [true, 0], 'Roupa casual': [false, 1], 'Calçados': [false, 2] };
+  catOf(sub) { return Object.keys(this.SUB).find(c => this.SUB[c].includes(sub)) || ''; }
+  blank(keep) {
+    return { data: keep ? keep.data : '2026-09-09', valor: '', desc: '', cat: '', sub: '', conta: keep ? keep.conta : 'Conta Corrente Nubank', pessoa: keep ? keep.pessoa : 'Família', ess: true, prio: 3, ipca: true, lastValor: '' };
+  }
+  state = {
+    screen: 'despesa', f: this.blank(), ac: false, more: null, toast: '', page: 0, editing: null, draft: null, flash: null,
+    rows: [
+      ['2025-12-31', 'Joana - Diarista', 'Serviços domésticos', 'Diarista', 'Família', 'Conta Corrente Nubank', false, 3, 2700],
+      ['2025-12-31', 'Elisabete - Babá', 'Serviços domésticos', 'Babá', 'Família', 'Conta Corrente Nubank', false, 4, 1825],
+      ['2025-12-31', 'Solaretto Sorvetes', 'Lazer - Alimentação fora de casa', 'Sorveteria', 'Tiago', 'Cartão de Crédito', false, 3, 120],
+      ['2025-12-31', 'Varejão Serve Bem', 'Alimentação', 'Mercado (Alimentação)', 'Família', 'Cartão de Crédito', true, 0, 57.54],
+      ['2025-12-31', 'Seguro - Peugeout', 'Seguros', 'Seguro automotivo', 'Tiago', 'Cartão de Crédito', false, 3, 310.92],
+      ['2025-12-30', 'Antonio Carlos dos Santos Araújo', 'Manutenção e/ou reforma habitação', 'Jardinagem', 'Tiago', 'Conta Corrente Nubank', false, 4, 358.5],
+      ['2025-12-30', 'Recanto Doce - Padaria', 'Lazer - Alimentação fora de casa', 'Cafeteria', 'Tiago', 'Cartão de Crédito', false, 2, 21],
+      ['2025-12-30', 'Kumpel - Curso', 'Desenvolvimento pessoal', 'Cursos e/ou aprendizagem', 'Tiago', 'Cartão de Crédito', false, 2, 281.25],
+      ['2025-12-30', 'Casual Store (Hering)', 'Vestuário', 'Roupa casual', 'Tiago', 'Cartão de Crédito', false, 1, 739.96],
+      ['2025-12-29', 'Horti Fruti', 'Alimentação', 'Mercado (Alimentação)', 'Família', 'Cartão de Crédito', true, 0, 96.5],
+      ['2025-12-28', 'YouTube Premium', 'Comodidades', 'YouTube Premium', 'Tiago', 'Cartão de Crédito', false, 3, 53.9],
+      ['2025-12-27', 'Drogaria Raia', 'Manutenção e/ou reforma habitação', 'Reforma e/ou reparos', 'Tiago', 'Cartão de Crédito', false, 4, 133.64],
+      ['2025-12-26', 'Farmácia e Perfumaria', 'Alimentação', 'Mercado (Alimentação)', 'Família', 'Cartão de Crédito', true, 0, 315.33],
+      ['2025-12-26', 'C e T Presentes', 'Presente', 'Presente', 'Tiago', 'Cartão de Crédito', false, 4, 177],
+      ['2025-12-26', 'Mercado Livre', 'Alimentação', 'Mercado (Alimentação)', 'Tiago', 'Cartão de Crédito', true, 0, 199],
+      ['2025-12-24', 'Posto Ipiranga', 'Locomoção', 'Combustível', 'Tiago', 'Cartão de Crédito', true, 0, 312.4],
+      ['2025-12-23', 'Uber', 'Locomoção', 'Aplicativo', 'Tiago', 'Cartão de Crédito', false, 2, 34.9],
+      ['2025-12-22', 'Cinemark', 'Lazer', 'Cinema', 'Família', 'Cartão de Crédito', false, 3, 88]
+    ].map((r, i) => ({ id: i + 1, data: r[0], desc: r[1], cat: r[2], sub: r[3], pessoa: r[4], conta: r[5], ess: r[6], prio: r[7], valor: r[8] })),
+    q: '', showInactive: false, newOpen: false, newName: '', catEditing: null, catDraft: '',
+    cats: ['Água e esgoto', 'Alimentação', 'Caridade', 'Cartório', 'Comodidades', 'Cuidados pessoais', 'Desenvolvimento pessoal', 'Educação', 'Energia elétrica', 'Investimento imobiliário', 'Lazer', 'Lazer - Alimentação fora de casa', 'Locomoção', 'Manutenção e/ou reforma habitação', 'Manutenção propriedades', 'Moradia', 'Outros', 'Presente', 'Saúde', 'Seguros', 'Serviços domésticos', 'Telefonia', 'Tributos', 'Vestuário', 'Pet', 'Assinaturas antigas'].map((n, i) => ({ id: i + 1, nome: n, ativo: i < 24 }))
+  };
+  PAGE = 8;
+  fmt(n) { return 'R$ ' + Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  br(iso) { const [y, m, d] = iso.split('-'); return d + '/' + m + '/' + y; }
+  parseNum(s) { const n = parseFloat(String(s).replace(/\./g, '').replace(',', '.')); return isNaN(n) ? 0 : n; }
+  setF(k) { return e => this.setState(s => ({ f: { ...s.f, [k]: e.target.value } })); }
+  badge(r) { return r.ess ? { badge: 'Essencial', badgeBg: '#E4F7EA', badgeC: '#1D7F3B' } : { badge: 'Não essencial · P' + r.prio, badgeBg: '#FFF3E0', badgeC: '#B25E00' }; }
+  flash(id) { this.setState({ flash: id }); clearTimeout(this._fl); this._fl = setTimeout(() => this.setState({ flash: null }), 1200); }
+
+  renderVals() {
+    const s = this.state, f = s.f;
+    const isDespesa = s.screen === 'despesa';
+    const more = s.more ?? (this.props.showMoreDefault ?? true);
+    const nav = on => ({ w: on ? 500 : 400, c: on ? '#fff' : '#C7C7CC', bg: on ? 'rgba(255,255,255,.12)' : 'transparent', ic: on ? '#fff' : '#8E8E93' });
+    const nd = nav(isDespesa), nc = nav(!isDespesa);
+
+    const subGroups = Object.keys(this.SUB).sort().map(cat => ({ cat, subs: this.SUB[cat] }));
+    const fb = this.badge(f);
+    const qd = f.desc.trim().toLowerCase();
+    const acItems = this.HIST.filter(h => !qd || h[0].toLowerCase().includes(qd)).slice(0, 5).map(h => ({
+      nome: h[0], meta: h[1] + ' · ' + h[2] + ' · ' + h[3],
+      pick: e => { e.preventDefault(); this.setState(st => ({ ac: false, f: { ...st.f, desc: h[0], cat: h[1], sub: h[2], conta: h[3], pessoa: h[4], ess: h[5], prio: h[6] || 3, lastValor: this.fmt(h[7] || 0) } })); }
+    }));
+    const prios = [1, 2, 3, 4].map(p => { const on = f.prio === p && !f.ess; return { label: 'P' + p, bg: on ? '#1D1D1F' : '#fff', c: on ? '#fff' : '#1D1D1F', bd: on ? '#1D1D1F' : '#D2D2D7', pick: () => this.setState(st => ({ f: { ...st.f, prio: p } })) }; });
+
+    const sorted = [...s.rows].sort((a, b) => b.data.localeCompare(a.data) || b.id - a.id);
+    const pages = Math.max(1, Math.ceil(sorted.length / this.PAGE));
+    const page = Math.min(s.page, pages - 1);
+    const slice = sorted.slice(page * this.PAGE, (page + 1) * this.PAGE);
+    const rows = slice.map(r => {
+      const ed = s.editing === r.id, d = ed ? s.draft : r;
+      const up = k => e => this.setState(st => ({ draft: { ...st.draft, [k]: e.target.value } }));
+      return {
+        ...r, ...this.badge(r), data: this.br(r.data), isoDate: d.data, cls: r.cat + ' · ' + r.sub, valor: this.fmt(r.valor),
+        valorRaw: ed ? d.valorRaw : '', desc: d.desc, pessoa: d.pessoa, conta: d.conta,
+        editing: ed, viewing: !ed, bg: ed ? '#F7FCFD' : '#fff', anim: s.flash === r.id ? 'flashRow 1.2s ease-out' : 'none',
+        edit: () => this.setState({ editing: r.id, draft: { ...r, valorRaw: r.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) } }),
+        cancel: () => this.setState({ editing: null, draft: null }),
+        save: () => this.setState(st => ({ editing: null, draft: null, rows: st.rows.map(x => x.id === r.id ? { ...st.draft, valor: this.parseNum(st.draft.valorRaw) } : x) })),
+        remove: () => this.setState(st => ({ rows: st.rows.filter(x => x.id !== r.id) })),
+        eDate: up('data'), eDesc: up('desc'), ePessoa: up('pessoa'), eConta: up('conta'), eValor: up('valorRaw')
+      };
+    });
+    const sum = a => a.reduce((t, r) => t + r.valor, 0);
+
+    const qc = s.q.trim().toLowerCase();
+    const visible = s.cats.filter(c => (s.showInactive || c.ativo) && (!qc || c.nome.toLowerCase().includes(qc))).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    const catRows = visible.map(c => {
+      const ed = s.catEditing === c.id;
+      return {
+        ...c, editing: ed, viewing: !ed, nameC: c.ativo ? '#1D1D1F' : '#86868B',
+        badge: c.ativo ? 'Ativo' : 'Inativo', badgeBg: c.ativo ? '#E4F7EA' : '#F0F0F2', badgeC: c.ativo ? '#1D7F3B' : '#6E6E73',
+        action: c.ativo ? 'Desativar' : 'Reativar', bg: ed ? '#F7FCFD' : '#fff', anim: s.flash === 'c' + c.id ? 'flashRow 1.2s ease-out' : 'none',
+        draft: ed ? s.catDraft : '', setDraft: e => this.setState({ catDraft: e.target.value }),
+        edit: () => this.setState({ catEditing: c.id, catDraft: c.nome, newOpen: false }),
+        cancel: () => this.setState({ catEditing: null }),
+        save: e => { e && e.preventDefault(); const n = s.catDraft.trim(); if (!n) return; this.setState(st => ({ catEditing: null, cats: st.cats.map(x => x.id === c.id ? { ...x, nome: n } : x) })); this.flash('c' + c.id); },
+        toggle: () => { this.setState(st => ({ cats: st.cats.map(x => x.id === c.id ? { ...x, ativo: !x.ativo } : x) })); this.flash('c' + c.id); }
+      };
+    });
+    const nAtivas = s.cats.filter(c => c.ativo).length;
+
+    return {
+      isDespesa, isCat: !isDespesa,
+      goDespesa: e => { e.preventDefault(); this.setState({ screen: 'despesa' }); }, goCat: e => { e.preventDefault(); this.setState({ screen: 'cat' }); },
+      despW: nd.w, despC: nd.c, despBg: nd.bg, despIc: nd.ic, catW: nc.w, catC: nc.c, catBg: nc.bg, catIc: nc.ic,
+      f, subGroups, hasSub: !!f.sub, noSub: !f.sub, fBadge: fb.badge, fBadgeBg: fb.badgeBg, fBadgeC: fb.badgeC, lastValor: f.lastValor,
+      acItems, acOpen: s.ac && acItems.length > 0, prios, prioOp: f.ess ? .4 : 1,
+      setData: this.setF('data'), setValor: e => this.setState(st => ({ f: { ...st.f, valor: e.target.value, lastValor: '' } })), setDesc: e => this.setState(st => ({ ac: true, f: { ...st.f, desc: e.target.value, lastValor: '' } })),
+      setSub: e => { const sub = e.target.value, m = this.META[sub] || [false, 3]; this.setState(st => ({ f: { ...st.f, sub, cat: this.catOf(sub), ess: m[0], prio: m[1] || 3 } })); }, setConta: this.setF('conta'), setPessoa: this.setF('pessoa'),
+      toggleIpca: () => this.setState(st => ({ f: { ...st.f, ipca: !st.f.ipca } })),
+      openAc: () => this.setState({ ac: true }), closeAc: () => setTimeout(() => this.setState({ ac: false }), 120),
+      setEss: () => this.setState(st => ({ f: { ...st.f, ess: true } })), setNe: () => this.setState(st => ({ f: { ...st.f, ess: false } })),
+      essBg: f.ess ? '#fff' : 'transparent', essC: f.ess ? '#1D1D1F' : '#6E6E73', essSh: f.ess ? '0 1px 2px rgba(0,0,0,.1)' : 'none',
+      neBg: !f.ess ? '#fff' : 'transparent', neC: !f.ess ? '#1D1D1F' : '#6E6E73', neSh: !f.ess ? '0 1px 2px rgba(0,0,0,.1)' : 'none',
+      moreOpen: more, moreRot: more ? '90deg' : '0deg', toggleMore: () => this.setState({ more: !more }),
+      toast: s.toast,
+      submit: e => {
+        e.preventDefault(); const v = this.parseNum(f.valor); if (!v || !f.desc.trim() || !f.sub) return;
+        const id = Date.now();
+        this.setState(st => ({ rows: [{ id, data: f.data, desc: f.desc.trim(), cat: f.cat, sub: f.sub, pessoa: f.pessoa, conta: f.conta, ess: f.ess, prio: f.prio, valor: v }, ...st.rows], f: this.blank(f), page: 0, toast: 'Lançado: ' + f.desc.trim() + ' · ' + this.fmt(v) }));
+        this.flash(id); clearTimeout(this._to); this._to = setTimeout(() => this.setState({ toast: '' }), 3500);
+      },
+      rows, pageTotal: this.fmt(sum(slice)), monthTotal: this.fmt(82455.91 + sum(s.rows.filter(r => r.id > 1000))), monthCount: 26 + s.rows.filter(r => r.id > 1000).length,
+      pageLabel: (page * this.PAGE + 1) + '–' + Math.min(sorted.length, (page + 1) * this.PAGE) + ' de ' + sorted.length,
+      prevPage: () => this.setState({ page: Math.max(0, page - 1), editing: null }), nextPage: () => this.setState({ page: Math.min(pages - 1, page + 1), editing: null }),
+      prevOp: page === 0 ? .4 : 1, nextOp: page >= pages - 1 ? .4 : 1,
+      q: s.q, setQ: e => this.setState({ q: e.target.value }), showInactive: s.showInactive, toggleInactive: () => this.setState({ showInactive: !s.showInactive }),
+      swBg: s.showInactive ? '#30B0C7' : '#D2D2D7', swLeft: s.showInactive ? '16px' : '2px',
+      catSummary: nAtivas + ' ativas · ' + (s.cats.length - nAtivas) + ' inativas',
+      catRows, catEmpty: visible.length === 0,
+      newOpen: s.newOpen, newName: s.newName, setNewName: e => this.setState({ newName: e.target.value }),
+      startNew: () => this.setState({ newOpen: true, catEditing: null }), cancelNew: () => this.setState({ newOpen: false, newName: '' }),
+      saveNew: e => { e.preventDefault(); const n = s.newName.trim(); if (!n) return; const id = Date.now(); this.setState(st => ({ cats: [...st.cats, { id, nome: n, ativo: true }], newOpen: false, newName: '' })); this.flash('c' + id); }
+    };
+  }
+}
+</script>
+</body>
+</html>

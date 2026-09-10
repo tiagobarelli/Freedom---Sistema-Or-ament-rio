@@ -1,3 +1,10 @@
-{# Resposta da rota GET /lancamentos/despesas/classificacao. #}
-{% from "lancamentos/_classificacao_macro.html" import classificacao %}
-{{ classificacao(sub, efetiva, prioridade, override) }}
+{#
+  Resposta da rota GET /lancamentos/despesas/classificacao.
+
+  Duas pecas em lugares diferentes do formulario: o resumo entra em
+  #classificacao (o alvo declarado do hx-get) e o bloco de prioridade viaja
+  fora de banda, pelo id proprio, porque desceu para "Mais opcoes".
+#}
+{% from "_macros.html" import classificacao_resumo, bloco_prioridade %}
+{{ classificacao_resumo(sub, efetiva, override) }}
+{{ bloco_prioridade(efetiva, prioridade, oob=true) }}

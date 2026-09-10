@@ -54,7 +54,20 @@ Para trocar a senha depois (mesma regra: pedida na hora, sem eco):
 flask set-password --login tiago
 ```
 
-## 4. Rodar
+## 4. Dependências de desenvolvimento (opcional)
+
+Só para validar uma entrega em navegador real: capturas comparadas por SHA-256,
+números lidos do DOM, celular em 390px. A aplicação não importa nada daqui.
+
+```powershell
+pip install -r requirements-dev.txt
+playwright install chromium
+```
+
+O Chromium fica em `%LOCALAPPDATA%\ms-playwright`, fora do projeto; o `venv/`
+já está no `.gitignore`.
+
+## 5. Rodar
 
 ```powershell
 python run.py
@@ -106,6 +119,41 @@ desta tabela — não há bundler nem `package.json`.
 
 O código próprio de gráficos fica em `static/js/visao_anual.js`; ele não
 calcula valor nenhum, só desenha o que o servidor manda pronto.
+
+### Ícones
+
+Os ícones do menu, do rodapé da barra lateral e do botão primário são do
+[Lucide](https://lucide.dev), **licença ISC**. Não há biblioteca carregada:
+os quinze caminhos SVG usados estão copiados dentro da macro `icone()` em
+`templates/_macros.html`, que os desenha em 16×16 com `currentColor`. Atualizar
+um ícone é substituir o caminho ali — não há `package.json`, sprite nem CDN.
+
+```
+ISC License
+
+Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part
+of Feather (MIT). All other copyright (c) for Lucide are held by Lucide
+Contributors 2022.
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+```
+
+### Fontes e imagens
+
+Nenhuma das duas vem de fora. A tipografia é a **fonte do sistema**
+(`-apple-system` no Mac, `system-ui` → Segoe UI no Windows); o único arquivo de
+imagem é `static/favicon.svg`, desenhado no projeto. Nenhuma tela faz
+requisição a domínio externo.
 
 ## Cadastros
 

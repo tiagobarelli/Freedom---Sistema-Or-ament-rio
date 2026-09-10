@@ -1,9 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img"
      aria-label="Freedom">
-  <!-- Marca propria: F branco sobre o circulo da cor de destaque do tema
-       (--cor-destaque, #5b50e0). Nada de terceiros, nada de fonte externa:
-       o F e desenhado como caminho para nao depender do que o sistema tem
-       instalado. -->
-  <circle cx="16" cy="16" r="16" fill="#5b50e0"/>
+  <!-- Marca propria: F branco sobre o quadrado arredondado do acento do tema
+       (--accent, #30B0C7). Esta e a UNICA copia desse hex fora do app.css:
+       SVG estatico nao le variavel CSS, entao a cor precisa estar escrita.
+       Se o acento mudar no :root, muda aqui tambem.
+
+       O quadrado de raio 7 (em 26px) do desenho, reescalado para 32: raio 8.6.
+       Nada de terceiros, nada de fonte externa: o F e um caminho, para nao
+       depender do que o sistema tem instalado. -->
+  <rect width="32" height="32" rx="8.6" fill="#30B0C7"/>
   <path d="M11 8h11v3.6h-7.1v4.2h6.3v3.6h-6.3V24H11z" fill="#ffffff"/>
 </svg>

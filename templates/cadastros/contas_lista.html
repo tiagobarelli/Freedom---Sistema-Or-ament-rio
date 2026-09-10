@@ -7,26 +7,20 @@
   <p class="pagina-subtitulo">De onde o dinheiro sai. Serve para classificar; não há saldo.</p>
 {% endblock %}
 {% block acoes_pagina %}
-  <a class="btn btn--primario" href="{{ url_for('cadastros.contas_nova') }}">Nova conta</a>
+  <a class="btn btn--primario" href="{{ url_for('cadastros.contas_nova') }}">
+    {{ m.icone("plus", tamanho=14, tracado=2.25) }}Nova conta
+  </a>
 {% endblock %}
 
 {% block content %}
-  <form class="filtros" method="get">
-    {{ m.filtro_inativos(mostrar_inativos) }}
-  </form>
+<div class="painel painel--estreito">
 
-  <div class="tabela-caixa">
-    {% if linhas %}
-      <table class="tabela">
-        {{ m.cabecalho_tabela(["Nome", "Tipo", "Observação", "Situação"]) }}
-        <tbody>
-          {% for item in linhas %}
-            {% include "cadastros/_linha_conta.html" %}
-          {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
-      {{ m.vazio("Nenhuma conta", "Cadastre as contas, cartões e o dinheiro em espécie.") }}
-    {% endif %}
-  </div>
+  {{ m.filtros_cadastro(contagem, mostrar_inativos) }}
+
+  {% call m.lista_cadastro(linhas, ["Nome", "Tipo", "Observação", "Situação"],
+                            "Nenhuma conta", "Cadastre as contas, cartões e o dinheiro em espécie.") %}
+    {% for item in linhas %}{% include "cadastros/_linha_conta.html" %}{% endfor %}
+  {% endcall %}
+
+</div>
 {% endblock %}

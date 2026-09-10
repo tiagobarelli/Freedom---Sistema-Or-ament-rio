@@ -17,3 +17,6 @@ instance/
 .vscode/
 .idea/
 Thumbs.db
+
+# Outros
+Prompts/

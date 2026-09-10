@@ -1520,6 +1520,14 @@ body {
   gap: 14px;
 }
 
+/* Dentro da grade quem afasta um campo do outro e o `gap`. Sem isto, a regra
+   de formulario empilhado (`.campo + .campo`) soma 16px de margem em todo
+   campo menos o primeiro, e a primeira linha sai desalinhada: Data no topo,
+   Valor e Descricao 16px abaixo. */
+.grade-form .campo + .campo {
+  margin-top: 0;
+}
+
 .vao-2  { grid-column: span 2; }
 .vao-3  { grid-column: span 3; }
 .vao-4  { grid-column: span 4; }

@@ -280,26 +280,19 @@
   {% set efetiva = form.essencialidade.data
                    or (sub_selecionada.essencialidade if sub_selecionada else none) %}
 
+  {#
+    A ordem da primeira linha e Data, Descricao, Valor - e nao a alfabetica nem
+    a do desenho. E a ordem em que se preenche: a descricao aciona o
+    autocomplete, que preenche subcategoria, conta e pessoa e escreve "ultimo:
+    R$ x" embaixo do Valor. Com o Valor a esquerda, a dica aparecia num campo
+    que ja tinha ficado para tras.
+  #}
   <div class="grade-form">
     <div class="campo vao-3">
       {{ form.data.label(class="campo__rotulo") }}
       {{ form.data(class="entrada" ~ (" entrada--erro" if form.data.errors else ""),
                    type="date") }}
       {% for e in form.data.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
-    </div>
-
-    <div class="campo campo--valor vao-3">
-      {{ form.valor.label(class="campo__rotulo") }}
-      <div class="entrada-moeda">
-        <span class="entrada-moeda__prefixo" aria-hidden="true">R$</span>
-        {{ form.valor(class="entrada entrada--grande"
-                             ~ (" entrada--erro" if form.valor.errors else ""),
-                      inputmode="decimal", autocomplete="off",
-                      placeholder="0,00") }}
-      </div>
-      {# Preenchido pelo autocomplete; o valor em si NUNCA e copiado. #}
-      <p class="campo__apoio" id="valor-apoio" hidden></p>
-      {% for e in form.valor.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
     </div>
 
     <div class="campo campo--descricao vao-6">
@@ -331,6 +324,20 @@
                           autocomplete="off", maxlength=200, autofocus=true) }}
       {% endif %}
       {% for e in form.descricao.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
+    </div>
+
+    <div class="campo campo--valor vao-3">
+      {{ form.valor.label(class="campo__rotulo") }}
+      <div class="entrada-moeda">
+        <span class="entrada-moeda__prefixo" aria-hidden="true">R$</span>
+        {{ form.valor(class="entrada entrada--grande"
+                             ~ (" entrada--erro" if form.valor.errors else ""),
+                      inputmode="decimal", autocomplete="off",
+                      placeholder="0,00") }}
+      </div>
+      {# Preenchido pelo autocomplete; o valor em si NUNCA e copiado. #}
+      <p class="campo__apoio" id="valor-apoio" hidden></p>
+      {% for e in form.valor.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
     </div>
 
     <div class="campo vao-5">

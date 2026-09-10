@@ -1,5 +1,10 @@
 <!doctype html>
-<html lang="pt-br">
+{#
+  `atributos_html` existe para o estado que precisa valer para a PAGINA
+  INTEIRA e ser lido por CSS antes de qualquer coisa ser pintada. Hoje so o
+  `data-valores` das telas autenticadas (ver layout_app.html) o usa.
+#}
+<html lang="pt-br"{% block atributos_html %}{% endblock %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,6 +14,9 @@
         href="{{ url_for('static', filename='favicon.svg') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
   <script src="{{ url_for('static', filename='js/htmx.min.js') }}" defer></script>
+  {# Script que precisa rodar ANTES do corpo existir. Nada de tela: so estado
+     que o CSS le. #}
+  {% block cabeca %}{% endblock %}
 </head>
 {#
   O token CSRF viaja em todo POST do HTMX pelo cabecalho X-CSRFToken, que o

@@ -1,6 +1,8 @@
 {% extends "layout_app.html" %}
 {% import "_macros.html" as m %}
 
+{% set TRAVESSAO = "—" %}
+
 {#
   Celula de valor das tabelas do ano. Tres regras num lugar so:
   - sem numero (None) vira travessao;
@@ -8,25 +10,38 @@
   - o travessao NUNCA e vermelho, porque a classe so entra quando ha numero.
   Por isso a cor mora no <span> e nao no <td>: um <td class="negativo"> pintaria
   tambem o mes que ainda nao chegou.
+
+  O mesmo <span> leva a marca `sensivel`: ele e o elemento MAIS INTERNO, o que
+  embrulha o texto, e e la que o esqueleto do olho tem de entrar para o bloco
+  cinza ter a largura do valor e nao a da celula. O travessao tambem se
+  esconde - a regra da rodada 19 e "todas as celulas menos a coluna do mes".
+
+  `marcar=false` existe para UM lugar: a linha de apoio do celular, onde o
+  valor fica no meio de uma frase ("Ess. R$ x · Nao ess. R$ y"). Ali um <span>
+  a mais nao e de graca: o Chrome posiciona cada caixa em linha por conta
+  propria e as letras seguintes mudam de subpixel - o diff de pixels da rodada
+  mostrou a diferenca em treze linhas da tabela mes a mes em 390px, com a
+  pagina do mesmo tamanho. Naquela linha, entao, o valor sai como sempre saiu
+  e quem esconde e a celula inteira (`.sensivel-bloco`).
 #}
-{% macro dinheiro(valor) -%}
-  {%- if valor is none -%}
-    &mdash;
-  {%- elif valor < 0 -%}
-    <span class="negativo">{{ m.reais(valor) }}</span>
+{% macro valor_marcado(corpo, negativo, marcar) -%}
+  {%- if marcar -%}
+    <span class="sensivel{{ ' negativo' if negativo }}">{{ corpo }}</span>
+  {%- elif negativo -%}
+    <span class="negativo">{{ corpo }}</span>
   {%- else -%}
-    {{ m.reais(valor) }}
+    {{- corpo -}}
   {%- endif -%}
 {%- endmacro %}
 
-{% macro percentual(valor) -%}
-  {%- if valor is none -%}
-    &mdash;
-  {%- elif valor < 0 -%}
-    <span class="negativo">{{ valor | numero(1) }}%</span>
-  {%- else -%}
-    {{ valor | numero(1) }}%
-  {%- endif -%}
+{% macro dinheiro(valor, marcar=true) -%}
+  {{- valor_marcado(m.reais(valor) if valor is not none else TRAVESSAO,
+                    valor is not none and valor < 0, marcar) -}}
+{%- endmacro %}
+
+{% macro percentual(valor, marcar=true) -%}
+  {{- valor_marcado((valor | numero(1) ~ "%") if valor is not none else TRAVESSAO,
+                    valor is not none and valor < 0, marcar) -}}
 {%- endmacro %}
 
 {#
@@ -56,12 +71,14 @@
     <td class="col-num col-acumulado">{{ dinheiro(l.acumulado) }}</td>
     <td class="col-num col-taxa">{{ percentual(l.taxa) }}</td>
   </tr>
+  {# Quatro valores no meio de uma frase: aqui o esqueleto e a celula inteira,
+     rotulos e pontos junto. Ver o comentario de `valor_marcado`. #}
   <tr class="linha-apoio">
-    <td colspan="8">
-      Ess. {{ dinheiro(l.essenciais) }} &middot;
-      Não ess. {{ dinheiro(l.nao_essenciais) }} &middot;
-      Acum. {{ dinheiro(l.acumulado) }} &middot;
-      Taxa {{ percentual(l.taxa) }}
+    <td colspan="8" class="sensivel-bloco">
+      Ess. {{ dinheiro(l.essenciais, marcar=false) }} &middot;
+      Não ess. {{ dinheiro(l.nao_essenciais, marcar=false) }} &middot;
+      Acum. {{ dinheiro(l.acumulado, marcar=false) }} &middot;
+      Taxa {{ percentual(l.taxa, marcar=false) }}
     </td>
   </tr>
 {% endmacro %}
@@ -96,6 +113,30 @@
   <a class="btn btn--primario" href="{{ url_for('lancamentos.despesas_tela') }}">
     {{ m.icone("plus", tamanho=14, tracado=2.25) }}Lançar despesa
   </a>
+  {#
+    O olho. Esconde todo numero da tela quando o dono abre o sistema com
+    alguem olhando junto; a protecao e visual, os numeros continuam no HTML.
+
+    O nome acessivel e FIXO ("Mostrar valores"): quem diz em que estado o
+    controle esta e o aria-pressed, nao o rotulo - rotulo que muda faz o
+    leitor de tela anunciar coisa diferente a cada clique. O `title` repete o
+    mesmo texto para o ponteiro.
+
+    Os dois icones vao juntos no botao e quem escolhe e o CSS, pelo mesmo
+    atributo que esconde os valores: assim o icone certo ja vem pintado no
+    primeiro quadro, sem depender de o JavaScript ter rodado. O `.so-leitor`
+    e o que faz o icone nao ser o unico conteudo do controle.
+
+    O aria-pressed inicial e `false` porque a pagina sai do servidor oculta;
+    quem o corrige, se esta aba tiver direito a ver, e o script do
+    layout_app.html - o mesmo que escreve o atributo que o CSS le.
+  #}
+  <button type="button" class="btn btn--secundario btn--icone"
+          id="botao-olho" title="Mostrar valores" aria-pressed="false">
+    <span class="so-leitor">Mostrar valores</span>
+    {{ m.icone("eye-off", classe="icone olho__oculto") }}
+    {{ m.icone("eye", classe="icone olho__visivel") }}
+  </button>
 {% endblock %}
 
 {% block content %}
@@ -109,19 +150,24 @@
   #}
   <div class="painel-grade">
     {% for c in cards.kpis %}
+      {#
+        Valor e linha de apoio vao num <span> proprio, e nao no <p>: e o
+        <span> que o esqueleto pinta, e o bloco cinza tem de medir o texto, e
+        nao a largura do cartao. O trilho e marcado no TRILHO: o sulco fica no
+        lugar e quem some e a fatia colorida.
+      #}
+      {% set valor = m.reais(c.valor) if c.valor is not none else c.texto %}
       <article class="card kpi">
         <p class="kpi__rotulo">{{ c.rotulo }}</p>
-        <p class="kpi__valor {{ c.classe or '' }}">
-          {%- if c.valor is not none %}{{ m.reais(c.valor) }}{% else %}{{ c.texto }}{% endif -%}
-        </p>
+        <p class="kpi__valor {{ c.classe or '' }}"><span class="sensivel">{{ valor }}</span></p>
         {% if c.barra %}
           {# Largura em `style` com PONTO decimal: e CSS, nao texto de tela. #}
-          <div class="kpi__trilho" aria-hidden="true">
+          <div class="kpi__trilho sensivel-barra" aria-hidden="true">
             <span class="kpi__preenchimento {{ c.barra.classe }}"
                   style="width: {{ '%.2f' | format(c.barra.pct) }}%"></span>
           </div>
         {% endif %}
-        {% if c.apoio %}<p class="kpi__apoio">{{ c.apoio }}</p>{% endif %}
+        {% if c.apoio %}<p class="kpi__apoio"><span class="sensivel">{{ c.apoio }}</span></p>{% endif %}
       </article>
     {% endfor %}
   </div>
@@ -132,12 +178,19 @@
     separa do valor e o CSS que poe, porque e separador, nao conteudo.
   #}
   <div class="card indicadores">
+    {#
+      Valor e nota sao dois blocos cinzas separados quando o olho esconde: o
+      ponto que o CSS poe entre eles continua a vista, porque e separador e
+      nao numero. A nota do pico (descricao digitada mais a data) esconde
+      junto - e o que mais identifica um gasto nesta tela.
+    #}
     {% for c in cards.indicadores %}
       <div class="indicador">
         <span class="indicador__rotulo">{{ c.rotulo }}</span>
         <span class="indicador__valor {{ 'negativo' if c.negativo else '' }}">
-          {%- if c.valor is not none %}{{ m.reais(c.valor) }}{% else %}{{ c.texto }}{% endif -%}
-          {%- if c.apoio %} <span class="indicador__nota {{ c.classe or '' }}">{{ c.apoio }}</span>{% endif -%}
+          {%- set valor = m.reais(c.valor) if c.valor is not none else c.texto -%}
+          <span class="sensivel">{{ valor }}</span>
+          {%- if c.apoio %} <span class="indicador__nota {{ c.classe or '' }}"><span class="sensivel">{{ c.apoio }}</span></span>{% endif -%}
         </span>
       </div>
     {% endfor %}
@@ -154,7 +207,7 @@
   <div class="painel-graficos">
     <section class="card grafico">
       <h2 class="card__titulo">Receitas &times; Despesas</h2>
-      <div class="grafico__area">
+      <div class="grafico__area sensivel-area">
         <canvas id="grafico-receitas-despesas"
                 aria-label="Receitas e despesas por mes"></canvas>
       </div>
@@ -162,7 +215,7 @@
 
     <section class="card grafico">
       <h2 class="card__titulo">Essenciais &times; Não essenciais</h2>
-      <div class="grafico__area">
+      <div class="grafico__area sensivel-area">
         <canvas id="grafico-essencialidade"
                 aria-label="Despesas essenciais, nao essenciais e total por mes"></canvas>
       </div>
@@ -170,7 +223,7 @@
 
     <section class="card grafico">
       <h2 class="card__titulo">Poupança acumulada</h2>
-      <div class="grafico__area">
+      <div class="grafico__area sensivel-area">
         <canvas id="grafico-acumulado"
                 aria-label="Saldo acumulado mes a mes desde janeiro"></canvas>
       </div>
@@ -178,7 +231,7 @@
 
     <section class="card grafico">
       <h2 class="card__titulo">Não essenciais por prioridade</h2>
-      <div class="grafico__area">
+      <div class="grafico__area sensivel-area">
         <canvas id="grafico-prioridades"
                 aria-label="Despesas nao essenciais por mes e prioridade"></canvas>
       </div>
@@ -222,7 +275,10 @@
   <section class="card card--tabela">
     <div class="card__cabecalho">
       <h2 class="card__titulo">Despesas por categoria</h2>
-      <span class="card__contador">{{ tabelas.categorias.contador }}</span>
+      {# O contador tambem e numero da tela: "21 categorias" diz o tamanho da
+         vida financeira de quem esta olhando. A marca vai num <span> POR
+         DENTRO: o de fora e item de um flex, e marca nao mexe em layout. #}
+      <span class="card__contador"><span class="sensivel">{{ tabelas.categorias.contador }}</span></span>
     </div>
     <div class="tabela-caixa">
       {# Quatro colunas: nome, barra, total e percentual. A barra ganhou coluna
@@ -240,15 +296,24 @@
         </thead>
         <tbody>
           {% for l in tabelas.categorias.linhas %}
+            {# A marca da barra vai na CELULA, e nao no preenchimento: quem
+               desenha a barra e a macro `barra_pct`, que serve outras telas e
+               nao muda nesta rodada. O sulco continua; a fatia some. #}
             <tr>
               <td class="col-categoria">{{ l.categoria }}</td>
-              <td class="col-barra">{{ m.barra_pct(l.pct) }}</td>
-              <td class="col-num">{{ m.reais(l.total) }}</td>
-              <td class="col-pct">{{ l.pct | numero(1) }}%</td>
+              <td class="col-barra sensivel-barra">{{ m.barra_pct(l.pct) }}</td>
+              <td class="col-num"><span class="sensivel">{{ m.reais(l.total) }}</span></td>
+              <td class="col-pct"><span class="sensivel">{{ l.pct | numero(1) }}%</span></td>
             </tr>
           {% else %}
+            {# O ano esta escrito no meio da frase, e a frase inteira e o
+               conteudo da celula: esconde como bloco. "Nenhuma despesa em
+               <ano>" tambem conta alguma coisa a quem estiver olhando junto.
+               Ramo que nao aparece com o dado real do dono - todo ano que o
+               seletor oferece tem lancamento -, exercitado na validacao com o
+               painel composto pelas funcoes puras do servico. #}
             <tr>
-              <td class="tabela__vazio" colspan="4">Nenhuma despesa em {{ ano }}</td>
+              <td class="tabela__vazio sensivel-bloco" colspan="4">Nenhuma despesa em {{ ano }}</td>
             </tr>
           {% endfor %}
         </tbody>
@@ -258,8 +323,8 @@
             <tr>
               <td class="col-categoria">Total</td>
               <td class="col-barra"></td>
-              <td class="col-num">{{ m.reais(tabelas.categorias.total.total) }}</td>
-              <td class="col-pct">{{ tabelas.categorias.total.pct | numero(1) }}%</td>
+              <td class="col-num"><span class="sensivel">{{ m.reais(tabelas.categorias.total.total) }}</span></td>
+              <td class="col-pct"><span class="sensivel">{{ tabelas.categorias.total.pct | numero(1) }}%</span></td>
             </tr>
           </tfoot>
         {% endif %}

@@ -40,6 +40,178 @@
   ]),
 ] %}
 
+{#
+  Valores sensiveis: o servidor SEMPRE manda a pagina no estado oculto. Quem
+  revela e o script do bloco `cabeca`, se a aba tiver direito a isso. Sem
+  JavaScript nao ha revelacao nenhuma - falha fechada.
+#}
+{% block atributos_html %} data-valores="ocultos"{% endblock %}
+
+{% block cabeca %}
+<script>
+  /*
+    Dono unico do estado "os numeros estao a mostra nesta aba".
+
+    O estado mora em `data-valores` no <html>: e ele que o CSS le (secao 5.16
+    do app.css) e e dele que sai o `aria-pressed` do botao olho. Um valor, um
+    lugar - os dois nunca podem discordar.
+
+    O estado pertence a ABA, e nao a tela nem ao usuario. Nada vai para o
+    servidor: sem rota, sem cookie, sem sessao. E nao vai para o localStorage,
+    que sobreviveria a fechar a aba.
+
+    --- como uma aba a mostra atravessa uma navegacao ---
+
+    Um BASTAO no sessionStorage, entregue no `pagehide` de quem sai e
+    CONSUMIDO na leitura por quem entra. Como quem carrega apaga o bastao na
+    hora de le-lo, nada fica guardado enquanto a pagina vive - e uma aba
+    duplicada, que copia o sessionStorage, copia um armazem vazio.
+
+    --- a armadilha, e o que a desarma ---
+
+    `visibilitychange` com `hidden` dispara TAMBEM quando a propria aba
+    navega, e nao so quando o usuario sai dela. Tratar todo `hidden` como
+    "saiu da aba" faria trocar de ano esconder os valores.
+
+    O que separa um caso do outro e a ORDEM, e nao o relogio: quando a aba
+    navega, o `pagehide` vem SEMPRE antes do `hidden` - medido nesta rodada em
+    F5, troca de ano, link, Voltar do navegador e ida para o cache de ida e
+    volta, com o mesmo milissegundo nos dois eventos e o pagehide na frente.
+    Quando o usuario sai da aba, `hidden` vem sozinho. Entao: `hidden` depois
+    do pagehide deste documento e navegacao; `hidden` sem pagehide e saida de
+    aba, e ai a tela se esconde na hora - e o que nao pode ser visto de
+    relance na outra aba, no alt-tab ou no trocador de aplicativo do celular.
+
+    --- Voltar do navegador (cache de ida e volta) ---
+
+    Voltar pode devolver o documento INTEIRO do cache, vivo, sem carregar
+    nada. Ali o bastao nao serve: o `pageshow` do documento que volta dispara
+    ANTES do `pagehide` do que sai (medido: 1 ms antes), entao o bastao ainda
+    nem foi entregue. Como e o mesmo documento, ele volta como estava - e a
+    unica coisa que pode ter tirado dele o direito de ver e o usuario ter
+    saido da aba enquanto ele dormia. Isso quem anota e a outra tela, no
+    momento em que a saida acontece, na marca SAIU - que ja esta gravada
+    quando o `pageshow` le. Sem marca, volta a mostra, sem piscar.
+
+    A marca SAIU morre quando a aba reconquista o direito de ver, e so ai:
+    e o que `aplicar(true)` faz.
+  */
+  (function () {
+    'use strict';
+
+    var BASTAO = 'freedom.valores';
+    var SAIU = 'freedom.valores.saiu';
+
+    // Prazo de validade do bastao, em milissegundos. Depois da ordem acima,
+    // sobrou UM caso que nenhum evento distingue: fechar a aba e navegar sao
+    // a mesma sequencia. O prazo e o que impede uma aba REABERTA pelo
+    // navegador (que pode receber o sessionStorage de volta) de herdar o
+    // bastao do fechamento.
+    //
+    // O que ele precisa cobrir e curto: o `pagehide` de quem sai so dispara
+    // quando a resposta do proximo ja chegou, entao o tempo do servidor NAO
+    // entra na conta - sobra o caminho ate este script rodar. Medido na
+    // validacao, em 1440 e em 390: 4 ms no pior caso; 13 ms com a CPU freada
+    // em 4x; 101 ms com a CPU freada em 20x, mais lento que qualquer celular
+    // da casa. 300 da tres vezes esse extremo e continua muito abaixo do que
+    // leva reabrir uma aba a mao. Errar para oculto e aceitavel; errar para
+    // visivel, nao.
+    var LIMIAR = 300;
+
+    var raiz = document.documentElement;
+    var revelado = false;
+    var navegando = false;       // este documento ja disparou `pagehide`
+    var saindo = false;          // logout: a aba nao entrega bastao nenhum
+
+    // sessionStorage pode LANCAR so de ser lido (navegacao privativa,
+    // politica do navegador). Sem ele nao ha bastao, e sem bastao a tela fica
+    // oculta - que e o lado certo do erro.
+    function ler(chave) {
+      try { return sessionStorage.getItem(chave); } catch (e) { return null; }
+    }
+
+    function gravar(chave, valor) {
+      try { sessionStorage.setItem(chave, valor); } catch (e) { /* sem memoria */ }
+    }
+
+    function apagar(chave) {
+      try { sessionStorage.removeItem(chave); } catch (e) { /* sem memoria */ }
+    }
+
+    // Recebe e CONSOME: o bastao nao fica guardado enquanto a pagina vive.
+    function receberBastao() {
+      var hora = ler(BASTAO);
+      apagar(BASTAO);
+      return hora !== null && (Date.now() - Number(hora)) <= LIMIAR;
+    }
+
+    // O unico lugar que escreve o estado. O atributo que o CSS le e o
+    // `aria-pressed` do botao saem daqui juntos, sempre.
+    function aplicar(novo) {
+      revelado = novo;
+      // A aba tem o direito de ver AGORA: saida antiga nao vale mais.
+      if (novo) apagar(SAIU);
+      raiz.setAttribute('data-valores', novo ? 'visiveis' : 'ocultos');
+      var botao = document.getElementById('botao-olho');
+      if (botao) botao.setAttribute('aria-pressed', novo ? 'true' : 'false');
+    }
+
+    aplicar(receberBastao());
+
+    window.addEventListener('pageshow', function (e) {
+      if (!e.persisted) return;      // carregamento normal: ja resolvido acima
+      navegando = false;             // o pagehide que trouxe ate aqui passou
+      if (ler(SAIU)) aplicar(false);
+    });
+
+    window.addEventListener('pagehide', function () {
+      navegando = true;
+      if (saindo || !revelado) return;
+      gravar(BASTAO, String(Date.now()));
+    });
+
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) {
+        // Documento que volta do cache acorda aqui, e pode acordar ANTES do
+        // `pageshow`: se a aba perdeu o direito de ver enquanto ele dormia,
+        // esconde ja neste evento, sem esperar o proximo.
+        if (ler(SAIU)) aplicar(false);
+        return;
+      }
+      // `navegando` = o pagehide ja passou, entao este `hidden` e a aba
+      // navegando, e nao o usuario saindo dela.
+      if (navegando) return;
+      aplicar(false);
+      gravar(SAIU, '1');
+    });
+
+    // O botao so existe na Visao Anual, e so depois que o corpo for lido:
+    // por delegacao, este script nao precisa esperar por ele.
+    document.addEventListener('click', function (e) {
+      var alvo = e.target.closest && e.target.closest('#botao-olho');
+      if (alvo) aplicar(!revelado);
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+      // Agora o botao existe: o estado anunciado passa a ser o mesmo que o
+      // CSS ja esta lendo.
+      aplicar(revelado);
+
+      // Sair encerra a sessao: a proxima entrada comeca oculta, mesmo que
+      // seja o mesmo usuario no mesmo minuto.
+      var sair = document.querySelector('form.sair');
+      if (sair) {
+        sair.addEventListener('submit', function () {
+          saindo = true;
+          apagar(BASTAO);
+          apagar(SAIU);
+        });
+      }
+    });
+  })();
+</script>
+{% endblock %}
+
 {% block corpo %}
 <div class="app">
 

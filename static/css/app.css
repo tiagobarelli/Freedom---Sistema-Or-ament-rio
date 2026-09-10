@@ -68,7 +68,7 @@
    b) APELIDOS DO TEMA ANTIGO - os nomes roxos (--cor-destaque, --cor-texto,
       --linha, --vidro, ...) apontando para os tokens novos. Existem para que
       lancamentos, cadastros, configuracoes, Mensal e Orcamento continuem
-      funcionando e legiveis com a paleta nova ate as rodadas 18 e 19, quando
+      funcionando e legiveis com a paleta nova ate as rodadas 18 e 20, quando
       cada uma sera reescrita e o apelido correspondente morre.
 
    Nada de novo deve usar um apelido.
@@ -95,6 +95,11 @@
   --line-soft: #F0F0F2;        /* divisoria de linha de tabela e de item */
   --fill: #E5E5EA;             /* trilho de barra, fundo do seletor de ano */
   --grid: #EEEEF0;             /* grade do eixo Y dos graficos */
+
+  /* Bloco que substitui um valor escondido pelo olho (secao 5.16). O mesmo
+     cinza do trilho: neutro de proposito - verde, vermelho e acento contam
+     alguma coisa, e um valor escondido nao pode contar nada. */
+  --esqueleto: #E5E5EA;
 
   /* Sidebar escura */
   --sidebar: #1D1D1F;
@@ -722,7 +727,7 @@ body {
 
 /* Era o cartao "de leitura", quase opaco, por oposicao ao de vidro. Todo
    cartao e opaco agora, entao o modificador nao tem mais o que fazer. Fica
-   como apelido vazio ate as rodadas 18 e 19 tirarem a classe dos dezoito
+   como apelido vazio ate as rodadas 18 e 20 tirarem a classe dos dezoito
    templates que a escrevem; remove-la aqui e agora nao mudaria pixel nenhum
    nem quebraria nada, mas deixaria a busca por "card--solido" sem resposta. */
 .card--solido {
@@ -926,6 +931,21 @@ body {
 .btn--quadrado:disabled,
 .btn--quadrado[aria-disabled="true"] {
   opacity: 0.4;
+}
+
+/* Botao que mostra so um icone e vive ao lado de outro botao na barra
+   superior: quadrado, na altura de .btn (30px), sem padding lateral. Difere
+   do .btn--quadrado da paginacao, que segue os 28px dos controles de linha.
+
+   `position: relative` porque o rotulo de dentro e um `.so-leitor`, que e
+   absoluto: sem ancora aqui ele se penduraria no primeiro ancestral
+   posicionado (a barra superior, que e sticky). `flex: none` porque no
+   celular os botoes da barra crescem para dividir a linha, e este nao. */
+.btn--icone {
+  position: relative;
+  width: 30px;
+  padding: 0;
+  flex: none;
 }
 
 .btn--bloco {
@@ -1497,7 +1517,7 @@ body {
 
 /* Receitas continuam com a grade de dois campos por linha: sao cinco campos e
    nenhum deles se beneficiaria de doze colunas. A tela ganha o visual
-   definitivo na rodada 19. */
+   definitivo na rodada 20. */
 .grade-lancamento {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2304,7 +2324,7 @@ body {
    grade 4/2/1, que e o "como hoje" que o prompt manda preservar) e
    .painel-graficos, mas o miolo dos cards dela agora e .kpi / .indicador, em
    5.13.3. A Mensal e o acompanhamento do orcamento continuam em .painel-card
-   ate a rodada 19. Duas grades, um arranjo: quando a Mensal for refeita,
+   ate a rodada 20. Duas grades, um arranjo: quando a Mensal for refeita,
    .painel-card sai e sobra .kpi.
 */
 
@@ -2523,7 +2543,7 @@ body {
 /* --- 5.13.3 Visao Anual (desenho da rodada 17) -------------------------
    O que existe so nesta tela: o seletor de ano segmentado da barra superior,
    os quatro KPIs, o cartao dos nove indicadores e o visual das duas tabelas.
-   Quando a Mensal for refeita (rodada 19), o que for comum as duas sobe para
+   Quando a Mensal for refeita (rodada 20), o que for comum as duas sobe para
    5.13 e este bloco encolhe.
 */
 
@@ -3288,6 +3308,105 @@ body {
   min-width: 0;
 }
 
+/* --- 5.16 Valores sensiveis (o olho) ------------------------------------
+   O estado mora em UM lugar: `data-valores` no <html>, escrito pelo script do
+   layout_app.html. Aqui so se le. Nada abaixo esta preso a um seletor da
+   Visao Anual: para outra tela aderir, basta marcar os elementos - e a licao
+   da `.negativo`, que nasceu dentro de .tabela--mensal e ficou meia rodada
+   sem funcionar no rodape do orcamento.
+
+   Quatro marcas, uma para cada forma de valor na tela:
+
+     .sensivel        texto (valor, percentual, nota, contador, travessao).
+                      Vai no elemento MAIS INTERNO, o que embrulha o texto: o
+                      bloco cinza mede o texto, e nao a caixa em volta.
+     .sensivel-bloco  a caixa toda vira o esqueleto, com o que houver dentro
+                      apagado junto. E para valor no MEIO de um texto, que
+                      nao da para embrulhar sem mexer no desenho da linha.
+     .sensivel-barra  trilho, ou a celula que contem a barra: o sulco fica, a
+                      fatia colorida some.
+     .sensivel-area   area inteira (o grafico): vira um bloco neutro.
+
+   Regra que vale para as quatro: alternar nao mexe no layout. O que some,
+   some SEM sair da caixa que ocupava.
+
+   Todos os seletores comecam em `:root[...]`, e nao so em `[...]`: o peso
+   precisa vencer o das regras de tela, que sao de duas classes mais um
+   elemento. A primeira versao usava so o atributo e o texto da linha de apoio
+   continuou pintado, porque `.tabela--mensal .linha-apoio td` pesa mais.
+*/
+
+/* `color: transparent` com fundo, e nao `visibility: hidden`: o bloco precisa
+   ser PINTADO onde o texto estava, e um elemento invisivel nao pinta nada. O
+   fundo de um elemento em linha ja tem a largura do texto, o que dispensa
+   medir qualquer coisa.
+
+   `user-select: none` e o que impede o Ctrl+A de revelar: sem ele o realce da
+   selecao pinta o texto por cima do bloco, na cor da selecao.
+
+   Nada disto existe com os valores a mostra: `.sensivel` sozinha nao declara
+   propriedade nenhuma, e por isso marcar um valor nao muda a tela. Marcar
+   custa uma exigencia so: o <span> da marca tem de embrulhar o valor INTEIRO
+   e nada mais que ele. Valor no meio de uma frase se esconde pela caixa em
+   volta (.sensivel-bloco), nunca por um <span> no meio do texto - ver o
+   comentario de `valor_marcado`, em templates/main/index.html. */
+:root[data-valores="ocultos"] .sensivel,
+:root[data-valores="ocultos"] .sensivel *,
+:root[data-valores="ocultos"] .sensivel-bloco,
+:root[data-valores="ocultos"] .sensivel-bloco * {
+  color: transparent;
+}
+
+:root[data-valores="ocultos"] .sensivel,
+:root[data-valores="ocultos"] .sensivel-bloco {
+  background-color: var(--esqueleto);
+  border-radius: 4px;
+  /* Valor que quebra em duas linhas vira dois blocos, cada um com seus
+     cantos - e nao um retangulo aberto no meio. */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* A marca vai no trilho (ou na celula), e nao no preenchimento, porque a
+   barra da tabela por categoria sai da macro `barra_pct`, que serve outras
+   telas e nao muda. `visibility` e nao `display`: a fatia tem largura em
+   `style` e some sem mexer no sulco. */
+:root[data-valores="ocultos"] .sensivel-barra .kpi__preenchimento,
+:root[data-valores="ocultos"] .sensivel-barra .barra__preenchimento {
+  visibility: hidden;
+}
+
+/* Grafico. `display: none` no canvas esta proibido: o Chart.js mede o PAI a
+   cada redimensionamento, e um pai sem caixa devolveria o grafico achatado ao
+   reaparecer. Com `visibility` o canvas continua com o tamanho de sempre e
+   nao precisa ser redesenhado - e, de quebra, elemento invisivel nao recebe
+   ponteiro, entao o tooltip nao abre. */
+:root[data-valores="ocultos"] .sensivel-area {
+  background: var(--esqueleto);
+  border-radius: var(--radius-control);
+}
+
+:root[data-valores="ocultos"] .sensivel-area > * {
+  visibility: hidden;
+}
+
+/* O icone do botao E o estado: o botao carrega os dois SVG e o CSS mostra um.
+   Assim o icone certo ja vem pintado no primeiro quadro, sem esperar
+   JavaScript, e nao ha como ele discordar do que a tela mostra. */
+.olho__visivel {
+  display: none;
+}
+
+:root[data-valores="visiveis"] .olho__oculto {
+  display: none;
+}
+
+:root[data-valores="visiveis"] .olho__visivel {
+  display: inline;
+}
+
 /* ==========================================================================
    6. TELA DE LOGIN
    Sem sidebar: card unico centrado. Aqui o vidro e a moldura, e os campos
@@ -3473,8 +3592,17 @@ body {
     gap: 2px;
   }
 
+  /* O botao de acao ocupa a linha. `flex` no lugar do `width: 100%` de antes
+     porque a barra da Visao Anual passou a ter dois botoes: o olho tem
+     largura fixa e o "Lançar despesa" fica com o resto da linha. Onde ha um
+     botao so - todas as outras telas - crescer ate o fim da linha da no mesmo
+     100%. */
   .pagina-acoes .btn {
-    width: 100%;
+    flex: 1 1 auto;
+  }
+
+  .pagina-acoes .btn--icone {
+    flex: none;
   }
 
   /* O seletor de ano ocupa a largura toda e divide o espaco entre os anos. */

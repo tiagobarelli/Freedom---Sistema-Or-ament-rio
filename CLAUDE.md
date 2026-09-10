@@ -221,7 +221,7 @@ Regras que se aplicam a todo código novo:
 - Rota só de fragmento: sem `HX-Request` → redirect para a página-mãe com os
   mesmos parâmetros, **antes** de qualquer 404. Regra de estado recusada → **409**.
 
-### CSS (`static/css/app.css`, ~4.100 linhas, seções numeradas)
+### CSS (`static/css/app.css`, ~4.200 linhas, seções numeradas)
 
 ```
 1 Variáveis   2 Reset   3 Fundo   4 Layout   5 Componentes   6 Login
@@ -253,6 +253,92 @@ Regras que se aplicam a todo código novo:
   centavos, tooltip com centavos; **cores lidas de variáveis CSS por
   `getComputedStyle`** — nenhum hexadecimal no JS.
 
+### Ocultar valores — o olho (rodada 19)
+
+O dono às vezes abre o sistema com alguém olhando a tela. O botão olho da Visão
+Anual apaga **todo número da tela**. A proteção é **visual**: os números
+continuam no HTML e no JSON dos gráficos, e isso é aceitável.
+
+**Como marcar.** Nada de servidor: nenhuma rota, nenhum cookie, nenhuma sessão
+Flask, nenhum Python. Só quatro classes, globais, na seção **5.16** do CSS:
+
+| Marca | Onde vai | O que faz oculto |
+|---|---|---|
+| `.sensivel` | no elemento **mais interno**, o que embrulha o valor | vira bloco cinza da largura do texto |
+| `.sensivel-bloco` | na caixa toda | a caixa inteira vira o bloco, com o que houver dentro |
+| `.sensivel-barra` | no trilho (ou na célula que contém a barra) | o sulco fica, a fatia colorida some |
+| `.sensivel-area` | na área do gráfico | a área vira bloco neutro e o conteúdo fica invisível |
+
+- Marcar não pode mudar a tela com os valores à mostra: `.sensivel` sozinha não
+  declara nada. Mas **um `<span>` a mais no meio de uma frase muda o
+  arredondamento das letras seguintes** — o diff de pixels da rodada 19 pegou
+  isso na linha de apoio da tabela mês a mês em 390px. Por isso valor no meio de
+  texto se esconde pela caixa em volta (`.sensivel-bloco`), nunca por um `<span>`
+  no meio da frase.
+- Os seletores começam em `:root[data-valores=...]`: sem o `:root` o peso perde
+  para regra de tela (duas classes mais um elemento) e o texto continua pintado.
+- `display: none` no canvas está **proibido**: o Chart.js mede o pai a cada
+  redimensionamento. Use `visibility`, que também tira o canvas do ponteiro e
+  mata o tooltip.
+- `user-select: none` é o que impede o Ctrl+A de revelar — sem ele o realce da
+  seleção pinta o texto por cima do bloco.
+- Continuam visíveis: barra superior, rótulos, títulos de cartão, cabeçalhos de
+  tabela, nomes de mês e de categoria, e "Total".
+
+**Onde mora o estado.** Em `data-valores` (`ocultos` | `visiveis`) no `<html>`,
+escrito por um script inline no bloco `cabeca` de `templates/layout_app.html` —
+o único dono. O CSS lê dali e o `aria-pressed` do botão sai da mesma função:
+os dois nunca divergem. O estado pertence à **aba**, não à tela nem ao usuário.
+**O servidor sempre manda a página oculta**: sem JavaScript ela fica oculta
+(falha fechada) e não há um quadro sequer com valor à mostra.
+
+**As regras, todas verificadas em navegador:**
+
+- **(a)** aba nova, ou entrar de novo depois de sair → oculto;
+- **(b)** o olho alterna;
+- **(c)** com valores à mostra, continuam à mostra ao trocar de ano, ir a outra
+  tela e voltar (link ou Voltar do navegador) e recarregar com F5;
+- **(d)** sair da aba (outra aba, janela minimizada, trocar de app no celular) →
+  ao voltar, oculto, sem recarregar;
+- **(e)** fechar a aba → oculto na próxima vez, **inclusive** se o navegador
+  restaurar a aba ou duplicá-la copiando o `sessionStorage`.
+
+**Como (c), (d) e (e) convivem:** um **bastão** no `sessionStorage`, entregue no
+`pagehide` de quem sai e **consumido na leitura** por quem entra — enquanto a
+página vive não há nada guardado, então aba duplicada copia um armazém vazio. O
+bastão leva a hora e só vale por **300 ms**, e esse prazo tem um único trabalho:
+fechar a aba e navegar são a mesma sequência de eventos, e o prazo é o que
+impede uma aba **reaberta** de herdar o bastão do fechamento. Navegação real
+chega com 2–4 ms (13 ms com a CPU 4× freada, 101 ms com 20×); reabrir aba à mão
+leva muito mais.
+
+> **Armadilha:** `visibilitychange` com `hidden` dispara também quando a
+> **própria aba navega** — trocar de ano, clicar no menu, F5 — e não só quando o
+> usuário sai dela. Tratar todo `hidden` como "saiu da aba" transforma (c) em
+> (d). O que separa os dois é a **ordem**, não o relógio: **quando a aba navega,
+> o `pagehide` vem sempre antes do `hidden`** (medido em F5, troca de ano, link,
+> Voltar e ida para o bfcache). `hidden` depois do `pagehide` deste documento é
+> navegação; `hidden` sozinho é saída de aba. Validação que não prova os dois
+> lados não prova nada.
+
+> **Segunda armadilha, a que só aparece no navegador de verdade:** Voltar pode
+> devolver o documento **inteiro** do cache de ida e volta (bfcache), vivo, sem
+> carregar nada — e o `pageshow` de quem volta dispara **antes** do `pagehide` de
+> quem sai (medido: 1 ms antes), então ali o bastão ainda nem foi entregue. Quem
+> volta do cache é o mesmo documento e volta como estava; a única coisa que pode
+> ter tirado dele o direito de ver é o usuário ter saído da aba enquanto ele
+> dormia, e isso a outra tela anota na marca `freedom.valores.saiu` no momento em
+> que a saída acontece — já gravada quando o `pageshow` lê. A marca morre quando
+> a aba reconquista o direito. O Playwright **desliga o bfcache** (página com
+> depurador atado não entra no cache), então essa falha não aparece em teste
+> automatizado comum: foi preciso soltar o CDP e mandar Alt+Seta esquerda pela
+> janela do Windows.
+
+A detecção de saída de aba roda em **toda tela autenticada** — sem isso (d)
+falha quando o usuário sai estando em "Lançar despesa". O olho e as marcações,
+por enquanto, só existem na Visão Anual: para outra tela aderir, basta marcar os
+elementos e repetir o botão.
+
 ### Celular (< 768px) — preservar sempre
 
 - A sidebar vira barra superior com botão de menu; as seções recolhíveis do menu
@@ -264,6 +350,10 @@ Regras que se aplicam a todo código novo:
   da página não é**.
 - Ações viram ícone com `aria-label` só onde o padrão já existe (detalhe da
   Mensal); nas demais tabelas os botões empilham com texto.
+- Botão da barra superior cresce por `flex: 1 1 auto`, e não por `width: 100%`:
+  onde há um botão só o resultado é o mesmo, e onde há dois (Anual: "Lançar
+  despesa" mais o olho, que é `.btn--icone` com `flex: none`) eles dividem a
+  linha em vez de empilhar.
 
 ## 8. Trabalhando com dado real
 
@@ -305,9 +395,23 @@ O que se espera de uma validação:
 - Ramo sem dado real exercitado por função pura.
 - O relatório termina com a lista de **"pontos que precisei interpretar"**.
 
-Um detalhe de instrumento: o botão de sair da sidebar é o **primeiro**
-`button[type=submit]` do DOM. Um seletor genérico faz logout no meio do teste —
-escopo sempre em `.conteudo__corpo` ou no id do formulário.
+Dois detalhes de instrumento:
+
+- O botão de sair da sidebar é o **primeiro** `button[type=submit]` do DOM. Um
+  seletor genérico faz logout no meio do teste — escopo sempre em
+  `.conteudo__corpo` ou no id do formulário.
+- **O Playwright mente sobre duas coisas do navegador**, e as duas foram
+  necessárias na rodada 19: página com depurador atado nunca vai para segundo
+  plano (`document.visibilityState` fica em `visible` mesmo com outra aba na
+  frente, outra janela por cima, `window.open`, `Browser.setWindowBounds`
+  minimizando ou `Page.setWebLifecycleState`) e nunca entra no **bfcache**. Para
+  exercitar troca de aba e Voltar-do-cache: suba o Chrome à mão com
+  `--remote-debugging-port`, prepare a tela pelo CDP, **solte o CDP**, mexa na
+  janela pelo Windows (`ShowWindow` para minimizar, `SendKeys` `%{LEFT}` para
+  voltar) e só então reate o CDP para ler o que a própria página gravou.
+  Adicionar um `<span>` no meio de um texto muda o **subpixel** das letras
+  seguintes: se o SHA mudar sem o layout mudar, é isso — esconda pela caixa em
+  volta em vez de embrulhar o valor.
 
 ## 10. Estado e roteiro
 
@@ -318,8 +422,10 @@ decisões, lições aprendidas). Resumo:
   filtros; receitas em página única; configurações com vigência; Visão Anual (13
   cards, 4 gráficos, 2 tabelas); Visão Mensal com detalhe por categoria; orçamento
   (montagem + acompanhamento). Refatoração visual: rodada 17 (tokens, layout,
-  Visão Anual) e rodada 18 (lançamentos e cadastros) concluídas.
-- **Pendente**: rodada 19 da refatoração visual — Visão Mensal, Orçamento,
+  Visão Anual) e rodada 18 (lançamentos e cadastros) concluídas. Rodada 19:
+  botão olho da Visão Anual, que esconde todo número da tela (ver "Ocultar
+  valores" na seção 7).
+- **Pendente**: rodada 20 da refatoração visual — Visão Mensal, Orçamento,
   configurações e login ainda rodam sobre os apelidos da seção 1(b) do CSS.
 - **Depois**: metas de independência (TSR/S/R já estão em `tb_configuracoes`, nada
   os lê); patrimônio; carga do IPCA (API SIDRA/IBGE) e gráficos deflacionados;

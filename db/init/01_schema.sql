@@ -75,6 +75,18 @@
 --    "ja existe?" por nome: sem isso, reaplicar o script num banco ja migrado
 --    acrescentaria uma FK identica a cada execucao.
 --
+-- 9. O RESUMO ANUAL TEM O ANO COMO CHAVE, E NAO UM id. (rodada 20)
+--    tb_resumos_anuais guarda um texto por ano, escrito pelo dono, que explica
+--    os numeros daquele ano. Ha no maximo um resumo por ano, e a chave natural
+--    e o proprio ano - um id sequencial exigiria um UNIQUE (ano) ao lado dele
+--    para dizer a mesma coisa. E o mesmo caminho de tb_orcamento_meses
+--    (decisao 7), onde o periodo tambem e a chave.
+--    O CHECK de faixa (2000..2100) existe porque `ano` e INT solto: sem ele,
+--    um erro de digitacao gravaria 20026 sem que nada reclamasse.
+--    O CHECK de texto recusa o que nao tem NENHUM caractere visivel - vazio,
+--    so espacos, so quebras de linha. Um resumo em branco nao e resumo, e a
+--    coluna e NOT NULL justamente para isso; NOT NULL sozinho aceita ''.
+--
 -- -----------------------------------------------------------------------------
 -- REGRAS DA APLICACAO (deliberadamente NAO impostas pelo banco)
 --
@@ -117,7 +129,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION fn_set_atualizado_em() IS
-    'Trigger generica BEFORE UPDATE: carimba atualizado_em com now(). Usada em tb_despesas e tb_receitas.';
+    'Trigger generica BEFORE UPDATE: carimba atualizado_em com now(). Usada em tb_despesas, tb_receitas e tb_resumos_anuais.';
 
 
 -- =============================================================================
@@ -481,7 +493,42 @@ COMMENT ON COLUMN tb_patrimonio_snapshots.observacao IS 'Anotacao livre.';
 
 
 -- =============================================================================
--- 5. VIEWS
+-- 5. ANOTACOES DO USUARIO
+-- =============================================================================
+
+-- -------------------------------------------------------------- resumo anual
+-- Um texto por ano, escrito pelo dono, que explica os numeros daquele ano.
+-- Nao e referencia (ninguem aponta para ela) nem movimento (nao entra em conta
+-- nenhuma): e anotacao, e por isso mora numa secao propria.
+CREATE TABLE IF NOT EXISTS tb_resumos_anuais (
+    ano            INT         PRIMARY KEY
+                               CONSTRAINT ck_resumos_anuais_ano
+                               CHECK (ano BETWEEN 2000 AND 2100),
+    -- `~ '[^[:space:]]'` = tem pelo menos um caractere que nao e espaco em
+    -- branco. Cobre vazio, so espacos, so tabulacoes e so quebras de linha
+    -- de uma vez, o que uma comparacao com '' nao faria.
+    texto          TEXT        NOT NULL
+                               CONSTRAINT ck_resumos_anuais_texto
+                               CHECK (texto ~ '[^[:space:]]'),
+    criado_em      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    atualizado_em  TIMESTAMPTZ
+);
+
+COMMENT ON TABLE  tb_resumos_anuais               IS 'Um resumo em texto livre por ano, escrito pelo dono para lembrar no futuro o porque dos numeros daquele ano. Sem tamanho maximo e sem formatacao: quebras de linha sao preservadas, nada e interpretado como Markdown.';
+COMMENT ON COLUMN tb_resumos_anuais.ano           IS 'Ano do resumo, e a chave primaria: ha no maximo um resumo por ano. CHECK (2000..2100). Sem FK - o ano nao e tabela; a interface so oferece anos com lancamento.';
+COMMENT ON COLUMN tb_resumos_anuais.texto         IS 'O resumo. NOT NULL e CHECK de caractere visivel: resumo em branco nao e resumo.';
+COMMENT ON COLUMN tb_resumos_anuais.criado_em     IS 'Auditoria.';
+COMMENT ON COLUMN tb_resumos_anuais.atualizado_em IS 'Auditoria; atualizado por trigger.';
+
+DROP TRIGGER IF EXISTS tg_resumos_anuais_atualizado_em ON tb_resumos_anuais;
+CREATE TRIGGER tg_resumos_anuais_atualizado_em
+    BEFORE UPDATE ON tb_resumos_anuais
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_set_atualizado_em();
+
+
+-- =============================================================================
+-- 6. VIEWS
 -- =============================================================================
 
 CREATE OR REPLACE VIEW vw_despesas AS

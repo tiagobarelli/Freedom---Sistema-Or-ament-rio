@@ -87,11 +87,16 @@
    estado vazio no lugar dela. Quem varia e a parcial da linha, que cada tela
    passa pelo `caller`.
 #}
-{% macro lista_cadastro(linhas, colunas, titulo_vazio, texto_vazio) %}
+{#
+   `classe` entrou na rodada 20 para a lista de resumos anuais, que tem quatro
+   colunas em vez de duas e precisa declarar a largura delas. Sem ela, os
+   cinco cadastros continuam exatamente como estavam: o atributo sai idêntico.
+#}
+{% macro lista_cadastro(linhas, colunas, titulo_vazio, texto_vazio, classe="") %}
   <div class="card card--tabela">
     {% if linhas %}
       <div class="tabela-caixa">
-        <table class="tabela tabela--cadastro">
+        <table class="tabela tabela--cadastro{{ ' ' ~ classe if classe }}">
           {{ cabecalho_tabela(colunas, oculto=true) }}
           <tbody>{{ caller() }}</tbody>
         </table>
@@ -605,6 +610,11 @@
     'a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38'
     'a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>'
     '<circle cx="12" cy="12" r="3"/>',
+  "notebook-pen":
+    '<path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h6.4"/>'
+    '<path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/>'
+    '<path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854'
+    'l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/>',
   "log-out":
     '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>'
     '<polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>',

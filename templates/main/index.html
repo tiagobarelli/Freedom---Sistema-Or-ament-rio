@@ -197,6 +197,33 @@
   </div>
 
   {#
+    O resumo do ano (rodada 20). So existe quando o ano exibido tem resumo:
+    ano sem resumo nao mostra card, aviso nem convite para escrever um - o
+    corpo da pagina fica exatamente como era antes desta rodada.
+
+    O titulo nao repete o ano, que ja esta no seletor da barra superior. O
+    "Editar" leva `?retorno=` apontando para esta mesma tela no mesmo ano, e
+    e por isso que salvar e cancelar voltam para ca.
+
+    O texto e marcado como sensivel: com o olho fechado ele some junto com os
+    numeros, porque explicar os numeros e falar deles. Titulo e "Editar"
+    continuam a vista.
+  #}
+  {% if resumo %}
+    <section class="card">
+      <div class="card__cabecalho">
+        <h2 class="card__titulo">Resumo do ano</h2>
+        <a class="btn btn--discreto btn--pequeno"
+           href="{{ url_for('cadastros.resumos_editar', ano=ano,
+                            retorno=url_for('main.index', ano=ano)) }}">Editar</a>
+      </div>
+      <div class="resumo-ano">
+        <p class="resumo-ano__texto sensivel">{{ resumo.texto }}</p>
+      </div>
+    </section>
+  {% endif %}
+
+  {#
     Os quatro graficos. Os numeros ja vem somados do servidor (inclusive o
     acumulado): o JavaScript so desenha e formata. A estrutura viaja num
     <script type="application/json">, que o navegador nao executa - o `tojson`

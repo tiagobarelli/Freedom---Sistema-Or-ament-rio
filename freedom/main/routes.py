@@ -29,6 +29,10 @@ def index():
         cards=painel["cards"],
         graficos=painel["graficos"],
         tabelas=painel["tabelas"],
+        # Uma consulta por chave, fora do painel: o resumo não entra em conta
+        # nenhuma e não sai das mesmas linhas que cards, gráficos e tabelas.
+        # `None` quando o ano não tem resumo, e aí o template não mostra card.
+        resumo=servico.resumo_do_ano(ano),
     )
 
 

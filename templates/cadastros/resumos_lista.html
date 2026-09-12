@@ -1,0 +1,26 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{% block title %}Resumos anuais - Freedom{% endblock %}
+{% block titulo_pagina %}Resumos anuais{% endblock %}
+{% block subtitulo_pagina %}
+  <p class="pagina-subtitulo">Um texto por ano, para lembrar depois o porquê dos números.</p>
+{% endblock %}
+{% block acoes_pagina %}
+  {% include "cadastros/_botao_novo_resumo.html" %}
+{% endblock %}
+
+{#
+  Sem barra de filtros: não há inativos para mostrar nem contagem que valha a
+  pena (a lista é de um punhado de anos, e o número deles está à vista).
+
+  O <div> com id é o alvo do Excluir: a resposta traz a lista inteira, porque
+  apagar o último resumo troca a tabela pelo estado vazio.
+#}
+{% block content %}
+<div class="painel painel--estreito">
+  <div id="lista-resumos">
+    {% include "cadastros/_lista_resumos.html" %}
+  </div>
+</div>
+{% endblock %}

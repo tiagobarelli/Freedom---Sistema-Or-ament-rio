@@ -1,0 +1,17 @@
+{% import "_macros.html" as m %}
+{#
+  A lista inteira num arquivo próprio, porque o Excluir a devolve por HTMX:
+  apagar o último resumo troca a tabela pelo estado vazio, e substituir só o
+  <tr> não daria conta disso.
+
+  Na resposta da exclusão (`oob`) o botão da barra superior vem junto, fora de
+  banda. Ele é um <a>, e não um <tr>, então não precisa de <template>.
+#}
+{% if oob %}{% include "cadastros/_botao_novo_resumo.html" %}{% endif %}
+
+{% call m.lista_cadastro(linhas, ["Ano", "Resumo", "Alterado em"],
+                          "Nenhum resumo anual",
+              "Escreva o resumo de um ano para lembrar depois o porquê dos números.",
+                          classe="tabela--resumos") %}
+  {% for item in linhas %}{% include "cadastros/_linha_resumo.html" %}{% endfor %}
+{% endcall %}

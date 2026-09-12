@@ -86,6 +86,24 @@ def anos_com_lancamento(hoje=None):
     return sorted(anos, reverse=True)
 
 
+def resumo_do_ano(ano):
+    """O resumo escrito para um ano, ou None. Consulta por chave primária.
+
+    Mora aqui, ao lado de `anos_com_lancamento`, e não no módulo de cadastro:
+    esta é a leitura, e quem lê é a Visão Anual. O cadastro (que escreve,
+    lista e apaga) importa esta função em vez de repetir o SELECT — um resumo,
+    uma origem, como todo número que aparece em dois lugares.
+
+    `None` significa "este ano não tem resumo", e a tela não mostra card
+    nenhum: nem aviso, nem convite para escrever um.
+    """
+    return query_one(
+        "SELECT ano, texto, criado_em, atualizado_em"
+        "  FROM tb_resumos_anuais WHERE ano = %s",
+        (ano,),
+    )
+
+
 def ano_valido(texto, anos, hoje=None):
     """Texto da query string -> ano a exibir. Nada aqui pode gerar 500.
 

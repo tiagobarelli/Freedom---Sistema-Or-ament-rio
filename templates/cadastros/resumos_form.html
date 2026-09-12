@@ -1,0 +1,70 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{% set titulo = ('Resumo de ' ~ registro.ano) if registro else 'Novo resumo' %}
+
+{% block title %}{{ titulo }} - Freedom{% endblock %}
+{% block titulo_pagina %}{{ titulo }}{% endblock %}
+
+{% block content %}
+  {% if not registro and not anos %}
+    {#
+      A barra não oferece o botão quando não há ano disponível, mas a URL pode
+      ser digitada à mão. Aqui isso não é erro: é um aviso no lugar do
+      formulário, com o caminho de saída.
+    #}
+    <div class="card">
+      {{ m.vazio("Nenhum ano disponível",
+                 "Todos os anos com lançamento já têm resumo. Edite o resumo do ano
+                  que quiser mudar, ou exclua um que não sirva mais.") }}
+    </div>
+  {% else %}
+    <div class="card formulario">
+      <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+
+        {% if registro %}
+          {#
+            O ano é a chave: aparece, mas não se edita — trocar de ano seria
+            outro resumo. Vai num campo escondido para o mesmo formulário
+            servir às duas telas; o UPDATE usa o ano da URL, e `validate_ano`
+            recusa o POST em que os dois discordem.
+          #}
+          <input type="hidden" name="ano" value="{{ registro.ano }}">
+          <div class="campo">
+            <span class="campo__rotulo">Ano</span>
+            <p class="campo__estatico">{{ registro.ano }}</p>
+          </div>
+          {% for e in form.ano.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
+        {% else %}
+          {#
+            Select montado à mão, e não pelo widget do WTForms: sem a opção em
+            branco no topo o navegador pré-seleciona o primeiro ano sozinho, e
+            o resumo sairia gravado num ano que ninguém escolheu.
+          #}
+          <div class="campo">
+            {{ form.ano.label(class="campo__rotulo") }}
+            <select class="selecao{{ ' selecao--erro' if form.ano.errors }}"
+                    id="ano" name="ano" required autofocus>
+              <option value="">Escolha o ano</option>
+              {% for a in anos %}
+                <option value="{{ a }}"
+                        {{ 'selected' if form.ano.data == a }}>{{ a }}</option>
+              {% endfor %}
+            </select>
+            <p class="campo__dica">Só anos com lançamento que ainda não têm resumo.</p>
+            {% for e in form.ano.errors %}<p class="campo__erro">{{ e }}</p>{% endfor %}
+          </div>
+        {% endif %}
+
+        {# Área alta: o resumo é de vários parágrafos, e escrever num campo de
+           três linhas obriga a rolar dentro dele desde a primeira frase. #}
+        {{ m.campo(form.texto, classe="area-texto",
+                   dica="Texto simples. As quebras de linha aparecem como foram escritas; nada é interpretado como formatação.",
+                   extra={"rows": 16, "autofocus": true if registro else false}) }}
+
+        {{ m.acoes_formulario(retorno or url_for('cadastros.resumos_lista')) }}
+      </form>
+    </div>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,20 @@
+{% import "_macros.html" as m %}
+{#
+  "Novo resumo" na barra superior.
+
+  O elemento existe SEMPRE, mesmo sem ano disponível: é ele o alvo da troca
+  fora de banda depois de excluir, e alvo que some não pode ser trocado (mesma
+  razão do #bloco-prioridade em _macros.html). Sem ano, sai `hidden` - o
+  atributo inteiro por {% if %}, nunca por interpolação, senão o autoescape o
+  transforma em texto (lição da rodada 16).
+
+  `oob` só é verdadeiro na resposta da exclusão, que devolve a lista e este
+  botão juntos: os dois dependem do mesmo fato, o ano ter voltado a ficar
+  disponível.
+#}
+<a class="btn btn--primario" id="botao-novo-resumo"
+   href="{{ url_for('cadastros.resumos_novo') }}"
+   {% if oob %}hx-swap-oob="true"{% endif %}
+   {% if not anos %}hidden{% endif %}>
+  {{ m.icone("plus", tamanho=14, tracado=2.25) }}Novo resumo
+</a>

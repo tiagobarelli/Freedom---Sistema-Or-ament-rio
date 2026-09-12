@@ -6,7 +6,7 @@ fica só na interface.
 
 from flask_wtf import FlaskForm
 from wtforms import SelectField, StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Length, Optional
+from wtforms.validators import DataRequired, Length, Optional, ValidationError
 
 # Valores exatos do CHECK ck_subcategorias_essencialidade / ck_despesas_*.
 ESSENCIALIDADES = [
@@ -74,6 +74,70 @@ class ContaForm(_Base):
         "Observação",
         validators=[Optional(), Length(max=500)],
     )
+
+
+def _ano_ou_none(valor):
+    """Coerce do select de ano: opção em branco vira None, não erro.
+
+    Mesmo motivo dos selects de receita: `coerce=int` estoura em "" e sobra
+    uma mensagem em inglês. Devolvendo None, quem reclama é o DataRequired,
+    com o texto que a tela deve mostrar.
+    """
+    if valor in (None, "", "None"):
+        return None
+    try:
+        return int(valor)
+    except (TypeError, ValueError):
+        return None
+
+
+class ResumoAnualForm(_Base):
+    """Resumo de um ano. O ano é a chave; o texto não tem tamanho máximo.
+
+    `validate_choice=False` porque a checagem de qual ano é aceitável é feita
+    abaixo, contra os anos carregados, para a mensagem sair em português — e
+    porque ela é regra da aplicação: o ano tem de ter lançamento e ainda não
+    ter resumo. Na edição, a lista carregada é só o ano do próprio registro.
+    """
+
+    ano = SelectField(
+        "Ano",
+        coerce=_ano_ou_none,
+        validate_choice=False,
+        validators=[DataRequired(message="Escolha o ano.")],
+    )
+    texto = TextAreaField(
+        "Resumo",
+        validators=[DataRequired(message="Escreva o resumo.")],
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.anos = []
+
+    def carregar_anos(self, anos):
+        """Os anos que o formulário aceita. O template monta o <select>."""
+        self.anos = list(anos)
+        self.ano.choices = [(a, str(a)) for a in self.anos]
+
+    def validate_ano(self, field):
+        if field.data not in self.anos:
+            raise ValidationError(
+                "Escolha um ano com lançamento que ainda não tenha resumo."
+            )
+
+    def validate_texto(self, field):
+        """Apara as pontas e normaliza a quebra de linha para \\n.
+
+        O navegador manda CRLF em textarea (regra do HTML), e o banco guardaria
+        os dois bytes. Normalizar aqui é o que faz o texto lido de volta ser o
+        mesmo que se digitou, e o CHECK do banco recusar o que sobrar de vazio
+        nunca ser alcançado - o erro sai como campo, antes.
+        """
+        texto = (field.data or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+        if not texto:
+            raise ValidationError("Escreva o resumo.")
+        field.data = texto
 
 
 class RefReceitaForm(_Base):

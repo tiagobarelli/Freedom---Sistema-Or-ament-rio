@@ -68,8 +68,9 @@
    b) APELIDOS DO TEMA ANTIGO - os nomes roxos (--cor-destaque, --cor-texto,
       --linha, --vidro, ...) apontando para os tokens novos. Existem para que
       lancamentos, cadastros, configuracoes, Mensal e Orcamento continuem
-      funcionando e legiveis com a paleta nova ate as rodadas 18 e 20, quando
-      cada uma sera reescrita e o apelido correspondente morre.
+      funcionando e legiveis com a paleta nova ate a refatoracao visual
+      alcancar cada uma delas, quando sera reescrita e o apelido
+      correspondente morre.
 
    Nada de novo deve usar um apelido.
    ========================================================================== */
@@ -727,7 +728,7 @@ body {
 
 /* Era o cartao "de leitura", quase opaco, por oposicao ao de vidro. Todo
    cartao e opaco agora, entao o modificador nao tem mais o que fazer. Fica
-   como apelido vazio ate as rodadas 18 e 20 tirarem a classe dos dezoito
+   como apelido vazio ate a refatoracao visual tirar a classe dos dezoito
    templates que a escrevem; remove-la aqui e agora nao mudaria pixel nenhum
    nem quebraria nada, mas deixaria a busca por "card--solido" sem resposta. */
 .card--solido {
@@ -952,6 +953,15 @@ body {
   width: 100%;
 }
 
+/* `display` de folha de autor vence o [hidden] do navegador, e .btn declara
+   `inline-flex`: sem esta regra um botao com `hidden` continuaria na tela.
+   Nasceu quando o "Novo resumo" passou a sumir sem ano disponivel, mas vale
+   para todo botao - e a regra que o projeto ja exigia de todo componente com
+   `display:` proprio. */
+.btn[hidden] {
+  display: none;
+}
+
 /* --- 5.3 Formulario ----------------------------------------------------
    Todos os controles tem a MESMA altura (--control-h) e o mesmo raio. E o que
    faz uma linha da grade de 12 colunas ficar alinhada sem ajuste caso a caso:
@@ -1008,6 +1018,19 @@ body {
   margin-top: -2px;
   font-size: 12px;
   color: var(--red-ink);
+}
+
+/* Valor que se mostra e nao se edita, no lugar onde haveria um controle: o
+   ano do resumo, que e a chave e nao muda. Altura de campo para a linha
+   fechar; sem borda, para nao parecer editavel - mesma escolha da
+   .classificacao da tela de despesa. */
+.campo__estatico {
+  display: flex;
+  align-items: center;
+  height: var(--control-h);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
 }
 
 .entrada,
@@ -1339,6 +1362,19 @@ body {
   width: 170px;
 }
 
+/* --- lista de resumos anuais ---
+   Quatro colunas em vez das duas do cadastro comum: ano, trecho, data e
+   acoes. Ano e data ocupam o que precisam; o trecho fica com o resto, que e
+   o que decide quanto do resumo se le sem abrir. */
+.tabela--resumos .col-ano {
+  width: 80px;
+}
+
+.tabela--resumos .col-alterado {
+  width: 120px;
+  white-space: nowrap;
+}
+
 /* A ultima linha fica sem divisoria: a borda do cartao ja fecha a lista. */
 .tabela--cadastro tbody tr:last-child td {
   border-bottom: none;
@@ -1517,7 +1553,7 @@ body {
 
 /* Receitas continuam com a grade de dois campos por linha: sao cinco campos e
    nenhum deles se beneficiaria de doze colunas. A tela ganha o visual
-   definitivo na rodada 20. */
+   definitivo quando a refatoracao visual chegar nela. */
 .grade-lancamento {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2324,7 +2360,7 @@ body {
    grade 4/2/1, que e o "como hoje" que o prompt manda preservar) e
    .painel-graficos, mas o miolo dos cards dela agora e .kpi / .indicador, em
    5.13.3. A Mensal e o acompanhamento do orcamento continuam em .painel-card
-   ate a rodada 20. Duas grades, um arranjo: quando a Mensal for refeita,
+   ate serem refeitas. Duas grades, um arranjo: quando a Mensal for refeita,
    .painel-card sai e sobra .kpi.
 */
 
@@ -2543,7 +2579,7 @@ body {
 /* --- 5.13.3 Visao Anual (desenho da rodada 17) -------------------------
    O que existe so nesta tela: o seletor de ano segmentado da barra superior,
    os quatro KPIs, o cartao dos nove indicadores e o visual das duas tabelas.
-   Quando a Mensal for refeita (rodada 20), o que for comum as duas sobe para
+   Quando a Mensal for refeita, o que for comum as duas sobe para
    5.13 e este bloco encolhe.
 */
 
@@ -2638,6 +2674,32 @@ body {
   margin-top: 8px;
   font-size: 12px;
   color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+
+/* --- o resumo do ano (rodada 20) ---
+   Texto livre escrito pelo dono, entre os indicadores e os graficos. O
+   espacamento vive no invólucro, e nao no <p>: e o <p> que leva a marca
+   `sensivel`, e o bloco cinza do olho fechado tem de medir o texto, nao o
+   cartao inteiro.
+
+   `white-space: pre-wrap` e o que preserva as quebras de linha e a linha em
+   branco entre paragrafos sem interpretar formatacao nenhuma - o texto sai
+   como foi escrito. `overflow-wrap: anywhere` e o que impede uma URL longa
+   sem espaco de alargar a pagina no celular. */
+.resumo-ano {
+  padding: 16px 20px;
+}
+
+/* Sem largura maxima: o texto ocupa o cartao inteiro. A primeira versao tinha
+   `max-width: 78ch`, pensando em linha curta de ler - mas num monitor largo
+   ela quebrava o paragrafo no meio do cartao e esticava a altura a toa. Quem
+   decide o comprimento da linha e a largura da tela, como no resto do painel. */
+.resumo-ano__texto {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--ink-2);
+  white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
@@ -3802,12 +3864,23 @@ body {
 
   .tabela--despesas .linha-secundaria,
   .tabela--receitas .linha-secundaria,
-  .tabela--config .linha-secundaria {
+  .tabela--config .linha-secundaria,
+  .tabela--resumos .linha-secundaria {
     display: block;
     margin-top: 2px;
     font-size: 12px;
     font-weight: 400;
     color: var(--cor-texto-fraco);
+  }
+
+  /* A data sobe para dentro da celula do trecho (a coluna larga), como na
+     consulta de despesas: em 390px sobram ano, trecho e acoes. */
+  .tabela--resumos .col-alterado {
+    display: none;
+  }
+
+  .tabela--resumos .col-ano {
+    width: 1%;
   }
 
   .tabela--despesas th,

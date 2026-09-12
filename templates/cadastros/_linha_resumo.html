@@ -1,0 +1,36 @@
+{% import "_macros.html" as m %}
+{#
+  Uma linha da lista. O ano é a chave, então é ele que identifica a linha.
+
+  O trecho e a data vêm prontos do servidor (ver `_trecho` e `alterado_em` em
+  resumos_anuais.py): cortar texto e escolher entre `atualizado_em` e
+  `criado_em` são decisões da aplicação, não do Jinja. O template só escolhe o
+  formato da data.
+
+  A segunda ação é Excluir, e não Desativar: resumo não tem `ativo`.
+#}
+<tr id="linha-resumo-{{ item.ano }}">
+  <td class="tabela__principal col-ano">{{ item.ano }}</td>
+  <td class="col-trecho">
+    {{ item.trecho }}
+    {# Só aparece abaixo de 768px, onde a coluna da data some. #}
+    <span class="linha-secundaria">
+      {{ 'Editado' if item.editado else 'Escrito' }} em
+      {{ item.alterado_em.strftime('%d/%m/%Y') }}
+    </span>
+  </td>
+  <td class="tabela__suave col-alterado">
+    {{ item.alterado_em.strftime('%d/%m/%Y') }}
+  </td>
+  <td class="tabela__acoes">
+    <span class="acoes-linha">
+      <a class="btn btn--discreto btn--pequeno"
+         href="{{ url_for('cadastros.resumos_editar', ano=item.ano) }}">Editar</a>
+      <button type="button" class="btn btn--secundario btn--perigo btn--pequeno"
+              hx-post="{{ url_for('cadastros.resumos_excluir', ano=item.ano) }}"
+              hx-confirm="Excluir o resumo de {{ item.ano }}? Isso não pode ser desfeito."
+              hx-target="#lista-resumos"
+              hx-swap="innerHTML">Excluir</button>
+    </span>
+  </td>
+</tr>

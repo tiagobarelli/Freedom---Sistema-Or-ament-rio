@@ -17,7 +17,8 @@ acessam pela rede Tailscale. **Nada é exposto na internet.**
 Registra despesas e receitas, classifica por categoria/subcategoria/pessoa/conta,
 e mostra painéis anual e mensal, além de um orçamento por subcategoria. O objetivo
 de longo prazo inclui deflação por IPCA, patrimônio e metas de independência
-financeira — nada disso está implementado.
+financeira — nada disso está implementado. A série do IPCA já está no banco
+desde a rodada 21, mas ainda não há tela nem cálculo que a leia.
 
 **Há dado real em produção** (mais de 1.800 despesas e 145 receitas, de 2025 e
 2026). Ver a seção 8 antes de escrever qualquer coisa no banco.
@@ -52,6 +53,15 @@ Não existe seed de usuário em SQL (a senha precisa passar pelo hash da aplica�
 flask create-user --login <login> --pessoa "<Nome>"
 flask set-password --login <login>
 ```
+
+A série do IPCA entra por comando, e por mais nada — não há tela:
+
+```powershell
+flask carregar-ipca
+```
+
+Roda depois do dia 10 de cada mês, quando o IBGE publica o índice do mês
+anterior. Rodar de novo é inofensivo (upsert que nunca apaga linha).
 
 ### `.env` (não versionado)
 
@@ -88,7 +98,9 @@ relatório ou documento.** Referencie sempre pelo nome da variável.
 | Testes/validação | Playwright (`requirements-dev.txt`), navegador real |
 
 **Nenhuma requisição a domínio externo, em nenhuma tela.** Sem CDN, sem unpkg, sem
-fonte web. A tipografia é a fonte do sistema. Isso é verificável e é verificado: a
+fonte web. A única chamada externa do sistema inteiro é a da API do SIDRA em
+`flask carregar-ipca` (`urllib.request` da stdlib, rodada 21): é comando, não
+tela, e só acontece quando o dono o chama. A tipografia é a fonte do sistema. Isso é verificável e é verificado: a
 validação de cada rodada confere que a aba Rede só tem `/static/...`.
 
 ## 4. Mapa do código
@@ -104,17 +116,23 @@ freedom/
                    converter_numero(percentual=), formatar_valor,
                    formatar_numero, escapar_like; MESES; so_fragmento;
                    chave_alfabetica (NFD — nunca `locale`); fracao
-  cli.py           flask create-user, flask set-password
+  cli.py           flask create-user, flask set-password, flask carregar-ipca
+  ipca.py          carga do IPCA: buscar (rede), interpretar (pura), gravar
+                   (banco, uma transação só). tb_ipca só se alimenta daqui
   auth/            /login, /logout (POST com CSRF)
   main/            "/" Visão Anual, "/mensal" Visão Mensal,
                    "/mensal/categoria/<id>" fragmento
                    servico.py        Anual: painel_do_ano, _totais_do_ano
                                      (origem única dos totais), _tabela_mensal,
                                      _tabela_categorias, _graficos;
-                                     helpers card, percentual
+                                     helpers card, percentual;
+                                     anos_com_lancamento e resumo_do_ano, que o
+                                     cadastro de resumos importa daqui
                    servico_mensal.py Mensal: painel_do_mes e as três tabelas
   cadastros/       /cadastros — um módulo por entidade + servico.py
-                   (alternar_ativo, traduzir_unique, contagem)
+                   (alternar_ativo, traduzir_unique, contagem).
+                   resumos_anuais.py é o de fora da série: chave é o ano, não
+                   há `ativo`, e a segunda ação é Excluir
   lancamentos/     /lancamentos — despesas.py, consulta.py, receitas.py,
                    servico.py, servico_receitas.py, forms.py
   configuracoes/   /configuracoes — parâmetros com vigência (CATALOGO em Python)
@@ -135,10 +153,11 @@ consulta e toda composição de tela moram em `servico.py`. O template só forma
 Fonte da verdade: `docs/Freedom - Estrutura do Banco de Dados.md` e
 `db/init/01_schema.sql`. **Se um muda, o outro muda.**
 
-14 tabelas (`tb_categorias`, `tb_subcategorias`, `tb_ref_receitas`, `tb_pessoas`,
+15 tabelas (`tb_categorias`, `tb_subcategorias`, `tb_ref_receitas`, `tb_pessoas`,
 `tb_usuarios`, `tb_contas`, `tb_ipca`, `tb_configuracoes`, `tb_despesas`,
-`tb_receitas`, `tb_orcamento_meses`, `tb_orcamentos`, `tb_ativos`,
-`tb_patrimonio_snapshots`) e duas views (`vw_despesas`, `vw_receitas`).
+`tb_receitas`, `tb_orcamento_meses`, `tb_orcamentos`, `tb_resumos_anuais`,
+`tb_ativos`, `tb_patrimonio_snapshots`) e duas views (`vw_despesas`,
+`vw_receitas`).
 
 Regras que se aplicam a todo código novo:
 
@@ -150,6 +169,12 @@ Regras que se aplicam a todo código novo:
   coluna derivada de view mata o índice (comprovado com EXPLAIN ANALYZE).
 - **Nada derivado é armazenado.** Toda FK é `NOT NULL` e `ON DELETE RESTRICT`.
 - Referência não se apaga: tem `ativo` (`ativa` em `tb_contas`).
+- Chave primária é `id`, **menos onde o período é a chave**: `tb_orcamento_meses`
+  (`ano_mes`) e `tb_resumos_anuais` (`ano`). Há no máximo uma linha por período,
+  e um `id` ao lado exigiria um `UNIQUE` para dizer o mesmo.
+- `NOT NULL` em `TEXT` aceita `''`. Quando o vazio não faz sentido, o `CHECK`
+  vai junto: `texto ~ '[^[:space:]]'` (pelo menos um caractere visível) cobre
+  vazio, espaços, tabulações e quebras de linha numa expressão só.
 - `date_trunc(data) = ANY(...)` mata o índice; acumulado de vários meses é OR de
   intervalos com datas parametrizadas.
 - Mudança de schema é feita com blocos idempotentes (`ADD/DROP COLUMN IF EXISTS`,
@@ -163,7 +188,8 @@ Regras que se aplicam a todo código novo:
   transferências.
 - **Movimento se exclui, referência se desativa.** Lançamento errado é apagado de
   verdade (DELETE físico em `tb_despesas`); tabela de referência nunca.
-  Configuração e linha de orçamento também se excluem (são entrada do usuário).
+  Configuração, linha de orçamento e **resumo anual** também se excluem (são
+  entrada do usuário). Nenhum dos três tem `ativo`.
 - Despesas compartilhadas da casa vão para uma pessoa chamada **Casa**.
 - Consulta de despesas é tela separada da de lançamento. **Receitas são tela
   única.** A assimetria é intencional.
@@ -177,6 +203,11 @@ Regras que se aplicam a todo código novo:
   INSERT/UPDATE/DELETE; reabrir só se não existir mês orçado posterior.
 - Nos painéis, só categorias e pessoas **com despesa no período** aparecem. Na
   tabela mensal da Anual os 12 meses aparecem sempre.
+- **Resumo anual**: um texto livre por ano, sem tamanho máximo, sem formatação
+  (quebras de linha preservadas, nada de Markdown). O ano é a chave — há no
+  máximo um resumo por ano, e a edição não troca o ano. Só se oferece ano que a
+  Visão Anual mostra e que ainda não tem resumo. Na Anual, **ano sem resumo não
+  mostra card, aviso nem convite para escrever um**.
 
 ## 7. Convenções de código que o projeto exige
 
@@ -212,6 +243,14 @@ Regras que se aplicam a todo código novo:
   marcado, não o elemento.** Para inserir uma `<tr>` com
   `hx-swap-oob="beforeend:#alvo"`, embrulhe-a num `<tbody>` que carregue o
   atributo — senão chegam `<td>` soltos, que o parser descarta.
+- **Alvo de troca OOB que às vezes não aparece continua no DOM, com `hidden`.**
+  Elemento que some não pode ser trocado (é a razão do `#bloco-prioridade` e,
+  desde a rodada 20, do `#botao-novo-resumo`). Cuidado com o par disso no CSS:
+  `display` de folha de autor vence o `[hidden]` do navegador — já resolvido
+  para `.btn`.
+- Uma ação que muda duas regiões da tela devolve as duas de uma vez: o alvo
+  principal e o resto fora de banda. Excluir um resumo anual troca a lista
+  **e** o botão da barra superior, porque os dois dependem do mesmo fato.
 - Estado de UI que sobrevive ao re-render vai em `<input type="hidden">`; filtro
   fora do formulário vai por `hx-include`.
 - `hx-vals` para renomear parâmetro; `hx-params="none"` cancela. O gatilho
@@ -221,7 +260,7 @@ Regras que se aplicam a todo código novo:
 - Rota só de fragmento: sem `HX-Request` → redirect para a página-mãe com os
   mesmos parâmetros, **antes** de qualquer 404. Regra de estado recusada → **409**.
 
-### CSS (`static/css/app.css`, ~4.200 linhas, seções numeradas)
+### CSS (`static/css/app.css`, ~4.370 linhas, seções numeradas)
 
 ```
 1 Variáveis   2 Reset   3 Fundo   4 Layout   5 Componentes   6 Login
@@ -242,11 +281,20 @@ Regras que se aplicam a todo código novo:
   seletor de tela não funciona fora dela e o erro é silencioso.
 - `1fr` tem mínimo `min-content`: em grade com canvas ou tabela larga, use
   `minmax(0, 1fr)`.
+- **Texto de cartão ocupa a largura do cartão.** Nada de `max-width` em `ch`
+  para "encurtar a linha de leitura": num monitor largo isso quebra o parágrafo
+  no meio do cartão e estica a altura à toa. Quem decide o comprimento da linha
+  é a largura da tela, como no resto do painel. (Tentado e desfeito no card de
+  resumo anual, rodada 20.)
+- Texto livre do usuário: `white-space: pre-wrap` preserva as quebras sem
+  interpretar formatação, e `overflow-wrap: anywhere` impede que uma URL sem
+  espaço alargue a página no celular. Os dois andam juntos.
 - `.so-leitor` é absoluto: dentro de contêiner que rola precisa de ancestral
   `position: relative`, senão ele estica a página inteira.
 - `display` de folha de autor vence o `[hidden]` do navegador (regra de user
   agent). Todo componente com `display:` próprio precisa de
-  `.componente[hidden] { display: none }`.
+  `.componente[hidden] { display: none }` — feito para `.btn` na rodada 20,
+  quando um botão passou a sumir da barra superior.
 - `white-space: nowrap` herdado estica tabela no celular — sempre desfaça na
   seção 7.
 - Chart.js: contêiner com **altura fixa** e `maintainAspectRatio: false`; eixo sem
@@ -335,9 +383,15 @@ leva muito mais.
 > janela do Windows.
 
 A detecção de saída de aba roda em **toda tela autenticada** — sem isso (d)
-falha quando o usuário sai estando em "Lançar despesa". O olho e as marcações,
-por enquanto, só existem na Visão Anual: para outra tela aderir, basta marcar os
-elementos e repetir o botão.
+falha quando o usuário sai estando em "Lançar despesa". Mas **o olho e as
+marcações existem só na Visão Anual, por decisão do dono**: as outras telas não
+o ganham, nem a de cadastro de resumos anuais, onde o texto é escrito. O
+mecanismo continua pronto para outra tela aderir (basta marcar os elementos e
+repetir o botão) — só não é para fazer isso sem ele pedir.
+
+Marcado na Anual desde a rodada 20: o **texto do card de resumo do ano**
+(`.resumo-ano__texto`, com `.sensivel`). Explicar os números é falar deles.
+Título do card e link "Editar" continuam visíveis.
 
 ### Celular (< 768px) — preservar sempre
 
@@ -359,8 +413,13 @@ elementos e repetir o botão.
 
 O banco de desenvolvimento **é** o banco de produção do dono. Portanto:
 
-- **Nenhuma rodada apaga linha que não criou.** Faxina de teste sempre por id, e o
-  id é relatado.
+- **Nenhuma rodada apaga linha que não criou.** Faxina de teste sempre por id
+  (ou pela chave, onde a chave não é `id`: o ano, em `tb_resumos_anuais`), e a
+  chave é relatada. Onde a linha é texto do dono, confira o prefixo `zz teste`
+  **antes** de apagar.
+- **O dono escreve enquanto você trabalha.** Ele lança despesa, e desde a
+  rodada 20 também escreve resumo anual. Antes de criar, confira que o ano (ou
+  o registro) ainda está livre; se não estiver, não toque e relate.
 - Edição de registro real feita para validar é **revertida pelo mesmo caminho** e
   relatada. Repare que editar carimba `atualizado_em` (trigger
   `fn_set_atualizado_em`) e isso não volta atrás — quando incomodar, crie e apague
@@ -388,7 +447,13 @@ O que se espera de uma validação:
   referência capturada **duas vezes** para provar que o instrumento é
   determinístico (viewport e `device_scale_factor` fixos, espera pelos gráficos,
   expansão por `element.click()`). Se o SHA mudar, faça o diff de pixels antes de
-  culpar o CSS: **o dono pode ter lançado uma despesa enquanto você trabalhava.**
+  culpar o CSS: **o dono pode ter lançado uma despesa — ou escrito um resumo
+  anual — enquanto você trabalhava**, e aí a diferença é dado, não regressão.
+  Compare também as dimensões: mesma largura e altura crescida no tamanho exato
+  de um bloco novo é a assinatura de "apareceu conteúdo", não de layout mexido.
+- **A referência da Visão Anual tem quatro estados por largura**, não um: cada
+  ano relevante × olho fechado e aberto. Capturar só o estado aberto esconde
+  metade da tela desde a rodada 19.
 - Console limpo e **aba Rede só com `/static/...`**.
 - Celular conferido em 390px (e 900px quando houver grade intermediária):
   `scrollWidth === clientWidth`.
@@ -424,12 +489,19 @@ decisões, lições aprendidas). Resumo:
   (montagem + acompanhamento). Refatoração visual: rodada 17 (tokens, layout,
   Visão Anual) e rodada 18 (lançamentos e cadastros) concluídas. Rodada 19:
   botão olho da Visão Anual, que esconde todo número da tela (ver "Ocultar
-  valores" na seção 7).
-- **Pendente**: rodada 20 da refatoração visual — Visão Mensal, Orçamento,
-  configurações e login ainda rodam sobre os apelidos da seção 1(b) do CSS.
+  valores" na seção 7). Rodada 20: **resumo anual** — `tb_resumos_anuais`,
+  cadastro em `/cadastros/resumos-anuais` e card na Visão Anual. Rodada 21:
+  **carga do IPCA** — `freedom/ipca.py` e `flask carregar-ipca` enchem
+  `tb_ipca` com a série do SIDRA/IBGE desde dez/1993 (só a carga; nada lê a
+  tabela ainda).
+- **Pendente**: a refatoração visual das telas que faltam — Visão Mensal,
+  Orçamento, configurações e login ainda rodam sobre os apelidos da seção 1(b)
+  do CSS. **Citada pelo nome, e não por número de rodada**: o número já mudou
+  duas vezes, e cada mudança deixou comentário mentindo pelo código.
 - **Depois**: metas de independência (TSR/S/R já estão em `tb_configuracoes`, nada
-  os lê); patrimônio; carga do IPCA (API SIDRA/IBGE) e gráficos deflacionados;
-  deploy com gunicorn no docker-compose + Tailscale + segundo usuário.
+  os lê); patrimônio; **uso** do IPCA — a série já está carregada, faltam tela e
+  gráficos deflacionados; deploy com gunicorn no docker-compose + Tailscale +
+  segundo usuário.
 
 Referência visual: `design_handoff_freedom_visao_anual/` e
 `design_handoff_freedom_lancamentos_cadastros/`. **Cuidado**: os README desses
@@ -446,5 +518,7 @@ fazem parte da aplicação.
 - Não decida cor, texto ou estado dentro do template.
 - Não some linhas em Python quando existe consulta agregada.
 - Não apague dado que você não criou.
+- Não leve o olho da Visão Anual para outra tela sem o dono pedir: o mecanismo
+  é reutilizável, a decisão de onde usá-lo não é sua.
 - Não escreva valor de senha, chave ou token em lugar nenhum.
 - Não faça commit nem push sem o dono pedir.

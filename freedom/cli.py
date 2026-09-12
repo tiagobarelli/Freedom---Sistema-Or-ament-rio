@@ -7,12 +7,15 @@ from flask.cli import with_appcontext
 from psycopg import errors
 from werkzeug.security import generate_password_hash
 
+from freedom import ipca
 from freedom.db import get_connection
+from freedom.util import formatar_numero
 
 
 def register_cli(app):
     app.cli.add_command(create_user)
     app.cli.add_command(set_password)
+    app.cli.add_command(carregar_ipca)
 
 
 @click.command("create-user")
@@ -123,3 +126,49 @@ def set_password(login):
         click.echo(
             "Atencao: este usuario esta inativo e segue sem conseguir entrar."
         )
+
+
+@click.command("carregar-ipca")
+@with_appcontext
+def carregar_ipca():
+    """Baixa a série do IPCA no SIDRA (IBGE) e grava em tb_ipca.
+
+    Rode depois do dia 10 de cada mês, quando o IBGE publica o índice do mês
+    anterior. Rodar de novo não faz mal: mês que já está igual não é tocado e
+    nenhuma linha é apagada.
+    """
+    try:
+        bruto = ipca.buscar()
+        registros = ipca.interpretar(bruto)
+        contagens = ipca.gravar(registros)
+    except ipca.ErroIpca as erro:
+        # ClickException imprime só a mensagem e sai com código 1: o
+        # traceback não diz nada a quem só quer saber se o mês novo entrou.
+        raise click.ClickException(str(erro)) from None
+
+    primeiro = registros[0][0]
+    ultimo_mes, ultimo_indice, ultima_variacao = registros[-1]
+    variacao = (
+        f"{formatar_numero(ultima_variacao, 2)}%"
+        if ultima_variacao is not None
+        else "não publicada"
+    )
+
+    click.echo("Série do IPCA lida do SIDRA (IBGE), tabela 1737.")
+    click.echo(
+        f"Período coberto: {primeiro:%Y-%m} a {ultimo_mes:%Y-%m} "
+        f"({len(registros)} meses)."
+    )
+    click.echo(
+        f"Número-índice com {ipca.casas_decimais(registros)} casas decimais na "
+        "resposta da API."
+    )
+    click.echo(
+        f"Inseridos: {contagens['inseridos']}. "
+        f"Atualizados: {contagens['atualizados']}. "
+        f"Já iguais: {contagens['iguais']}."
+    )
+    click.echo(
+        f"Último mês: {ultimo_mes:%Y-%m} — número-índice "
+        f"{formatar_numero(ultimo_indice, 2)}, variação {variacao}."
+    )

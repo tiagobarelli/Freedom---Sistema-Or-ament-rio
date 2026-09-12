@@ -4,7 +4,7 @@ Sistema web pessoal de controle financeiro. Roda localmente; acesso de outros me
 
 > **Status**: schema implementado em `db/init/01_schema.sql` (idempotente). Este documento reflete exatamente o que está no banco. Se o SQL mudar, atualizar aqui; se este documento mudar, atualizar o SQL.
 >
-> Histórico do DDL: criado na rodada 1 e inalterado até a rodada 6. A **rodada 7 acrescentou a view `vw_receitas`**. A **rodada 15 é a segunda e única outra mudança**: criou `tb_orcamento_meses` e trocou `tb_orcamentos` de categoria para subcategoria (a tabela nunca recebera uma linha, então foi troca de coluna, sem migração de dados). Nenhuma tabela de movimento foi tocada em nenhuma das duas. O que as rodadas 4 a 15 acrescentaram além disso está em **Regras da aplicação** e em **Padrões de acesso**.
+> Histórico do DDL: criado na rodada 1 e inalterado até a rodada 6. São **três mudanças** desde então. A **rodada 7** acrescentou a view `vw_receitas`. A **rodada 15** criou `tb_orcamento_meses` e trocou `tb_orcamentos` de categoria para subcategoria (a tabela nunca recebera uma linha, então foi troca de coluna, sem migração de dados). A **rodada 20** criou `tb_resumos_anuais` e ampliou o `COMMENT` de `fn_set_atualizado_em()`, que agora serve três tabelas — nada mais foi tocado. Nenhuma tabela de movimento foi alterada em nenhuma das três. O que as rodadas 4 a 20 acrescentaram além disso está em **Regras da aplicação** e em **Padrões de acesso**.
 
 ## Decisões de projeto
 
@@ -12,11 +12,12 @@ Sistema web pessoal de controle financeiro. Roda localmente; acesso de outros me
 - **Sem controle de saldo**: o sistema categoriza fluxos (entradas e saídas); não há saldo inicial nem transferências entre contas.
 - **Nada derivado é armazenado**: categoria e essencialidade vêm da subcategoria via JOIN; categoria e subcategoria de receita vêm da fonte via JOIN; o mês vem da data (`vw_despesas`, `vw_receitas`). Isso evita dados inconsistentes quando algo é renomeado.
 - **Usuários no próprio Postgres** (não em SQLite separado): a segurança está no hash da senha (scrypt via `werkzeug.security`), não no arquivo. Isso permite chave estrangeira entre lançamentos e usuários.
-- **Toda tabela tem `id` como chave primária** (`GENERATED ALWAYS AS IDENTITY`). Nomes nunca são chave.
+- **Toda tabela tem `id` como chave primária** (`GENERATED ALWAYS AS IDENTITY`), **menos as duas em que o período é a chave**: `tb_orcamento_meses` (`ano_mes`, rodada 15) e `tb_resumos_anuais` (`ano`, rodada 20). Nos dois casos há no máximo uma linha por período, e um `id` sequencial ao lado exigiria um `UNIQUE` para dizer exatamente a mesma coisa. Nomes nunca são chave.
 - **Registros de referência não são apagados**: tabelas de referência têm coluna `ativo`, para sumir dos formulários sem quebrar o histórico. Todas as FKs são `ON DELETE RESTRICT`.
 - **Movimento se exclui, referência se desativa** (decisão da rodada 4): `tb_despesas` e `tb_receitas` não têm coluna de situação e admitem `DELETE` físico, porque um lançamento digitado errado é lixo, não histórico. Nenhuma tabela de referência pode ser apagada, nem em teste.
 - **Configurações têm vigência**: mudar a TSR no futuro não altera relatórios do passado.
 - **Configuração é corrigível** (decisão da rodada 8): `tb_configuracoes` admite `UPDATE` e `DELETE` físico pela interface. Uma vigência digitada errada é lixo, como um lançamento errado; como nada derivado é armazenado, apagá-la só muda o que os relatórios calculam dali em diante. A **chave** não muda na edição — trocar de chave é apagar e lançar de novo.
+- **Resumo anual se exclui** (decisão da rodada 20): `tb_resumos_anuais` admite `UPDATE` e `DELETE` físico pela interface, pela mesma razão da configuração e da linha de orçamento — é entrada do usuário, não histórico gerado pelo sistema. O **ano** não muda na edição: trocar de ano é excluir e escrever outro. Sem `ativo` e sem autoria.
 - **Orçamento é por subcategoria, e o mês tem tabela própria** (rodada 15): orçar por categoria pede um número que ninguém sabe dizer ("quanto vou gastar em Lazer?"); por subcategoria o número sai do histórico daquela linha e a categoria vira soma. O que é atributo do **mês** — receita planejada, encerramento, observação — mora em `tb_orcamento_meses`, e não repetido em cada linha; assim um mês recém-criado ou esvaziado continua existindo.
 - **Mês de orçamento se encerra, não se congela por trigger** (rodada 15): `encerrado_em` nulo significa aberto. A recusa de alterar mês encerrado é da aplicação (ver Regras da aplicação).
 - **Leitura pela view, escrita na tabela**, para os dois movimentos: `vw_despesas` e `vw_receitas` são o que a aplicação consulta; `INSERT`, `UPDATE` e `DELETE` vão sempre nas tabelas base.
@@ -142,14 +143,20 @@ De onde o dinheiro sai. Serve apenas para classificar a saída — não há sald
 
 ### `tb_ipca`
 
-Série histórica do IPCA, para deflacionar despesas e ver crescimento real. *(Carga prevista para o futuro.)*
+Série histórica do IPCA, para deflacionar despesas e ver crescimento real.
+
+**Como é alimentada.** Pelo comando `flask carregar-ipca` (rodada 21), e por mais nada: não há tela nem `INSERT` manual. O comando lê a **tabela 1737 do SIDRA/IBGE** (Brasil, variáveis **2266** — número-índice, base dezembro/1993 = 100 — e **63** — variação mensal, em %), em `https://apisidra.ibge.gov.br/values/t/1737/n1/all/v/2266,63/p/all`, e grava de **dezembro/1993 em diante**: antes disso a série vem reconstruída em moedas extintas, com índice na casa de 0,0000000076, que não caberia em `NUMERIC(14,6)` e não tem uso no Freedom.
+
+A gravação é um `INSERT ... ON CONFLICT (mes) DO UPDATE` com `WHERE ... IS DISTINCT FROM ...`, numa transação só: o mês que já está igual não é tocado, **nenhuma linha é apagada** e qualquer erro no meio desfaz tudo — não existe carga parcial, porque meia série não serve (o número-índice só vale encadeado). A série inteira é recusada, sem gravar nada, se dezembro/1993 faltar ou não valer exatamente 100, se houver mês faltando entre o primeiro e o último, se algum índice não for positivo ou se algum mês vier duplicado.
+
+**Quando rodar.** Depois do dia 10 de cada mês, quando o IBGE publica o índice do mês anterior. Rodar de novo é inofensivo — o resultado é "0 inseridos, 0 atualizados".
 
 | Coluna | Tipo | Função |
 |---|---|---|
 | `id` | `INT IDENTITY PK` | Identificador único. |
 | `mes` | `DATE NOT NULL UNIQUE` | Mês de referência, sempre dia 1 (ex.: `2026-08-01`). `CHECK (EXTRACT(DAY FROM mes) = 1)`. |
-| `numero_indice` | `NUMERIC(14,6) NOT NULL` | Número-índice acumulado publicado pelo IBGE (dez/1993 = 100). Deflacionar = `valor × indice_base / indice_mes`. |
-| `variacao_mensal` | `NUMERIC(6,4)` | Variação % do mês, apenas para consulta rápida (opcional; derivável do índice). |
+| `numero_indice` | `NUMERIC(14,6) NOT NULL` | Número-índice acumulado publicado pelo IBGE (dez/1993 = 100), **gravado como publicado, sem arredondar e sem recalcular**: o índice não é reconstruído encadeando variações. A API devolve 13 casas decimais, mas de dez/1993 em diante só 2 são significativas, então as 6 da coluna guardam o valor exato. Deflacionar = `valor × indice_base / indice_mes`. |
+| `variacao_mensal` | `NUMERIC(6,4)` | Variação do mês **em pontos percentuais, como o IBGE publica**: `0.3800` é 0,38 %, e mês de deflação vem negativo. **Diferente de `tb_configuracoes.valor`, que guarda fração** (`0.04` é 4 %) — as duas colunas são percentuais e as duas convenções convivem no banco. `NULL` quando o IBGE não publica número para o mês (marcadores `...`, `-`, `X`); a coluna é opcional e derivável do índice, e existe para consulta rápida. |
 
 ### `tb_configuracoes`
 
@@ -266,11 +273,26 @@ Foto mensal do valor de cada ativo, lançada manualmente (o sistema não control
 
 ---
 
+## Anotações do usuário
+
+### `tb_resumos_anuais`
+
+Um resumo em texto livre por ano, escrito pelo dono para lembrar no futuro o porquê dos números daquele ano. Criada na rodada 20. Não é referência (ninguém aponta para ela) nem movimento (não entra em conta nenhuma): é anotação, e por isso tem seção própria. Tela em `/cadastros/resumos-anuais`; admite `UPDATE` e `DELETE` físico (ver Decisões de projeto).
+
+| Coluna | Tipo | Função |
+|---|---|---|
+| `ano` | `INT PK` | Ano do resumo. Sendo chave primária, há no máximo um resumo por ano. `CHECK (ano BETWEEN 2000 AND 2100)` — sem ele, um dedo a mais gravaria `20026` em silêncio. **Sem FK**: o ano não é tabela; quem restringe a lista ao que faz sentido é a interface, que só oferece anos com lançamento. |
+| `texto` | `TEXT NOT NULL` | O resumo, **sem tamanho máximo**. `CHECK (texto ~ '[^[:space:]]')`: exige pelo menos um caractere visível, o que recusa vazio, só espaços, só tabulações e só quebras de linha de uma vez — `NOT NULL` sozinho aceitaria `''`. Quebras de linha são preservadas; nada é interpretado como Markdown. |
+| `criado_em` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Auditoria. |
+| `atualizado_em` | `TIMESTAMPTZ` | Auditoria; `NULL` até o primeiro `UPDATE`, preenchido pela trigger `tg_resumos_anuais_atualizado_em`. A lista mostra este carimbo, ou `criado_em` quando o resumo nunca foi editado. |
+
+---
+
 ## Objetos auxiliares
 
 ### `fn_set_atualizado_em()`
 
-Função `plpgsql` usada pelas triggers `BEFORE UPDATE` de `tb_despesas` e `tb_receitas`. Carimba `NEW.atualizado_em := now()`.
+Função `plpgsql` usada pelas triggers `BEFORE UPDATE` de `tb_despesas`, `tb_receitas` e `tb_resumos_anuais`. Carimba `NEW.atualizado_em := now()`.
 
 ### `vw_despesas`
 
@@ -327,6 +349,7 @@ tb_usuarios 1──n tb_receitas
 tb_ativos 1──n tb_patrimonio_snapshots
 tb_ipca (sem FK; cruza com vw_despesas.ano_mes)
 tb_configuracoes (sem FK; consultada por chave e data)
+tb_resumos_anuais (sem FK; consultada pelo ano, que e a chave)
 ```
 
 ## Indicadores derivados (não armazenados)

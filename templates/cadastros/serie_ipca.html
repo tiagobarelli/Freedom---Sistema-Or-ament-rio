@@ -1,0 +1,60 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{#
+  A serie do IPCA, ano a ano, e o botao que a atualiza. Tela de leitura: o
+  unico ato possivel e pedir ao IBGE o que ha de novo, e nao ha o olho da
+  Visao Anual - o IPCA e numero publico, e nao quanto a casa gastou.
+
+  O corpo inteiro mora em `_cartao_ipca.html`, porque e o que a resposta do
+  botao troca. Aqui ficam so o cabecalho da pagina e os controles.
+#}
+
+{% block title %}IPCA - Freedom{% endblock %}
+{% block titulo_pagina %}IPCA{% endblock %}
+
+{% block subtitulo_pagina %}{% include "cadastros/_subtitulo_ipca.html" %}{% endblock %}
+
+{#
+  Duas coisas na barra: o segmentado da secao 5.2 do CSS (o mesmo do seletor
+  de ano da Visao Anual) e o botao primario.
+
+  O botao e um <form> com hx-post: `modo` viaja para a resposta voltar no modo
+  em que a pessoa estava, e o token CSRF vai no campo escondido alem do
+  cabecalho do <body> - e ele que faz um POST sem JavaScript chegar a rota e
+  ser redirecionado, em vez de morrer em 400.
+
+  Enquanto a requisicao roda, `hx-disabled-elt` desliga o botao (dois cliques
+  nao viram duas buscas) e a classe `htmx-request` troca o rotulo pelo de
+  espera. Sem uma linha de JavaScript: e atributo e CSS.
+#}
+{% block acoes_pagina %}
+  {% if not ipca.vazia %}
+    <nav class="segmentado" aria-label="O que a tabela mostra">
+      <a class="segmentado__item"
+         href="{{ url_for('cadastros.serie_ipca', modo='variacao') }}"
+         {% if ipca.modo == 'variacao' %}aria-current="page"{% endif %}>Variação mensal</a>
+      <a class="segmentado__item"
+         href="{{ url_for('cadastros.serie_ipca', modo='indice') }}"
+         {% if ipca.modo == 'indice' %}aria-current="page"{% endif %}>Número-índice</a>
+    </nav>
+  {% endif %}
+
+  <form hx-post="{{ url_for('cadastros.serie_ipca_atualizar') }}"
+        hx-target="#ipca-cartao" hx-swap="innerHTML"
+        hx-disabled-elt="find button">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="modo" value="{{ ipca.modo }}">
+    <button type="submit" class="btn btn--primario">
+      {{ m.icone("refresh-cw", tamanho=14, tracado=2.25) }}
+      <span class="btn__parado">Atualizar do IBGE</span>
+      <span class="btn__rodando">Consultando o IBGE…</span>
+    </button>
+  </form>
+{% endblock %}
+
+{% block content %}
+<div class="painel">
+  <div id="ipca-cartao">{% include "cadastros/_cartao_ipca.html" %}</div>
+</div>
+{% endblock %}

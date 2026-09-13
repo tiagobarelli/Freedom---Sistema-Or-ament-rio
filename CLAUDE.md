@@ -17,16 +17,19 @@ acessam pela rede Tailscale. **Nada é exposto na internet.**
 Registra despesas e receitas, classifica por categoria/subcategoria/pessoa/conta,
 e mostra painéis anual e mensal, além de um orçamento por subcategoria. O objetivo
 de longo prazo inclui deflação por IPCA, patrimônio e metas de independência
-financeira — nada disso está implementado. A série do IPCA já está no banco
-desde a rodada 21, mas ainda não há tela nem cálculo que a leia.
+financeira. A série do IPCA está no banco desde a rodada 21, tem tela própria
+desde a 22 e **já corrige valor** na Análise por subcategoria (rodada 24).
+Patrimônio e metas continuam sem nada implementado.
 
 **Há dado real em produção** (mais de 1.800 despesas e 145 receitas, de 2025 e
 2026). Ver a seção 8 antes de escrever qualquer coisa no banco.
 
 ## 2. Rodar
 
-Pré-requisitos: Docker Desktop, Python 3.12 (o `venv/` já vem criado na máquina do
-dono; Python 3.14 não tem wheel para tudo).
+Pré-requisitos: Docker Desktop e o `venv/`, que já vem criado na máquina do dono
+com **Python 3.14** — é o que roda hoje, e nada do `requirements.txt` faltou
+wheel. (O aviso antigo de "use 3.12" ficou de quando havia dependência sem wheel
+para a 3.14; não vale mais. Num clone novo, conferir antes de trocar de versão.)
 
 ```powershell
 docker compose up -d                     # Postgres 16 + pgAdmin
@@ -91,16 +94,19 @@ relatório ou documento.** Referencie sempre pelo nome da variável.
 | Auth | Flask-Login; hash com `werkzeug.security` (scrypt) |
 | Formulários | Flask-WTF (CSRF em todo POST) |
 | Interatividade | HTMX 2.0.4 (arquivo local) + JS vanilla pontual |
-| Gráficos | Chart.js 4.5.1, UMD **local**, só na Visão Anual. Núcleo, sem plugins |
+| Gráficos | Chart.js 4.5.1, UMD **local**, nas duas telas que desenham (Visão Anual e Análise por subcategoria). Núcleo, sem plugins. O comum às duas mora em `static/js/graficos.js` |
 | CSS | Um arquivo escrito à mão (`static/css/app.css`), tokens em `:root`. **Sem Tailwind, sem React, sem biblioteca de ícones** |
 | Ícones | Lucide (ISC), **SVG inline** pela macro `icone` em `templates/_macros.html` |
 | Dinheiro | `Decimal` em todo cálculo; `float` só na serialização final para JSON de gráfico |
 | Testes/validação | Playwright (`requirements-dev.txt`), navegador real |
 
 **Nenhuma requisição a domínio externo, em nenhuma tela.** Sem CDN, sem unpkg, sem
-fonte web. A única chamada externa do sistema inteiro é a da API do SIDRA em
-`flask carregar-ipca` (`urllib.request` da stdlib, rodada 21): é comando, não
-tela, e só acontece quando o dono o chama. A tipografia é a fonte do sistema. Isso é verificável e é verificado: a
+fonte web. A única chamada externa do sistema inteiro é a da API do SIDRA
+(`urllib.request` da stdlib), e ela sai por **dois gatilhos, os dois manuais**:
+`flask carregar-ipca` (rodada 21) e o botão "Atualizar do IBGE" da tela do IPCA
+(rodada 23), que passam pela mesma função. **Nunca por agendamento** — não há
+cron, thread nem tarefa do Windows dentro do app. Nenhuma tela pede nada a
+domínio externo: quem fala com o IBGE é o servidor, quando alguém manda. A tipografia é a fonte do sistema. Isso é verificável e é verificado: a
 validação de cada rodada confere que a aba Rede só tem `/static/...`.
 
 ## 4. Mapa do código
@@ -114,11 +120,20 @@ freedom/
                    query_all(), executar()
   util.py          destino_interno(); ValorInvalido, converter_valor,
                    converter_numero(percentual=), formatar_valor,
-                   formatar_numero, escapar_like; MESES; so_fragmento;
-                   chave_alfabetica (NFD — nunca `locale`); fracao
+                   formatar_numero, escapar_like; MESES e MESES_CURTOS;
+                   nome_do_periodo(ano, mês) ou (date) -> "agosto de 2026";
+                   nome_do_mes(mês) -> "Janeiro";
+                   intervalo_de_meses(a, b); somar_meses(mês, passos);
+                   so_fragmento; dobrar (NFD — nunca `locale`),
+                   chave_alfabetica; fracao
   cli.py           flask create-user, flask set-password, flask carregar-ipca
-  ipca.py          carga do IPCA: buscar (rede), interpretar (pura), gravar
-                   (banco, uma transação só). tb_ipca só se alimenta daqui
+  ipca.py          IPCA de ponta a ponta. Carga: buscar (rede), interpretar
+                   (pura), gravar (banco, uma transação só) — tb_ipca só se
+                   alimenta daqui; carregar() encadeia as três e é o caminho
+                   do comando E do botão. Leitura: serie() e matriz() (pura).
+                   Texto pronto: texto_da_faixa, texto_do_erro, texto_das_nulas,
+                   texto_da_dica; datas: mes_esperado e pendente (puras, a data
+                   entra por parâmetro)
   auth/            /login, /logout (POST com CSRF)
   main/            "/" Visão Anual, "/mensal" Visão Mensal,
                    "/mensal/categoria/<id>" fragmento
@@ -129,17 +144,29 @@ freedom/
                                      anos_com_lancamento e resumo_do_ano, que o
                                      cadastro de resumos importa daqui
                    servico_mensal.py Mensal: painel_do_mes e as três tabelas
+                   analise.py        "/analise/subcategoria" (rodada 24), só
+                                     a rota; servico_analise.py tem a consulta
+                                     única por mês e as puras montar_pontos,
+                                     montar e para_grafico
   cadastros/       /cadastros — um módulo por entidade + servico.py
                    (alternar_ativo, traduzir_unique, contagem).
                    resumos_anuais.py é o de fora da série: chave é o ano, não
-                   há `ativo`, e a segunda ação é Excluir
+                   há `ativo`, e a segunda ação é Excluir.
+                   serie_ipca.py tem a tela do IPCA: GET /cadastros/ipca e
+                   POST /cadastros/ipca/atualizar (o botão). O nome evita
+                   colisão com freedom/ipca.py, que é quem tem a consulta, a
+                   matriz e todo o texto. Templates: serie_ipca.html mais os
+                   parciais _cartao_ipca, _subtitulo_ipca (OOB) e _resposta_ipca
   lancamentos/     /lancamentos — despesas.py, consulta.py, receitas.py,
                    servico.py, servico_receitas.py, forms.py
   configuracoes/   /configuracoes — parâmetros com vigência (CATALOGO em Python)
   orcamento/       /orcamento — servico.py (montagem) e acompanhamento.py (leitura)
-templates/         base.html, layout_app.html, _macros.html + uma pasta por blueprint
+templates/         base.html (o `htmx-config` que libera 409/502/503),
+                   layout_app.html, _macros.html + uma pasta por blueprint
 static/css/app.css seções numeradas 1–8 (ver seção 7 deste arquivo)
-static/js/         htmx.min.js, chart.umd.js, visao_anual.js
+static/js/         htmx.min.js, chart.umd.js; graficos.js (o que as telas
+                   com gráfico fazem igual: cor por variável CSS, moeda,
+                   eixo, base de opções, linha) + visao_anual.js e analise.js
 db/init/01_schema.sql
 docs/              Freedom - Estrutura do Banco de Dados.md   (fonte da verdade)
                    Freedom - Histórico e Estado do Projeto.md (decisões e lições)
@@ -203,6 +230,52 @@ Regras que se aplicam a todo código novo:
   INSERT/UPDATE/DELETE; reabrir só se não existir mês orçado posterior.
 - Nos painéis, só categorias e pessoas **com despesa no período** aparecem. Na
   tabela mensal da Anual os 12 meses aparecem sempre.
+- **Análise por subcategoria** (`/analise/subcategoria`, rodada 24): no grupo
+  Painel, uma subcategoria por vez, **sem olho**. Tudo por GET — **a URL é o
+  estado**, recarga inteira, sem HTMX: a tela é reproduzível por link. Período
+  (3, 6, 12 meses terminando no mês corrente, série inteira do **acervo** ou
+  personalizado), agrupamento (mensal, trimestral, anual, 12 meses móveis) e
+  correção pelo IPCA. Valor inválido cai no padrão; só o personalizado com mês
+  invertido ou malformado dá erro de formulário, e aí **nada é desenhado**.
+  **Zero é zero**: mês sem lançamento vira ponto zero com quantidade 0, nunca
+  buraco interpolado — e o gráfico não suaviza, porque curva entre zeros
+  desenharia gasto negativo. **Base da correção = último mês carregado** de
+  `tb_ipca`; mês posterior a ela usa fator 1. A deflação é por lançamento, em
+  SQL, e a soma vem depois: deflacionar a soma do trimestre por um índice só
+  daria outro número. Bucket que não cabe inteiro no período ou que contém o
+  mês em curso é **parcial**. **`integra_ipca` não é lida** — é de uma tela
+  futura, por decisão do dono.
+- **Tela do IPCA** (`/cadastros/ipca`, rodada 22): só leitura, no menu entre
+  "Resumos anuais" e "Configurações" (ícone Lucide `percent`), sem olho — o
+  IPCA é número público do IBGE, não quanto a casa gastou. Matriz ano × 12
+  meses, ano mais recente em cima, com a coluna **"No ano"** = índice do
+  último mês carregado do ano ÷ índice de dezembro do ano anterior − 1, a
+  mesma nos dois modos e **nunca gravada**. Alternar Variação mensal |
+  Número-índice é GET (`?modo=`), modo inválido cai em variação. Mês sem dado
+  e variação não publicada viram travessão; 1993 só tem dezembro e "No ano"
+  dele é travessão, porque não há dezembro de 1992.
+- **Botão "Atualizar do IBGE"** (rodada 23): POST com CSRF por HTMX, na mesma
+  tela, com o **mesmo `ipca.carregar`** do comando — o que muda é só a espera
+  (**20 s** na web, porque o gunicorn do deploy corta em 30 s; 60 s no
+  terminal) e o formato do relato. A resposta traz o cartão inteiro (faixa,
+  dica, nota, tabela) e o subtítulo fora de banda, no modo em que a pessoa
+  estava. A **faixa** é texto de servidor e não é estado: some ao recarregar.
+  Diz "Nenhum mês novo", "<Mês> carregado: índice e variação" ou "N meses
+  carregados (<intervalo>)", e acrescenta "N mês(es) revisado(s) pelo IBGE" e
+  a frase de variação nula quando houver. A **dica** ("O IBGE já deve ter
+  publicado <mês>") sai de `mes_esperado`: a partir do **dia 12** espera-se o
+  mês anterior, antes disso o retrasado. Dois cliques não viram duas buscas —
+  o botão se desabilita —, e mesmo que virassem a gravação é upsert.
+- **Resposta de erro que a tela mostra é 409, 502 ou 503**, e só. 409 é regra
+  de estado recusada (mês de orçamento encerrado), 502 é o IBGE que não
+  respondeu ou respondeu torto, 503 é o banco que recusou a gravação. O
+  `<meta name="htmx-config">` do `base.html` manda o HTMX trocar **só esses
+  três**; qualquer outro 4xx/5xx segue o padrão dele e não troca nada, porque
+  um 500 não tratado traz a página de erro do Flask (com `--debug`, o
+  traceback do Werkzeug) e ela não pode cair dentro de um cartão ou de uma
+  `<tr>`. Sem essa configuração o HTMX 2 descarta todo 4xx/5xx em silêncio —
+  foi o que aconteceu com o 409 do orçamento, escrito na rodada 15 e invisível
+  até a 23.
 - **Resumo anual**: um texto livre por ano, sem tamanho máximo, sem formatação
   (quebras de linha preservadas, nada de Markdown). O ano é a chave — há no
   máximo um resumo por ano, e a edição não troca o ano. Só se oferece ano que a
@@ -260,7 +333,7 @@ Regras que se aplicam a todo código novo:
 - Rota só de fragmento: sem `HX-Request` → redirect para a página-mãe com os
   mesmos parâmetros, **antes** de qualquer 404. Regra de estado recusada → **409**.
 
-### CSS (`static/css/app.css`, ~4.370 linhas, seções numeradas)
+### CSS (`static/css/app.css`, ~4.480 linhas, seções numeradas)
 
 ```
 1 Variáveis   2 Reset   3 Fundo   4 Layout   5 Componentes   6 Login
@@ -279,6 +352,17 @@ Regras que se aplicam a todo código novo:
 - `font-variant-numeric: tabular-nums` é global (no `body`).
 - Utilitário nasce **global**, na seção 8. Classe utilitária criada dentro de um
   seletor de tela não funciona fora dela e o erro é silencioso.
+- Componente que uma segunda tela adota **sai da seção da primeira** e perde o
+  nome que falava daquela tela: o seletor segmentado era `.anos`, dentro do
+  bloco da Visão Anual, e virou `.segmentado` na seção 5.2 quando a tela do
+  IPCA passou a alternar variação e número-índice com o mesmo desenho; a nota
+  de rodapé do cartão de tabela era `.ipca-nota` e virou `.nota-rodape` na 5.1
+  quando a análise por subcategoria passou a fechar o cartão do mesmo jeito.
+  Copiar teria criado a segunda cópia; deixar o nome teria criado o comentário
+  que mente. Renomear não mexe em pixel, e o SHA prova.
+- **O mesmo vale para o JavaScript**: `graficos.js` nasceu na rodada 24 com o
+  que a Visão Anual e a Análise repetiriam. Nenhum hexadecimal nele — cor
+  continua saindo de variável CSS por `getComputedStyle`.
 - `1fr` tem mínimo `min-content`: em grade com canvas ou tabela larga, use
   `minmax(0, 1fr)`.
 - **Texto de cartão ocupa a largura do cartão.** Nada de `max-width` em `ch`
@@ -492,16 +576,30 @@ decisões, lições aprendidas). Resumo:
   valores" na seção 7). Rodada 20: **resumo anual** — `tb_resumos_anuais`,
   cadastro em `/cadastros/resumos-anuais` e card na Visão Anual. Rodada 21:
   **carga do IPCA** — `freedom/ipca.py` e `flask carregar-ipca` enchem
-  `tb_ipca` com a série do SIDRA/IBGE desde dez/1993 (só a carga; nada lê a
-  tabela ainda).
+  `tb_ipca` com a série do SIDRA/IBGE desde dez/1993. Rodada 22: **tela do
+  IPCA** em `/cadastros/ipca` — matriz ano × 12 meses mais "No ano", com
+  alternância Variação mensal | Número-índice por GET; mais três limpezas
+  (nome do mês e `MESES_CURTOS` promovidos para `util.py`, mensagens de
+  `create-user`/`set-password` acentuadas, aviso de variação nula no
+  `carregar-ipca`). Rodada 23: **botão "Atualizar do IBGE"** na tela do IPCA —
+  comando e botão pela mesma `ipca.carregar`, faixa de resultado, dica de mês
+  provável e o `htmx-config` que faz 409/502/503 aparecerem; limpeza do
+  `nome_do_mes` (três cópias). Rodada 24: **Análise por subcategoria** —
+  série temporal de uma subcategoria com agrupamento e correção pelo IPCA,
+  gráfico de linha e tabela dos pontos; `static/js/graficos.js` extraído da
+  Anual; `somar_meses` e `intervalo_de_meses` promovidos para `util.py`.
 - **Pendente**: a refatoração visual das telas que faltam — Visão Mensal,
   Orçamento, configurações e login ainda rodam sobre os apelidos da seção 1(b)
   do CSS. **Citada pelo nome, e não por número de rodada**: o número já mudou
   duas vezes, e cada mudança deixou comentário mentindo pelo código.
-- **Depois**: metas de independência (TSR/S/R já estão em `tb_configuracoes`, nada
-  os lê); patrimônio; **uso** do IPCA — a série já está carregada, faltam tela e
-  gráficos deflacionados; deploy com gunicorn no docker-compose + Tailscale +
-  segundo usuário.
+- **Depois**, na ordem sugerida pelo histórico: a tela de **despesas mensais
+  somadas por `integra_ipca`** (o primeiro e único uso da flag, que hoje ninguém
+  lê); a refatoração visual pendente; **metas de independência** (TSR/S/R já
+  estão em `tb_configuracoes`, nada os lê); **patrimônio** (`tb_ativos` e
+  `tb_patrimonio_snapshots` existem e estão vazias); **deploy** com gunicorn no
+  docker-compose (`--timeout` compatível com os 20 s do botão do IPCA),
+  `TZ=America/Sao_Paulo`, Tailscale e segundo usuário. Backlog de deflação:
+  ticket médio deflacionado na análise e série real do ano na Visão Anual.
 
 Referência visual: `design_handoff_freedom_visao_anual/` e
 `design_handoff_freedom_lancamentos_cadastros/`. **Cuidado**: os README desses
@@ -520,5 +618,12 @@ fazem parte da aplicação.
 - Não apague dado que você não criou.
 - Não leve o olho da Visão Anual para outra tela sem o dono pedir: o mecanismo
   é reutilizável, a decisão de onde usá-lo não é sua.
+- **Não leia `tb_despesas.integra_ipca`.** A coluna está reservada para uma tela
+  futura (despesas mensais somadas só das marcadas) e hoje **nada a consulta** —
+  nem a Análise por subcategoria, por decisão do dono.
+- Não classifique subcategoria (coluna, flag ou heurística de "contínua" ou
+  "esporádica"): quem escolhe a granularidade é quem olha, pelo agrupamento.
+- Não agende a chamada ao SIDRA (cron, thread, Agendador de Tarefas dentro do
+  app). O disparo é o comando ou o botão.
 - Não escreva valor de senha, chave ou token em lugar nenhum.
 - Não faça commit nem push sem o dono pedir.

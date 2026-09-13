@@ -25,6 +25,9 @@
         5.4 Tabela (+ barra proporcional, componente sem numero logo depois:
             e usada pela consulta e pela Visao Anual, nao pertence a nenhuma
             das duas)
+        (5.2 traz tambem o controle segmentado de links, que era o `.anos` da
+         Visao Anual ate a rodada 22: agora serve tambem ao modo da tela do
+         IPCA, e por isso deixou de morar na secao daquela tela.)
         (5.7 era o modal; removido por nao ter uso em template nenhum. Os
          numeros seguintes ficaram como estavam, para o resto do arquivo
          nao mudar de nome de uma vez so.)
@@ -47,6 +50,11 @@
             a .tabela--resumo de 5.13.2 e a edicao em linha e a .config-edicao
             de 5.12); em 5.15.1, o acompanhamento - cards de realizado x
             planejado, faixas de cor do consumo e "fora do orcamento"
+        5.16 Valores sensiveis (o olho da Visao Anual: as quatro marcas que
+            somem com o numero, lidas do data-valores do <html>)
+        5.17 IPCA (o recuo da nota e da dica e os dois rotulos do botao de
+            atualizar; a tabela, a faixa e o alternador sao componentes de
+            5.13.2, 5.14, 5.6 e 5.2)
      6. Tela de login
      7. Responsivo (< 768px)
      8. Utilitarios
@@ -783,6 +791,17 @@ body {
   color: var(--ink-3);
 }
 
+/* A mesma nota, mas fechando o cartao por baixo em vez de acompanhar o
+   titulo: o .card--tabela zera o padding para a tabela ir de ponta a ponta,
+   entao o recuo lateral dela e o do .card. Nasceu como `.ipca-nota` na
+   rodada 22 (nota do ano incompleto) e perdeu o nome de tela na 24, quando a
+   analise por subcategoria passou a fechar o cartao com a nota do mes em
+   curso. */
+.nota-rodape {
+  margin: 0;
+  padding: 0 20px 16px;
+}
+
 .campo--em-linha {
   flex-direction: row;
   align-items: center;
@@ -960,6 +979,44 @@ body {
    `display:` proprio. */
 .btn[hidden] {
   display: none;
+}
+
+/* --- controle segmentado ---
+   Grupo de LINKS (<a>), nao radio nem select: as telas que o usam ja trocavam
+   de estado por GET com recarga da pagina inteira, e link e exatamente isso -
+   navegavel por teclado, abrivel em outra aba e sem uma linha de JavaScript.
+   A opcao em exibicao carrega aria-current="page", e e ela que o CSS pinta: o
+   estado visual e o estado anunciado sao o mesmo atributo.
+
+   Nasceu como `.anos` no seletor de ano da Visao Anual (rodada 17) e perdeu o
+   nome de ano na rodada 22, quando a tela do IPCA passou a alternar entre
+   variacao e numero-indice com o mesmo desenho. Nada aqui esta preso a uma
+   tela: para outra aderir, basta repetir o markup. */
+.segmentado {
+  display: flex;
+  padding: 2px;
+  background: var(--fill);
+  border-radius: var(--radius-control);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.segmentado__item {
+  padding: 4px 12px;
+  border-radius: var(--radius-chip);
+  color: var(--ink-3);
+  transition: color 0.15s;
+}
+
+.segmentado__item:hover {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.segmentado__item[aria-current="page"] {
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  color: var(--ink);
 }
 
 /* --- 5.3 Formulario ----------------------------------------------------
@@ -2577,43 +2634,12 @@ body {
 }
 
 /* --- 5.13.3 Visao Anual (desenho da rodada 17) -------------------------
-   O que existe so nesta tela: o seletor de ano segmentado da barra superior,
-   os quatro KPIs, o cartao dos nove indicadores e o visual das duas tabelas.
+   O que existe so nesta tela: os quatro KPIs, o cartao dos nove indicadores e
+   o visual das duas tabelas. O seletor de ano usa o `.segmentado` da 5.2, que
+   morou aqui ate a rodada 22.
    Quando a Mensal for refeita, o que for comum as duas sobe para
    5.13 e este bloco encolhe.
 */
-
-/* --- seletor de ano segmentado ---
-   Sao links (<a>), nao radio nem select: trocar de ano ja era um GET com
-   recarga da pagina inteira, e link e exatamente isso - navegavel por
-   teclado, abrivel em outra aba e sem uma linha de JavaScript. O ano em
-   exibicao carrega aria-current="page", e e ele que o seletor pinta. */
-.anos {
-  display: flex;
-  padding: 2px;
-  background: var(--fill);
-  border-radius: var(--radius-control);
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.anos__item {
-  padding: 4px 12px;
-  border-radius: var(--radius-chip);
-  color: var(--ink-3);
-  transition: color 0.15s;
-}
-
-.anos__item:hover {
-  color: var(--ink);
-  text-decoration: none;
-}
-
-.anos__item[aria-current="page"] {
-  background: var(--surface);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  color: var(--ink);
-}
 
 /* --- 1. os quatro KPIs --- */
 
@@ -3469,6 +3495,86 @@ body {
   display: inline;
 }
 
+/* --- 5.17 IPCA ----------------------------------------------------------
+   A tela da serie nao tem componente proprio: a tabela e a .tabela--resumo
+   (5.13.2) com a .tabela--matriz (5.14), que e quem larga o min-width de
+   560px e faz a matriz ou caber inteira ou rolar por dentro da caixa; a
+   coluna do ano fica fixa pelo .tabela-caixa--fixa-primeira da mesma 5.14; o
+   alternador e o .segmentado da 5.2.
+
+   Sobra pouco, e nada disso existia: a nota do ano incompleto precisa do
+   recuo que o .card--tabela nao tem (ele zera o padding para a tabela ir de
+   ponta a ponta), a dica de mes provavel precisa de respiro, e o botao de
+   atualizar troca de rotulo enquanto a requisicao roda. As catorze colunas
+   nao precisaram de nada - a 1440px a tabela mede 1019px naturais (modo
+   indice, o mais largo) para 1152px disponiveis, e apertar o padding seria
+   estreitar o que ja cabe.
+
+   A faixa de resultado nao tem regra nenhuma: e a `.flash` da 5.6, dentro da
+   `.flash-lista`, com `.flash--erro` quando a carga falhou.
+*/
+
+
+
+/* A dica de mes provavel fica entre a faixa e o cartao. Tipo e cor sao os do
+   .pagina-subtitulo, que ela acompanha no template; aqui so o respiro. */
+.ipca-dica {
+  margin-bottom: var(--e-3);
+}
+
+/* O botao "Atualizar do IBGE" enquanto a busca roda. O HTMX poe `htmx-request`
+   no elemento que disparou (o <form>) e tira ao terminar, com sucesso ou com
+   erro: os dois rotulos vivem no HTML e quem escolhe qual aparece e o CSS.
+   Sem JavaScript, e sem o botao mudar de largura a ponto de pular a linha. */
+.btn__rodando {
+  display: none;
+}
+
+.htmx-request .btn__parado {
+  display: none;
+}
+
+.htmx-request .btn__rodando {
+  display: inline;
+}
+
+
+/* --- 5.18 Analise por subcategoria --------------------------------------
+   A tela inteira e componente existente: a .filtro-barra da 5.13 com os
+   .filtro-campo da 5.10, o .card e o .grafico__area da 5.13.1, a
+   .tabela--resumo da 5.13.2 e a .nota-rodape da 5.1.
+
+   Sobra o que nenhuma tela tinha: uma caixa de marcar dentro da barra de
+   filtros (todos os outros filtros sao select) e a marca de periodo parcial
+   na tabela. A linha esmaecida do grafico NAO esta aqui: e cor e tracejado
+   passados ao Chart.js, e canvas nao le folha de estilo.
+*/
+
+/* O campo da caixa alinha pela base como os demais, mas o que ele tem dentro
+   e uma linha - marcador e rotulo lado a lado, e nao rotulo em cima. */
+.filtro-campo--caixa {
+  justify-content: flex-end;
+  padding-bottom: 8px;
+}
+
+.analise-caixa {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+/* Marca discreta ao lado do rotulo do ponto: o trimestre recortado pelo
+   periodo e o bucket que contem o mes em curso ainda vao crescer, e quem le a
+   coluna precisa saber disso sem ler a nota. */
+.analise-parcial {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-4);
+}
+
+
 /* ==========================================================================
    6. TELA DE LOGIN
    Sem sidebar: card unico centrado. Aqui o vidro e a moldura, e os campos
@@ -3667,12 +3773,12 @@ body {
     flex: none;
   }
 
-  /* O seletor de ano ocupa a largura toda e divide o espaco entre os anos. */
-  .anos {
+  /* O segmentado ocupa a largura toda e divide o espaco entre as opcoes. */
+  .segmentado {
     width: 100%;
   }
 
-  .anos__item {
+  .segmentado__item {
     flex: 1 1 auto;
     text-align: center;
   }

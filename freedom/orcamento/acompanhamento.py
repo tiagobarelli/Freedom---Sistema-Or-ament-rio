@@ -20,13 +20,8 @@ Duas coisas que valem por todo o módulo:
 from decimal import Decimal
 
 from freedom.db import query_all, query_one
-from freedom.orcamento.servico import (
-    ZERO,
-    _intervalo,
-    meses_com_orcamento,
-    nome_do_periodo,
-)
-from freedom.util import chave_alfabetica, fracao
+from freedom.orcamento.servico import ZERO, _intervalo, meses_com_orcamento
+from freedom.util import chave_alfabetica, fracao, nome_do_periodo
 
 # Modos da tela e períodos do acompanhamento. Texto fora da lista cai no
 # padrão, sem erro, como todo seletor deste projeto.

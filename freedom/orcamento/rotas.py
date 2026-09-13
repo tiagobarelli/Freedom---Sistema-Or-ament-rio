@@ -23,7 +23,7 @@ from psycopg import errors
 from freedom.orcamento import acompanhamento, bp, servico
 from freedom.orcamento.forms import LinhaForm, NovaLinhaForm, ReceitaForm
 from freedom.orcamento.servico import RegraDoOrcamento
-from freedom.util import MESES
+from freedom.util import nome_do_mes, nome_do_periodo
 
 # Resposta de uma regra recusada: 409 (conflito com o estado do recurso), não
 # 400 nem 500. O corpo é a faixa de aviso que o HTMX encaixa no topo da tela.
@@ -122,11 +122,11 @@ def orcamento_tela():
         # Rótulos prontos: quem sabe escrever "setembro de 2026" é o servidor,
         # como em toda outra tela deste projeto.
         anos=sorted({o.year for o in orcados}, reverse=True),
-        meses=[{"numero": o.month, "rotulo": MESES[o.month - 1].capitalize()}
+        meses=[{"numero": o.month, "rotulo": nome_do_mes(o.month)}
                for o in sorted(orcados)
                if ano_mes and o.year == ano_mes.year],
         criaveis=[{"valor": servico.texto_do_mes(c),
-                   "rotulo": servico.nome_do_periodo(c).capitalize()}
+                   "rotulo": nome_do_periodo(c).capitalize()}
                   for c in servico.meses_criaveis()],
     )
 
@@ -149,7 +149,7 @@ def orcamento_criar():
     except errors.UniqueViolation:
         # A PK de tb_orcamento_meses. Dois cliques no mesmo botão chegam aqui.
         return _erro_de_tela(
-            f"{servico.nome_do_periodo(ano_mes).capitalize()} já tem orçamento.")
+            f"{nome_do_periodo(ano_mes).capitalize()} já tem orçamento.")
     except RegraDoOrcamento as regra:
         return _erro_de_tela(str(regra))
     return _redirecionar(ano_mes)

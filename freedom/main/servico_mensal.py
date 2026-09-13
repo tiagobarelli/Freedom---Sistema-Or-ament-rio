@@ -30,7 +30,7 @@ from datetime import date
 
 from freedom.db import query_all, query_one
 from freedom.main.servico import ZERO, card, percentual
-from freedom.util import MESES, chave_alfabetica, fracao
+from freedom.util import chave_alfabetica, fracao
 
 # Ordem das categorias na tabela 1 e nas linhas da matriz. A tabela por pessoa
 # não entra: ela é sempre por total, porque são poucas linhas e a pergunta ali
@@ -76,15 +76,6 @@ def intervalo_do_mes(ano, mes):
     inicio = date(ano, mes, 1)
     fim = date(ano + 1, 1, 1) if mes == 12 else date(ano, mes + 1, 1)
     return inicio, fim
-
-
-def nome_do_periodo(ano, mes):
-    """(2026, 2) -> 'fevereiro de 2026'.
-
-    Minúscula porque o texto sempre aparece dentro de frase — no subtítulo e
-    na linha de "nenhuma despesa em...".
-    """
-    return f"{MESES[mes - 1]} de {ano}"
 
 
 # --------------------------------------------------------------------------

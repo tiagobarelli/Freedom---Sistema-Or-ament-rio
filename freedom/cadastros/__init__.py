@@ -11,6 +11,7 @@ from freedom.cadastros import (  # noqa: E402,F401
     pessoas,
     ref_receitas,
     resumos_anuais,
+    serie_ipca,
     subcategorias,
 )
 

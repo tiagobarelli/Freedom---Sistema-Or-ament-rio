@@ -10,6 +10,7 @@ servir mais de uma e subiram para cá.
 
 import re
 import unicodedata
+from datetime import date
 from decimal import Decimal, InvalidOperation
 from urllib.parse import urlparse
 
@@ -22,6 +23,79 @@ MESES = (
     "janeiro", "fevereiro", "março", "abril", "maio", "junho",
     "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
 )
+
+# Rótulos curtos, para cabeçalho de coluna e eixo de gráfico: "março" -> "Mar".
+# Derivada de MESES, e não escrita à mão, para não haver duas listas de meses
+# que possam divergir. Morava em `main/servico.py`; subiu na rodada 22, quando
+# a tela do IPCA virou a segunda a precisar dela.
+MESES_CURTOS = tuple(mes[:3].capitalize() for mes in MESES)
+
+
+def nome_do_periodo(ano, mes=None):
+    """(2026, 8) ou date(2026, 8, 1) -> 'agosto de 2026'.
+
+    Minúscula porque o texto quase sempre aparece dentro de frase; quem precisa
+    de inicial maiúscula chama `.capitalize()` no ponto de uso.
+
+    Aceita as duas formas porque as duas existem entre os chamadores: a Visão
+    Mensal tem ano e mês separados, o orçamento e o painel de lançamento têm um
+    `date`. Estava escrita quatro vezes — em `main/servico_mensal.py`,
+    `orcamento/servico.py` e duas vezes em `lancamentos/servico.py` — e subiu
+    para cá na rodada 22.
+    """
+    if mes is None:
+        ano, mes = ano.year, ano.month
+    return f"{MESES[mes - 1]} de {ano}"
+
+
+def nome_do_mes(mes):
+    """1 -> 'Janeiro'. Só o mês, com inicial maiúscula.
+
+    Irmã de `nome_do_periodo` e coisa diferente dela: aqui não entra ano, e o
+    texto é rótulo solto (card, coluna, opção de select), não pedaço de frase
+    — por isso a maiúscula. Estava escrita três vezes: duas em
+    `main/servico.py` (a função privada e uma cópia dela no mesmo arquivo) e
+    uma em `orcamento/rotas.py`; subiu para cá na rodada 23.
+    """
+    return MESES[mes - 1].capitalize()
+
+
+def somar_meses(mes, passos):
+    """Desloca um dia-1 em N meses, para frente ou para trás.
+
+    Aritmética de calendário em uma linha: `date` não soma mês, e
+    `timedelta(days=30)` erra em fevereiro. Nasceu no orçamento (rodada 15),
+    onde o mês é a chave; subiu para cá na rodada 24, quando a análise por
+    subcategoria passou a montar grades de meses — e a terceira cópia da
+    mesma conta seria a contradição que o projeto não admite.
+    """
+    total = mes.year * 12 + (mes.month - 1) + passos
+    return date(total // 12, total % 12 + 1, 1)
+
+
+def intervalo_de_meses(primeiro, ultimo):
+    """'setembro a novembro de 2026', com os dois anos quando eles diferem.
+
+    Um período dito por extenso, sem repetir o ano à toa. Nasceu privada na
+    faixa do botão do IPCA (rodada 23) e subiu na 24, quando o subtítulo da
+    análise por subcategoria passou a precisar do mesmo texto.
+    """
+    if primeiro.year == ultimo.year:
+        return f"{MESES[primeiro.month - 1]} a {nome_do_periodo(ultimo)}"
+    return f"{nome_do_periodo(primeiro)} a {nome_do_periodo(ultimo)}"
+
+
+def dobrar(texto):
+    """Texto sem acento e em minúscula, para comparar e ordenar.
+
+    Decompor em NFD e descartar as marcas combinantes é o que põe 'Água' junto
+    de 'Agua'. Serve a dois usos que não têm mais nada em comum: a ordenação
+    alfabética de `chave_alfabetica` e o casamento dos rótulos do cabeçalho do
+    SIDRA em `ipca.py` — por isso a dobra mora aqui e não dentro de nenhuma
+    das duas.
+    """
+    return "".join(letra for letra in unicodedata.normalize("NFD", texto)
+                   if not unicodedata.combining(letra)).lower()
 
 
 def destino_interno(valor):
@@ -273,9 +347,7 @@ def chave_alfabetica(nome):
     Nasceu privada em `main/servico_mensal.py` (rodada 12) e subiu para cá na
     rodada 15, quando o orçamento virou a terceira tela a precisar dela.
     """
-    dobrado = "".join(letra for letra in unicodedata.normalize("NFD", nome)
-                      if not unicodedata.combining(letra))
-    return dobrado.lower(), nome
+    return dobrar(nome), nome
 
 
 # --------------------------------------------------------------------------

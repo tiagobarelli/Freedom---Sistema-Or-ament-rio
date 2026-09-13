@@ -1,0 +1,73 @@
+{% import "_macros.html" as m %}
+{#
+  O conteudo do #ipca-cartao: faixa do que acabou de acontecer, dica de mes
+  provavel, e a tabela (ou o estado vazio). E o que o botao "Atualizar do
+  IBGE" troca inteiro - um mes a mais muda a celula, o "No ano" do ano, a nota
+  do ano incompleto e a propria dica.
+
+  Nada e decidido aqui: o texto da faixa, o da dica, o da nota e o de cada
+  celula vem prontos de `ipca.py`.
+#}
+
+{% if faixa %}
+  <div class="flash-lista">
+    <div id="ipca-faixa" role="status"
+         class="flash{{ ' flash--erro' if faixa.erro else '' }}">{{ faixa.texto }}</div>
+  </div>
+{% endif %}
+
+{% if ipca.vazia %}
+  {{ m.vazio("Nenhum mês carregado",
+             "Clique em Atualizar do IBGE ou rode flask carregar-ipca") }}
+{% else %}
+  {% if dica %}
+    <p class="pagina-subtitulo ipca-dica">{{ dica }}</p>
+  {% endif %}
+
+  <section class="card card--tabela">
+    {#
+      Catorze colunas cabem a 1440px; no celular a caixa rola na horizontal
+      com a coluna do ano fixa (`.tabela-caixa--fixa-primeira`, o modificador
+      que a matriz Pessoa x Categoria estreou). Sem teto de altura: quem rola
+      na vertical e a pagina.
+    #}
+    <div class="tabela-caixa tabela-caixa--fixa-primeira">
+      <table class="tabela tabela--resumo tabela--matriz">
+        <caption class="so-leitor">
+          IPCA por ano e mês: {{ ipca.subtitulo }}
+        </caption>
+        <thead>
+          <tr>
+            <th>Ano</th>
+            {% for mes in meses %}
+              <th class="col-num">{{ mes }}</th>
+            {% endfor %}
+            <th class="col-num col-total">No ano</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for linha in ipca.linhas %}
+            <tr>
+              <th scope="row" class="tabela__principal">{{ linha.ano }}</th>
+              {# A cor mora no <span>, e nunca no <td>: um <td class="negativo">
+                 pintaria tambem o travessao de mes sem dado. #}
+              {% for celula in linha.celulas %}
+                <td class="col-num">
+                  <span class="{{ 'negativo' if celula.negativo else '' }}">{{ celula.texto }}</span>
+                </td>
+              {% endfor %}
+              <td class="col-num col-total">
+                <span class="{{ 'negativo' if linha.no_ano.negativo else '' }}">{{ linha.no_ano.texto }}</span>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# So aparece quando o ano mais recente ainda nao fechou. #}
+    {% if ipca.nota %}
+      <p class="card__nota nota-rodape">{{ ipca.nota }}</p>
+    {% endif %}
+  </section>
+{% endif %}

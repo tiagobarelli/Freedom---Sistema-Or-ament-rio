@@ -5,7 +5,7 @@ from flask import (Blueprint, abort, redirect, render_template, request,
 from flask_login import login_required
 
 from freedom.main import servico, servico_mensal
-from freedom.util import MESES, so_fragmento
+from freedom.util import MESES, nome_do_periodo, so_fragmento
 
 bp = Blueprint("main", __name__)
 
@@ -59,7 +59,7 @@ def mensal():
         mes=mes,
         meses=MESES,
         ordem=ordem,
-        periodo=servico_mensal.nome_do_periodo(ano, mes),
+        periodo=nome_do_periodo(ano, mes),
         cards=painel["cards"],
         tem_despesa=painel["tem_despesa"],
         tabelas=painel["tabelas"],
@@ -95,7 +95,7 @@ def detalhe_categoria(categoria_id):
     return render_template(
         "main/_detalhe_categoria.html",
         categoria=categoria,
-        periodo=servico_mensal.nome_do_periodo(ano, mes),
+        periodo=nome_do_periodo(ano, mes),
         detalhe=servico_mensal.detalhe_da_categoria(ano, mes, categoria_id),
         # Caminho de volta da edição: o mesmo mecanismo da consulta de
         # despesas (`?retorno=`, validado por `destino_interno`), com o

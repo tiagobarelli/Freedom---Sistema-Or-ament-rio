@@ -23,17 +23,14 @@ from datetime import date
 from decimal import Decimal
 
 from freedom.db import query_all, query_one
-from freedom.util import MESES, formatar_numero, formatar_valor, fracao
+from freedom.util import (MESES_CURTOS, formatar_numero, formatar_valor,
+                          fracao, nome_do_mes)
 
 ZERO = Decimal("0.00")
 
 # Travessão: o card existe, o número não. Ano sem lançamento nenhum, receita
 # zero na taxa de poupança, ano que ainda não começou.
 SEM_VALOR = "—"
-
-# Rótulos do eixo X. Tupla irmã de util.MESES, derivada dela para não haver
-# duas listas de meses que possam divergir: "março" -> "Mar".
-MESES_CURTOS = tuple(mes[:3].capitalize() for mes in MESES)
 
 # Séries do gráfico de prioridades. O banco garante a faixa 1-4; os rótulos das
 # pontas explicam a escala e o meio fica curto, para a legenda não pesar.
@@ -317,11 +314,6 @@ def percentual(parte, total):
     return SEM_VALOR if parcela is None else formatar_numero(parcela, 1) + "%"
 
 
-def _nome_do_mes(mes):
-    """1 -> 'Janeiro'. Rótulo solto de card, por isso com inicial maiúscula."""
-    return MESES[mes - 1].capitalize()
-
-
 def _plural_meses(quantidade):
     """1 -> 'mês', qualquer outro -> 'meses'. Sai das notas dos cards."""
     return "mês" if quantidade == 1 else "meses"
@@ -420,12 +412,12 @@ def _cards(leitura, totais):
         card("Melhor mês (saldo)",
              valor=saldo_do_mes(melhor) if melhor else None,
              texto=None if melhor else SEM_VALOR,
-             apoio=_nome_do_mes(melhor) if melhor else None,
+             apoio=nome_do_mes(melhor) if melhor else None,
              negativo=bool(melhor) and saldo_do_mes(melhor) < 0),
         card("Mês de maior gasto",
              valor=despesas[maior_gasto]["total"] if maior_gasto else None,
              texto=None if maior_gasto else SEM_VALOR,
-             apoio=_nome_do_mes(maior_gasto) if maior_gasto else None),
+             apoio=nome_do_mes(maior_gasto) if maior_gasto else None),
         card("Meses no azul",
              texto=f"{len(azuis)} de {divisor}" if divisor else SEM_VALOR),
     ]
@@ -534,7 +526,7 @@ def _tabela_mensal(leitura, totais):
         # são ausência de lançamento. A linha inteira sai esmaecida — quem
         # decide isso é aqui, não o Jinja, como o travessão e o vermelho.
         linhas.append({
-            "mes": MESES[mes - 1].capitalize(),
+            "mes": nome_do_mes(mes),
             "mes_curto": MESES_CURTOS[mes - 1],
             "classe": None if despesa_do_mes or mes in receitas else LINHA_VAZIA,
             "receitas": receita,

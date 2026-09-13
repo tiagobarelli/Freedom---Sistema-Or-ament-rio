@@ -13,6 +13,28 @@
   <link rel="icon" type="image/svg+xml"
         href="{{ url_for('static', filename='favicon.svg') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  {#
+    O HTMX 2 nao troca resposta 4xx/5xx: `responseHandling` vem com
+    {code:"[45]..", swap:false}. Sem esta linha, toda faixa de erro que o
+    servidor manda chega ao navegador e e descartada em silencio - foi o que
+    aconteceu com o 409 do orcamento da rodada 15 ate a 23, em que o clique
+    recusado nao dizia nada.
+
+    Tres status, e so tres, ganham o direito de aparecer, porque de cada um
+    deles o servidor manda um FRAGMENTO pronto para encaixar:
+      409 - regra de estado recusada (mes de orcamento encerrado);
+      502 - o IBGE nao respondeu ou respondeu torto (botao do IPCA);
+      503 - o banco recusou a gravacao (idem).
+    Qualquer outro 4xx/5xx segue o padrao do HTMX e NAO troca: um 500 nao
+    tratado traz a pagina de erro do Flask (com --debug, o traceback do
+    Werkzeug), e ela nao pode cair dentro de um cartao ou de uma <tr>.
+  #}
+  <meta name="htmx-config" content='{"responseHandling": [
+    {"code": "204", "swap": false},
+    {"code": "[23]..", "swap": true},
+    {"code": "409", "swap": true, "error": true},
+    {"code": "50[23]", "swap": true, "error": true},
+    {"code": "[45]..", "swap": false, "error": true}]}'>
   <script src="{{ url_for('static', filename='js/htmx.min.js') }}" defer></script>
   {# Script que precisa rodar ANTES do corpo existir. Nada de tela: so estado
      que o CSS le. #}

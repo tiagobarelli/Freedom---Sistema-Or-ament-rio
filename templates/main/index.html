@@ -92,10 +92,11 @@
 {#
   Acoes da barra superior: o seletor de ano e o botao de lancar despesa.
 
-  O seletor e um grupo de LINKS, e nao um <select> nem radios. Trocar de ano
-  sempre foi um GET com recarga da pagina inteira (`?ano=`), e e exatamente
-  isso que um link e: navegavel por teclado, abrivel em outra aba, sem uma
-  linha de JavaScript e sem formulario. O ano em exibicao leva
+  O seletor e o `.segmentado` da secao 5.2 do CSS - o mesmo componente que a
+  tela do IPCA usa para trocar de modo. E um grupo de LINKS, e nao um <select>
+  nem radios: trocar de ano sempre foi um GET com recarga da pagina inteira
+  (`?ano=`), e e exatamente isso que um link e - navegavel por teclado,
+  abrivel em outra aba, sem uma linha de JavaScript e sem formulario. O ano em exibicao leva
   aria-current="page", que e o que o CSS pinta - o estado visual e o estado
   anunciado sao o mesmo atributo.
 
@@ -104,9 +105,9 @@
   esquerda para a direita, do mais antigo para o mais novo.
 #}
 {% block acoes_pagina %}
-  <nav class="anos" aria-label="Ano">
+  <nav class="segmentado" aria-label="Ano">
     {% for a in anos | reverse %}
-      <a class="anos__item" href="{{ url_for('main.index', ano=a) }}"
+      <a class="segmentado__item" href="{{ url_for('main.index', ano=a) }}"
          {% if a == ano %}aria-current="page"{% endif %}>{{ a }}</a>
     {% endfor %}
   </nav>
@@ -368,5 +369,8 @@
 #}
 {% block scripts %}
   <script src="{{ url_for('static', filename='js/chart.umd.js') }}" defer></script>
+  {# graficos.js antes: o visao_anual.js le o objeto Graficos que ele define.
+     Com defer os dois rodam na ordem em que aparecem. #}
+  <script src="{{ url_for('static', filename='js/graficos.js') }}" defer></script>
   <script src="{{ url_for('static', filename='js/visao_anual.js') }}" defer></script>
 {% endblock %}

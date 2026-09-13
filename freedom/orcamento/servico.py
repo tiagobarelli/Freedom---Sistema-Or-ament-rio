@@ -22,7 +22,8 @@ from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
 from freedom.db import executar, get_connection, query_all, query_one
-from freedom.util import MESES, chave_alfabetica, fracao
+from freedom.util import (chave_alfabetica, fracao, nome_do_periodo,
+                          somar_meses)
 
 ZERO = Decimal("0.00")
 CENTAVO = Decimal("0.01")
@@ -50,12 +51,6 @@ def primeiro_dia(ano, mes):
     return date(ano, mes, 1)
 
 
-def somar_meses(ano_mes, passos):
-    """Desloca um dia-1 em N meses, para frente ou para trás."""
-    total = ano_mes.year * 12 + (ano_mes.month - 1) + passos
-    return date(total // 12, total % 12 + 1, 1)
-
-
 def mes_seguinte(ano_mes):
     return somar_meses(ano_mes, 1)
 
@@ -68,11 +63,6 @@ def mes_corrente(hoje=None):
     """O dia 1 do mês de hoje. É o padrão da tela e o piso do que se cria."""
     hoje = hoje or date.today()
     return date(hoje.year, hoje.month, 1)
-
-
-def nome_do_periodo(ano_mes):
-    """date(2026, 9, 1) -> 'setembro de 2026'. Minúscula: vive em frase."""
-    return f"{MESES[ano_mes.month - 1]} de {ano_mes.year}"
 
 
 def texto_do_mes(ano_mes):

@@ -11,7 +11,7 @@ from freedom.db import query_all, query_one
 # MESES morava aqui; subiu para util.py quando a Visão Anual passou a precisar
 # dos mesmos nomes. Continua importado com o nome de sempre, para quem já o
 # lia daqui não mudar de lugar.
-from freedom.util import MESES, escapar_like
+from freedom.util import escapar_like, nome_do_periodo
 
 ESSENCIAL = "Essencial"
 NAO_ESSENCIAL = "Não Essencial"
@@ -188,7 +188,7 @@ def total_do_mes(referencia):
     return {
         "total": linha_total["total"],
         "quantidade": linha_total["quantidade"],
-        "rotulo": f"{MESES[referencia.month - 1]} de {referencia.year}",
+        "rotulo": nome_do_periodo(referencia),
     }
 
 
@@ -265,8 +265,9 @@ def deslocar_mes(ano_mes, passos):
 
 
 def rotulo_mes(ano_mes):
+    """AAAAMM -> 'agosto de 2026'. Só o formato do filtro; o texto vem de util."""
     ano, mes = divmod(int(ano_mes), 100)
-    return f"{MESES[mes - 1]} de {ano}"
+    return nome_do_periodo(ano, mes)
 
 
 def intervalo_do_mes(ano_mes):

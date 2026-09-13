@@ -1,6 +1,6 @@
 # Freedom — Histórico e Estado do Projeto
 
-Documento de contexto para o projeto orquestrador e para o agente. Resume o que foi decidido, o que existe e o que falta. Consolidado após a rodada 19 (10/09/2026), com as decisões da rodada 20 (resumo anual) já fechadas. Fica em `docs/` no repositório e na base de conhecimento do orquestrador; se um muda, o outro muda.
+Documento de contexto para o projeto orquestrador e para o agente. Resume o que foi decidido, o que existe e o que falta. Consolidado após a rodada 24 (13/09/2026). Fica em `docs/` no repositório e na base de conhecimento do orquestrador; se um muda, o outro muda.
 
 ## 1. O que é o Freedom
 
@@ -23,7 +23,7 @@ O ciclo que funcionou: orquestrador faz poucas perguntas de decisão antes do pr
 - Cartão de crédito: **só data da compra**, sem parcelas nem faturas.
 - **Sem controle de saldo**: o sistema categoriza fluxos; não há saldo inicial nem transferências.
 - Categorias, subcategorias, contas, pessoas e fontes de receita são cadastradas **pela interface**, não por seed. O mesmo vale para os parâmetros de configuração.
-- IPCA: tabela existe, **carga fica para o futuro**.
+- **IPCA** (rodada 21): a série oficial entra pelo comando `flask carregar-ipca`, que lê a API do SIDRA/IBGE (tabela 1737, variáveis 2266 = número-índice e 63 = variação mensal) e grava **desde dezembro/1993**, que é a base do índice (= 100); meses anteriores são descartados antes de qualquer conversão (moedas antigas, índice minúsculo que não cabe em `NUMERIC(14,6)`). Upsert por `mes` que **nunca apaga**; rodar de novo não faz mal. Ritual: depois do dia 10 de cada mês, quando o IBGE publica o mês anterior. **É a única chamada externa do sistema** e roda pelo comando ou pelo botão "Atualizar do IBGE" da tela (rodada 23) — nunca por agendamento dentro do app. O índice é gravado como publicado, nunca reconstruído encadeando variações. Leitura da série: tela "IPCA" em Cadastros (rodada 22). Primeiro uso do índice: Análise por subcategoria (rodada 24). **`tb_despesas.integra_ipca` está reservada para uma tela futura** (despesas mensais somadas só das marcadas, decisão do dono) e **não é lida** pela análise por subcategoria nem por nada ainda.
 - Despesas compartilhadas da casa são atribuídas a uma pessoa chamada **Casa**.
 - **Movimento se exclui, referência se desativa** (rodada 4): lançamento errado é apagado de verdade; tabela de referência nunca, nem em teste.
 - **Configuração se exclui** (rodada 8) e **orçamento se exclui** (rodada 15): vigência digitada errada e linha de plano são entrada do usuário, não histórico. Mês de orçamento **encerrado** não se altera nem se exclui.
@@ -38,27 +38,32 @@ O ciclo que funcionou: orquestrador faz poucas perguntas de decisão antes do pr
 - **Visual** (rodadas 17–18): o Glassmorphism roxo saiu e entrou o design system sóbrio — fundo `#F5F5F7`, fonte do sistema, cinzas neutros, acento teal `#30B0C7`, verde/vermelho reservados a receita/despesa/negativo, sidebar escura recolhível, barra superior sticky, cartão padrão. Referências: `design_handoff_freedom_visao_anual/` e `design_handoff_freedom_lancamentos_cadastros/`. O protótipo manda no **desktop**; os padrões de celular (sidebar vira barra, linha de apoio, grades 1/2/4) se mantêm. Já refeitos: layout, Visão Anual, lançamento, edição e consulta de despesas, receitas e os cinco cadastros. **Pendente**: Visão Mensal, Orçamento, configurações e login, que ainda rodam sobre os apelidos da seção 1(b) do CSS. O contraste do botão primário (branco sobre `#30B0C7`, 2,6:1) foi aceito pelo dono na rodada 17.
 - **Refatoração visual não muda comportamento** (rodada 18): editar despesa continua em página própria (é o destino de `?retorno=`), cadastros continuam com página de formulário, sem busca client-side nem paginação nos recentes — edição em linha nessas telas foi para o backlog. Prioridade virou quatro radios P1–P4 mais "—" (sem prioridade), escondidos quando a essencialidade efetiva é Essencial. O total do mês subiu para a barra superior (`#total-mes`, mesmo swap out-of-band).
 - **Ocultar valores na Visão Anual** (rodada 19): botão olho na barra superior, e a página abre oculta. Some todo número do corpo — valores e notas dos cards, trilhos e barras, os quatro gráficos inteiros, as tabelas (menos nomes de mês e de categoria), travessões e a frase de ano sem despesa; ficam rótulos, títulos e nomes. Oculto é esqueleto neutro: bloco cinza, sem cor semântica, não selecionável, layout imóvel. O estado é da **aba**: trocar de ano, navegar no app, Voltar e F5 mantêm; sair da aba ou do app, fechar a aba e fazer logout voltam a ocultar. Proteção só visual: os números continuam no HTML e no JSON dos gráficos. **Só a Visão Anual tem o olho** (decisão do dono depois da 19); a detecção de saída de aba roda em toda tela autenticada, porque é ela que encerra o estado quando o usuário sai estando em outra tela.
-- **Resumo anual** (decidido para a rodada 20): um texto livre por ano que explica os números daquele ano, **sem limite de tamanho**. Tabela própria com o **ano como chave**. Cadastro em página dedicada no grupo Cadastros ("Resumos anuais", antes de Configurações): criar escolhendo um ano que a Visão Anual mostra e que ainda não tem resumo; editar só o texto (o ano não muda); **excluir** com confirmação — é entrada do usuário, como configuração e orçamento, e não tem `ativo` nem autoria. Texto simples com quebras de linha preservadas, sem Markdown. Na Visão Anual, card entre os nove indicadores e os gráficos, com o texto inteiro e link "Editar"; **ano sem resumo não mostra card**; com o olho fechado o texto também some. A página de cadastro não tem olho.
+- **Resumo anual** (rodada 20): um texto livre por ano que explica os números daquele ano, **sem limite de tamanho**. Tabela própria com o **ano como chave** (`tb_resumos_anuais`, sem `id`, sem `ativo`, sem FK — o ano não é tabela; a interface só oferece anos com lançamento). Cadastro em página dedicada no grupo Cadastros ("Resumos anuais", antes de Configurações): criar escolhendo um ano que a Visão Anual mostra e que ainda não tem resumo; editar só o texto (o ano não muda); **excluir** com confirmação — é entrada do usuário, como configuração e orçamento, e não tem `ativo` nem autoria. Texto simples com quebras de linha preservadas, sem Markdown. Na Visão Anual, card "Resumo do ano" entre os nove indicadores e os gráficos, com o texto inteiro e link "Editar" (`?retorno=` para a Anual do mesmo ano); **ano sem resumo não mostra card**; com o olho fechado o texto também some. A página de cadastro não tem olho.
+- **Tela do IPCA** (rodada 22): só leitura, em Cadastros entre "Resumos anuais" e "Configurações", sem olho. Matriz **ano × 12 meses**, ano mais recente primeiro, com alternância **Variação mensal | Número-índice** por GET (`?modo=`, grupo de links `.segmentado` com `aria-current`, modo inválido cai em variação) e coluna "No ano" nos dois modos = índice do último mês carregado do ano ÷ índice de dezembro do ano anterior − 1. **Calculada na função pura `matriz()` sobre a série completa** (composição em `Decimal` sobre conjunto pequeno e completo que o SQL entregou inteiro — a exceção prevista na seção 6), nunca gravada; conferida contra o acumulado publicado pelo IBGE (variável 69) em quatro anos com 0,00 pp de diferença. Duas casas, como o IBGE publica; o texto da célula (valor ou "—") sai pronto do servidor. 1993 só tem dezembro; ano incompleto ganha a nota "2026: acumulado até agosto". No celular a tabela rola por dentro na horizontal com a coluna do ano fixa, sem teto de altura.
+- **Atualização do IPCA pela tela** (rodada 23): botão primário "Atualizar do IBGE" (ícone `refresh-cw`) em `acoes_pagina` da tela do IPCA (também no estado vazio), `POST /cadastros/ipca/atualizar` com CSRF via HTMX (campo oculto mesmo com `hx-headers`, para o caminho sem JavaScript virar redirect e não 400). Enquanto roda, o botão fica desabilitado com texto de espera; a resposta troca o cartão inteiro (faixa de resultado, nota, tabela) e o subtítulo da barra por swap fora de banda, mantendo o modo. Texto da faixa decidido em Python: "nenhum mês novo", "<mês> carregado: índice e variação", "N meses carregados", mais "M meses revisados pelo IBGE" quando houver atualização. Erro: faixa vermelha, nada gravado, botão volta — **502** quando o IBGE não responde ou a série vem torta (a mensagem distingue os dois), **503** quando o banco falha; 500 nunca no caminho previsto. Comando e botão passam pela **mesma função** (`ipca.carregar`) e produzem o mesmo resumo — a saída do comando não mudou um caractere; o caminho web usa timeout de 20 s (gunicorn mata a requisição em 30 s), o comando continua com 60 s. Dica calculada no servidor pela data: a partir do dia 12 espera-se o mês anterior, antes disso o retrasado; se o último mês carregado é mais velho que o esperado, a tela diz "O IBGE já deve ter publicado <mês>". Sem agendamento dentro do app; o Agendador de Tarefas do Windows rodando o comando fica como opção da rodada de deploy.
+- **Análise por subcategoria** (rodada 24, entregue): página no grupo Painel, tudo por GET (URL é o estado, recarga inteira, sem HTMX), **sem olho** (decisão do dono: só a Anual tem). Uma subcategoria por vez (`<select>` com `<optgroup>` por categoria, só as que têm lançamento). Período: últimos 3, 6 ou 12 meses (janelas móveis terminando no mês corrente), série inteira (do primeiro ao último mês do acervo) e personalizado (mês inicial e final). **Agrupamento**: Mensal | Trimestral | Anual | 12 meses móveis — é a resposta às subcategorias descontínuas: **não se classifica subcategoria** (nenhuma coluna, nenhuma heurística); IPVA mês a mês é onze zeros e um pico, ano a ano é uma série comparável, e quem escolhe a granularidade é o usuário. Gráfico de linha (Chart.js, segunda tela a usá-lo) e, embaixo, a tabela dos pontos com a **quantidade de lançamentos** (distingue "mais compras" de "compras mais caras"). Mês sem lançamento é **zero**, nunca linha interpolada. **Correção pelo IPCA** é uma opção que acrescenta a linha real e mantém a nominal esmaecida — a distância entre elas é a inflação. Deflação por lançamento no mês (`valor × índice_base ÷ índice_do_mês`), em SQL sobre `vw_despesas × tb_ipca`, somada depois; **base = último mês carregado** ("a preços de agosto de 2026"), meses posteriores à base usam fator 1. Janela de 12 meses olha 11 meses para trás mesmo fora do período exibido; só janelas completas desde o primeiro mês do acervo. Bucket que não está inteiro no período ou contém o mês em curso é marcado "parcial". `integra_ipca` não é lida. Backlog: ticket médio deflacionado; deflação na Visão Anual.
+  **O que a entrega acrescentou à decisão** (rodada 24): o gráfico **não suaviza** a linha (`tension: 0`, ao contrário da Anual) — entre dois meses com zero no meio, a curva passaria por baixo do zero e desenharia gasto negativo; a tela faz **quatro** consultas, não uma (a série é uma; as outras três são a lista do `<select>`, o intervalo do acervo e o mês base do IPCA, perguntas independentes da subcategoria); os campos "De" e "Até" ficam sempre visíveis e preenchidos com o período resolvido, mas **valor que não é um mês legível não volta** para eles, porque `<input type="month">` recusa e avisa no console; e a correção é calculada sempre — a caixa liga a **exibição** da segunda linha e da coluna, não um segundo caminho de código.
 
 ## 4. Banco de dados
 
-Fonte da verdade: `docs/Freedom - Estrutura do Banco de Dados.md` e `db/init/01_schema.sql`. Regra: se um muda, o outro muda. O DDL mudou duas vezes desde a rodada 1: `vw_receitas` (rodada 7) e o **orçamento** (rodada 15: `tb_orcamento_meses` nova; `tb_orcamentos` trocou `categoria_id` por `subcategoria_id` e ganhou FK para o mês). A mudança da rodada 15 foi feita com blocos idempotentes (`ADD/DROP COLUMN IF EXISTS`, `DO $$ IF NOT EXISTS (constraint)`), sem `DROP TABLE`, e validada re-executando o script no banco com dados e num banco descartável criado do zero.
+Fonte da verdade: `docs/Freedom - Estrutura do Banco de Dados.md` e `db/init/01_schema.sql`. Regra: se um muda, o outro muda. O DDL mudou três vezes desde a rodada 1: `vw_receitas` (rodada 7), o **orçamento** (rodada 15: `tb_orcamento_meses` nova; `tb_orcamentos` trocou `categoria_id` por `subcategoria_id` e ganhou FK para o mês) e o **resumo anual** (rodada 20: `tb_resumos_anuais` nova, com trigger de `atualizado_em`). A mudança da rodada 15 foi feita com blocos idempotentes (`ADD/DROP COLUMN IF EXISTS`, `DO $$ IF NOT EXISTS (constraint)`), sem `DROP TABLE`, e validada re-executando o script no banco com dados e num banco descartável criado do zero; a da rodada 20 seguiu o mesmo rito. A rodada 21 **não mudou o schema**: só carregou `tb_ipca`.
 
 Resumo do que importa para escrever prompts:
 
 - PostgreSQL 16 em Docker (`docker-compose.yml`, serviço `postgres`, container `freedom_postgres`), pgAdmin em `localhost:5050`. Credenciais e `DATABASE_URL` no `.env`. Collation `en_US.utf8` (provider libc) — `SHOW lc_collate` não existe mais no PG 16; ler `pg_database.datcollate`.
-- 14 tabelas: `tb_categorias`, `tb_subcategorias`, `tb_ref_receitas`, `tb_pessoas`, `tb_usuarios`, `tb_contas`, `tb_ipca`, `tb_configuracoes`, `tb_despesas`, `tb_receitas`, `tb_orcamento_meses`, `tb_orcamentos`, `tb_ativos`, `tb_patrimonio_snapshots`. Duas views: `vw_despesas` e `vw_receitas`.
+- 15 tabelas: `tb_categorias`, `tb_subcategorias`, `tb_ref_receitas`, `tb_pessoas`, `tb_usuarios`, `tb_contas`, `tb_ipca`, `tb_configuracoes`, `tb_despesas`, `tb_receitas`, `tb_orcamento_meses`, `tb_orcamentos`, `tb_ativos`, `tb_patrimonio_snapshots`, `tb_resumos_anuais`. Duas views: `vw_despesas` e `vw_receitas`. Duas tabelas têm o **período como chave primária**, sem `id`: `tb_orcamento_meses` (`ano_mes`) e `tb_resumos_anuais` (`ano`).
 - `vw_despesas`: despesa + subcategoria + categoria + **essencialidade efetiva** (`COALESCE(despesa, subcategoria)`) + `prioridade` + `pessoa_id` (não o nome; JOIN com `tb_pessoas` não perde linha, FK `NOT NULL`) + `ano_mes` inteiro `AAAAMM`. `vw_receitas`: receita + categoria + subcategoria da fonte + `ref_receita_ativo` + `ano_mes`. Leitura sempre pelas views; escrita nas tabelas base.
 - **`ano_mes` serve para exibir e agrupar, não para filtrar**: todo filtro de período usa `data >= início AND data < início do período seguinte`, o que faz `ix_despesas_data` / `ix_receitas_data` serem usados (EXPLAIN ANALYZE na rodada 12: Index Scan, 0,2 ms).
 - Nada derivado é armazenado. Toda FK é `NOT NULL` e `ON DELETE RESTRICT`. Referência não é apagada: tem `ativo` (em `tb_contas`, `ativa`).
-- CHECKs: essencialidade em `Essencial` / `Não Essencial`; `tb_contas.tipo` em `corrente, cartao, dinheiro, outro`; `prioridade` 1–4; `valor > 0` em despesas e receitas; dia 1 em `tb_ipca.mes`, `tb_orcamento_meses.ano_mes` e `tb_orcamentos.ano_mes` (redundante com a FK, mantido para documentar); `>= 0` em `valor_planejado`, `receita_planejada` e patrimônio. `tb_ativos.classe` e `tb_configuracoes.chave` sem CHECK, de propósito.
+- CHECKs: essencialidade em `Essencial` / `Não Essencial`; `tb_contas.tipo` em `corrente, cartao, dinheiro, outro`; `prioridade` 1–4; `valor > 0` em despesas e receitas; dia 1 em `tb_ipca.mes`, `tb_orcamento_meses.ano_mes` e `tb_orcamentos.ano_mes` (redundante com a FK, mantido para documentar); `>= 0` em `valor_planejado`, `receita_planejada` e patrimônio; em `tb_resumos_anuais`, `ano` entre 2000 e 2100 e `texto` com ao menos um caractere visível. `tb_ativos.classe` e `tb_configuracoes.chave` sem CHECK, de propósito.
+- **`tb_ipca`** (`id`, `mes` dia 1 UNIQUE, `numero_indice NUMERIC(14,6)`, `variacao_mensal NUMERIC(6,4)` nula): carregada pela rodada 21 com **393 meses, dez/1993 (= 100) a ago/2026**. O índice vem com 13 casas da API e no máximo 2 significativas desde dez/1993, logo os 6 decimais guardam o valor exato. **`variacao_mensal` está em pontos percentuais como o IBGE publica (0,38 = 0,38 %), ao contrário de `tb_configuracoes.valor`, que guarda fração (0,04 = 4 %)**; fica `NULL` quando o IBGE não publica número. Deflacionar = `valor × indice_base / indice_mes`. O `id` não significa nada (a chave natural é `mes`) e pula ~393 por execução do comando, porque o upsert consome a sequência mesmo sem inserir — esperado. `tb_despesas.integra_ipca` (default `TRUE`) diz se a despesa entra no agregado deflacionado; nada o lê até a rodada 23.
 - **Orçamento**: `tb_orcamento_meses (ano_mes PK dia 1, receita_planejada NOT NULL DEFAULT 0, criado_em NOT NULL DEFAULT now(), encerrado_em NULL = aberto, observacoes)`; `tb_orcamentos (id, subcategoria_id FK, ano_mes FK → tb_orcamento_meses, valor_planejado >= 0, UNIQUE (subcategoria_id, ano_mes))`. Linha ausente = subcategoria não orçada. **Zero é planejado legítimo** ("está no plano, não pretendo gastar") — assimetria deliberada com lançamento, que exige `> 0`.
 - `prioridade` é nula quando a despesa é essencial e pode ser nula em não essencial antiga; o banco não impede. A Visão Anual trata NULL em não essencial como faixa "Sem prioridade".
 - `tb_configuracoes` tem `vigente_desde`; vigente numa data = maior `vigente_desde ≤ data`; todas as chaves de uma vez com `DISTINCT ON (chave)`.
-- Trigger `fn_set_atualizado_em()` em despesas e receitas; `atualizado_em` fica NULL até o primeiro UPDATE — e uma edição de validação **carimba** a linha (ficou registrado na despesa 613, rodada 13).
+- Trigger `fn_set_atualizado_em()` em despesas, receitas e resumos anuais; `atualizado_em` fica NULL até o primeiro UPDATE — e uma edição de validação **carimba** a linha (ficou registrado na despesa 613, rodada 13).
 - **Regras da aplicação, não do banco**: prioridade só quando a essencialidade efetiva é "Não Essencial"; autoria nunca muda; referência inativa visível na edição e nos filtros mas nunca gravada em lançamento novo; receita pré-seleciona a pessoa do usuário logado; configuração não aceita negativo; catálogo de chaves em Python; **mês de orçamento encerrado não recebe INSERT/UPDATE/DELETE em linhas nem na receita; reabrir só se não existir mês de orçamento posterior; mês criável = sem orçamento e (corrente ou futuro, ou seguinte a um mês orçado)**; sugestão de linhas exclui subcategoria inativa e subcategoria de categoria inativa.
 
-Estado dos dados: **1.770 despesas e 145 receitas reais, de 2025 e 2026**; 24 categorias, 82 subcategorias, 3 contas, 5 pessoas, 8 fontes de receita. **Orçamento de setembro/2026 aberto com 66 linhas**, já revisado pelo Tiago (receita planejada R$ 31.000,00, total planejado R$ 38.107,20). `tb_configuracoes` tem TSR, S e R (nada os lê). Usuário `tiago` ativo, `zz_consulta` desativado, `zz_teste` ativo — **senha na variável `senha_teste` do `.env`**. **Há dado real em produção: nenhuma rodada apaga linha que não criou; faxina de teste sempre por id; edição real de validação é revertida pelo mesmo caminho e relatada.**
+Estado dos dados (12/09/2026): **1.778 despesas e 145 receitas reais, de 2025 e 2026** — o Tiago vai lançar retroativamente até 2012, e a carga do IPCA já cobre esse período; 24 categorias, 82 subcategorias, 3 contas, 5 pessoas, 8 fontes de receita. **`tb_ipca` com 393 meses (dez/1993 a ago/2026)**, sem variação nula. **Orçamento de setembro/2026 aberto com 66 linhas**, já revisado pelo Tiago (receita planejada R$ 31.000,00, total planejado R$ 38.107,20). Há resumo anual escrito para 2026 (a Anual mostra o card). `tb_configuracoes` tem TSR, S e R (nada os lê). Usuário `tiago` ativo, `zz_consulta` desativado, `zz_teste` ativo — **senha na variável `senha_teste` do `.env`**. **Há dado real em produção: nenhuma rodada apaga linha que não criou; faxina de teste sempre por id; edição real de validação é revertida pelo mesmo caminho e relatada.**
 
 ## 5. Stack da aplicação (fechada, não reabrir)
 
@@ -69,9 +74,10 @@ Estado dos dados: **1.770 despesas e 145 receitas reais, de 2025 e 2026**; 24 ca
 | Auth | Flask-Login; hash com `werkzeug.security` (scrypt) |
 | Formulários | Flask-WTF (CSRF em todo POST) |
 | Interatividade | HTMX 2.0.4, arquivo local, mais JS próprio pontual (menu do celular, sidebar recolhível, limpar filtros, autocomplete, gráficos, linha expansível, ocultar valores) |
-| Gráficos | Chart.js 4.5.1, UMD local, só na Visão Anual via `{% block scripts %}`. Núcleo, sem plugins. Barras proporcionais em tabela são CSS (`barra_pct`). Continuou local na refatoração visual (o handoff pedia CDN 4.4.1) |
+| Gráficos | Chart.js 4.5.1, UMD local, carregado pelo `{% block scripts %}` só nas duas telas que desenham: Visão Anual e Análise por subcategoria (rodada 24). O que as duas fazem igual mora em `static/js/graficos.js`; cada tela tem o seu arquivo com o que é só dela. Núcleo, sem plugins. Barras proporcionais em tabela são CSS (`barra_pct`). Continuou local na refatoração visual (o handoff pedia CDN 4.4.1) |
 | CSS | Um arquivo escrito à mão (`static/css/app.css`), tokens do design system neutro/teal em `:root` (rodada 17); apelidos do tema antigo na seção 1(b) até a refatoração visual pendente. Sem Tailwind, sem biblioteca de ícones: Lucide (ISC) em **SVG inline** pela macro `icone`. Favicon SVG próprio em `static/` |
 | Dinheiro | `Decimal` em todo cálculo (`ROUND_HALF_UP` onde arredonda); `float` só na serialização final para JSON de gráfico |
+| HTTP de saída | Só no comando do IPCA: `urllib.request` da stdlib, timeout 60 s, sem nova tentativa. Nada de `requests`, `sidrapy` ou `pandas` (rodada 21) |
 | Ambiente | Windows, PowerShell, venv em `venv/`, Python 3.14. Validação em navegador com Playwright (`requirements-dev.txt`, rodada 18) |
 
 ## 6. Estrutura atual do código
@@ -82,22 +88,50 @@ freedom/
   config.py        lê .env; template_folder/static_folder apontam para a raiz
   db.py            ConnectionPool, dict_row, get_connection(), executar()
   util.py          destino_interno(); ValorInvalido, converter_valor, converter_numero(percentual=),
+                   MESES_CURTOS, nome_do_periodo(ano, mes | date) → "agosto de 2026", nome_do_mes(mes)
+                   → "Janeiro" (rodada 23), dobrar (NFD, rodada 22 — chave_alfabetica e ipca.py usam);
+                   somar_meses(mes, passos) e intervalo_de_meses(a, b) (rodada 24, vindos do
+                   orcamento e do ipca.py);
                    formatar_valor, formatar_numero, escapar_like; MESES; so_fragmento (rodada 13);
                    chave_alfabetica (NFD, rodada 15) — nunca `locale`; fracao (rodada 17)
-  cli.py           flask create-user, flask set-password
+  cli.py           flask create-user, flask set-password, flask carregar-ipca (rodada 21; imprime a partir
+                   de ipca.carregar desde a 23; erro vira click.ClickException com código de saída 1)
+  ipca.py          (rodada 21) tudo de tb_ipca: buscar (único ponto com rede), interpretar (função pura:
+                   JSON do SIDRA → lista (mes, numero_indice, variacao_mensal); descarta antes de dez/1993;
+                   recusa a série se dez/1993 ≠ 100, mês faltando, índice não positivo ou mês duplicado),
+                   gravar (única transação, upsert que só atualiza o que mudou, contagens do banco via
+                   RETURNING (xmax = 0)), casas_decimais, ErroIpca. Leitura (rodada 22): serie() é a única
+                   consulta; matriz(serie, modo) é pura e devolve linhas por ano, nota e subtítulo prontos;
+                   modo_valido, VARIACAO/INDICE/MODOS. Rodada 23: carregar (buscar → interpretar →
+                   gravar, resultado estruturado com meses_inseridos via array_agg FILTER (xmax = 0)),
+                   TEMPO_LIMITE_WEB = 20, ErroIpca com etapa (ibge/dados/banco) e motivo curto,
+                   texto_da_faixa / texto_do_erro / texto_das_nulas, mes_esperado / pendente / texto_da_dica
+                   (puras; a data entra por parâmetro; corte no dia 12). Rodada 24: base_de_correcao()
+                   (último mês carregado e o índice dele, numa linha) para quem deflaciona
   auth/            forms.py, models.py, routes.py (/login, /logout)
   main/            routes.py  "/" Visão Anual, "/mensal" Visão Mensal, "/mensal/categoria/<id>" fragmento
-                   servico.py Anual: anos_com_lancamento, ano_valido, MESES_CURTOS (derivada de MESES),
+                   servico.py Anual: anos_com_lancamento, ano_valido (MESES_CURTOS vem de util desde a 22),
                               painel_do_ano, _totais_do_ano (origem única dos totais), _tabela_mensal,
                               _tabela_categorias, _cards ({kpis: 4, indicadores: 9}), _graficos; helpers
                               compartilhados card, percentual;
                               _serie é o único ponto onde Decimal vira número JSON
-                   servico_mensal.py Mensal: intervalo_do_mes, nome_do_periodo, painel_do_mes (cards e três
+                   servico_mensal.py Mensal: intervalo_do_mes, painel_do_mes (cards e três
                               tabelas de UMA consulta agrupada por categoria × pessoa), categoria(),
                               lancamentos_da_categoria(), detalhe_da_categoria()
-  cadastros/       um módulo por entidade (categorias, subcategorias, contas, pessoas, ref_receitas),
+                   analise.py (rodada 24) só a rota GET /analise/subcategoria: lê sub/periodo/
+                              agrupar/de/ate/ipca e renderiza
+                   servico_analise.py subcategorias_com_lancamento (optgroup por categoria),
+                              intervalo_do_acervo, resolver_periodo, linhas_por_mes (a consulta
+                              ÚNICA: nominal, corrigido e COUNT por mês) e as puras montar_pontos,
+                              montar e para_grafico (o único lugar onde Decimal vira float)
+  cadastros/       um módulo por entidade (categorias, subcategorias, contas, pessoas, ref_receitas e,
+                   desde a rodada 20, resumos anuais — nomes exatos dos arquivos no CLAUDE.md §4;
+                   serie_ipca.py: GET /cadastros/ipca?modo= e POST /cadastros/ipca/atualizar — _contexto
+                   compartilhado, 502 IBGE/dados, 503 banco, sem HX-Request → redirect),
                    forms.py, servico.py (contagem agregada "N ativas · M inativas", alternar_ativo,
-                   erro de UNIQUE pendurado no campo pelo nome da constraint)
+                   erro de UNIQUE pendurado no campo pelo nome da constraint). O resumo anual foge do
+                   padrão: <select> de ano só com anos de anos_com_lancamento() sem resumo, edição só do
+                   texto, exclusão com confirmação, ?retorno= validado por destino_interno
   lancamentos/     despesas.py (lançar, editar com ?retorno= validado por destino_interno, excluir,
                    classificação reativa, sugestões), consulta.py, receitas.py, servico_receitas.py,
                    forms.py, servico.py (consultas/agregados, id_valido, pagina_pedida)
@@ -109,31 +143,41 @@ freedom/
                    intervalos, faixa de cor ok/alerta/estouro, fora do orçamento).
                    URLs do mês em AAAA-MM; da linha só por id; encerrar/reabrir carregam o modo
 templates/
-  base.html        blocos `atributos_html` (no <html>), `cabeca` (fim do <head>) e `scripts`; favicon
-  layout_app.html  sidebar escura com o menu numa estrutura só (`navegacao`: Painel, Lançamentos,
-                   Cadastros — Configurações por último), seções recolhíveis (`freedom.sidebar.<secao>`
+  base.html        <meta name="htmx-config"> liberando swap em 409/502/503 (rodada 23); blocos
+                   `atributos_html` (no <html>), `cabeca` (fim do <head>) e `scripts`; favicon
+  layout_app.html  sidebar escura com o menu numa estrutura só (`navegacao`: Painel — Visão Anual,
+                   Visão Mensal, Análise por subcategoria, Orçamento —, Lançamentos,
+                   Cadastros — "Resumos anuais", "IPCA" e Configurações por último), seções recolhíveis (`freedom.sidebar.<secao>`
                    em localStorage), rodapé com usuário e logout POST; barra superior com os blocos
                    `titulo_pagina`, `subtitulo_pagina`, `acoes_pagina`; `data-valores="ocultos"` e o
                    script dono do estado do olho no bloco `cabeca` (rodada 19)
+  main/analise.html  formulário GET na .filtro-barra (subcategoria, período, de/até, agrupamento,
+                   caixa do IPCA e botão "Ver"), gráfico de linha e tabela dos pontos; sem olho
   _macros.html     icone (_CAMINHOS_ICONE, Lucide inline), campo, campo_selecao, campo_area,
                    badge_ativo, acoes_linha, cabecalho_tabela, vazio, lista_cadastro, filtro_inativos,
                    filtros_cadastro, acoes_formulario, reais, barra_pct, badge_essencialidade,
                    bloco_prioridade, campos_despesa (grade de 12 colunas), campos_receita,
                    combobox (<input list> + datalist — lista ABERTA)
-  main/index.html  (marcas sensivel* em todo número), main/mensal.html, main/_detalhe_categoria.html
+  main/index.html  (marcas sensivel* em todo número; card "Resumo do ano" entre os nove indicadores e os
+                   gráficos, rodada 20), main/mensal.html, main/_detalhe_categoria.html
   lancamentos/*    (_total_oob.html: total do mês na barra superior), configuracoes/*
-  cadastros/       <entidade>_lista.html, <entidade>_form.html, _linha_<entidade>.html, _rotulos.html
+  cadastros/       <entidade>_lista.html, <entidade>_form.html, _linha_<entidade>.html, _rotulos.html,
+                   serie_ipca.html (card--tabela + .tabela-caixa + .tabela--matriz, caption .so-leitor;
+                   botão em acoes_pagina com hx-post, modo e CSRF ocultos, hx-disabled-elt, dois rótulos),
+                   _cartao_ipca.html (#ipca-cartao: faixa, dica, tabela ou m.vazio — o que o botão troca),
+                   _subtitulo_ipca.html (hx-swap-oob, sempre no DOM, hidden sem série),
+                   _resposta_ipca.html (cartão no alvo + subtítulo fora de banda)
   orcamento/       orcamento.html, _cabecalho.html (estado do mês, nos dois modos), _corpo.html
                    (montagem), _acompanhamento.html, _linha.html, _linha_edicao.html, _receita.html,
                    _receita_edicao.html, _nova_linha.html, _aviso.html
 static/
   css/app.css      seção 1 tokens do design system (paleta --grafico-*, --esqueleto) e 1(b) apelidos do
                    tema antigo; 4 layout (sidebar escura, barra superior); 5.2 botões (.btn--icone,
-                   rodada 19); componente .barra (após 5.4); 5.9 lançamento, 5.10 consulta,
+                   rodada 19) e .segmentado (era .anos da Anual; generalizado na 22); componente .barra (após 5.4); 5.9 lançamento, 5.10 consulta,
                    5.11 autocomplete, 5.12 configurações, 5.13 "Painéis: o que a Anual e a Mensal
                    compartilham" (5.13.1 gráficos, 5.13.2 tabelas dos painéis, 5.13.3 Visão Anual
                    refeita), 5.14 Mensal (5.14.1 .tabela--detalhe), 5.15 Orçamento (5.15.1
-                   acompanhamento), 5.16 ocultar valores (rodada 19), 7 responsivo, 8 utilitários
+                   acompanhamento), 5.16 ocultar valores (rodada 19), 5.17 IPCA (.ipca-nota, .ipca-dica, rótulos do botão), 7 responsivo, 8 utilitários
                    (.negativo global desde a 16). Seção 5.7 (modal) removida; lacuna intencional
   js/htmx.min.js, js/chart.umd.js, js/visao_anual.js (os scripts de layout — sidebar, menu do
                    celular, olho — são inline em layout_app.html)
@@ -144,7 +188,10 @@ design_handoff_freedom_visao_anual/, design_handoff_freedom_lancamentos_cadastro
                  referência visual; os README erram sobre a stack e os support.js não são da aplicação
 CLAUDE.md        instruções permanentes do agente (onde divergir de um handoff, vale o CLAUDE.md)
 run.py, requirements.txt, requirements-dev.txt (Playwright), .gitignore,
-README.md ("Dependências de front-end", com a licença do Lucide), .env, .flaskenv
+README.md ("Comandos flask" — criar usuário, carregar IPCA e quando rodar; "Dependências de
+                 front-end", com a licença do Lucide). **README.md está no .gitignore de propósito**
+                 (decisão do dono): o que se escreve nele não é versionado
+.env, .flaskenv
 ```
 
 Padrões já estabelecidos no código (o agente deve mantê-los):
@@ -157,7 +204,7 @@ Padrões já estabelecidos no código (o agente deve mantê-los):
 - Filtros são GET na URL com `hx-push-url`; mesma rota devolve página ou fragmento conforme `HX-Request`, com exceção para `HX-History-Restore-Request`. **Exceção deliberada: seletores de painéis e orçamento (ano, mês, ordem, modo) recarregam a página inteira** em `onchange`.
 - Quando gravar/excluir pode reordenar lista, mudar paginação ou **mudar subtotal e rodapé**, devolver o bloco inteiro necessário; `HX-Retarget` quando o alvo natural do disparador não é onde a resposta deve cair (formulário de acréscimo → tabela; erro de estado → `#orcamento-aviso`).
 - **Linha expansível**: `<button>` na primeira célula carrega `aria-expanded`/`aria-controls` e o clique é delegado à tabela; a `<tr>` continua `<tr>`. Abrir dispara evento próprio (`htmx.trigger(linha, 'abrir')`); fechar é `detalhe.remove()` sem requisição; `htmx:responseError` devolve o estado. Reabrir refaz a requisição (sem cache no cliente).
-- Rota só de fragmento: sem `HX-Request` → redirect para a página-mãe com os mesmos parâmetros, **antes** de qualquer 404. Regra de estado recusada → **409** com faixa de aviso.
+- Rota só de fragmento: sem `HX-Request` → redirect para a página-mãe com os mesmos parâmetros, **antes** de qualquer 404. Resposta de erro **exibível**: **409** regra de estado recusada, **502** falha do IBGE, **503** falha do banco, sempre com faixa. **O HTMX 2 não troca 4xx/5xx por padrão** — o `<meta name="htmx-config">` do `base.html` libera só esses três (rodada 23); 400, 404, 500 e o resto seguem sem troca e disparam `htmx:responseError`, que a linha expansível da Mensal usa para restaurar o estado. Um 500 não tratado traz a página de erro do Flask e nunca pode cair dentro de um cartão.
 - Agregados vêm de consulta própria, nunca de soma em Python sobre a página. Exceção prevista: composição em Python (`Decimal`) sobre conjuntos **pequenos e completos** que o SQL já agregou. Dois lugares que mostram o mesmo total leem da mesma origem.
 - **Gráficos**: servidor entrega séries prontas em JSON no template (`tojson`); JS só desenha; textos do servidor; cores por variáveis CSS via `getComputedStyle`; contêiner com altura fixa e `maintainAspectRatio: false`; grade com `minmax(0, 1fr)`; eixo sem centavos, tooltip com centavos.
 - **Barras proporcionais**: `barra_pct`; largura em `style=` com ponto; rodapé de 100% sem barra; denominador = total do conjunto exibido, não o card. Soma de percentuais exibidos pode dar 100,2% e não se corrige.
@@ -171,12 +218,13 @@ Padrões já estabelecidos no código (o agente deve mantê-los):
 - **Formatação**: `moeda`; percentual pelo filtro `numero` (vírgula, uma casa); sem denominador → "—" (`fracao` devolve `None`); negativo em vermelho **no `<span>`**, travessão nunca vermelho; mês maiúsculo como rótulo, minúsculo em frase, `MESES_CURTOS` onde não cabe.
 - Script de uma tela pelo `{% block scripts %}`. Destaque de menu pelo caminho mais específico.
 - **Script que decide o primeiro quadro roda antes de pintar**: colado no elemento (seções da sidebar) ou no `<head>` pelo bloco `cabeca` (olho), nunca no fim do corpo.
-- **Controle segmentado é grupo de links** com `aria-current="page"` (seletor de ano da Anual): GET com recarga inteira, sem JS, e o estado visual é o mesmo atributo que o anunciado.
-- **Ícones**: macro `icone(nome)` com os caminhos em `_CAMINHOS_ICONE`, Lucide copiado do oficial, `currentColor`, `aria-hidden`. Botão só de ícone leva nome acessível (`.so-leitor` ou `aria-label`) e `title`.
+- **Controle segmentado é grupo de links** `.segmentado` com `aria-current="page"` (seletor de ano da Anual, modo da tela do IPCA): GET com recarga inteira, sem JS, e o estado visual é o mesmo atributo que o anunciado.
+- **Comando com fonte externa** (rodada 21): três funções separadas — I/O de rede, interpretação **pura** (testável com arquivo adulterado, sem rede e sem banco) e gravação em **uma transação** (erro no meio desfaz tudo). Valor numérico nasce `Decimal(texto)`, nunca `float`; `converter_numero` é para entrada do usuário com vírgula, não para API com ponto. Contagens de inserido/atualizado saem do banco (`RETURNING (xmax = 0)`), não do Python. Mensagens do CLI em português acentuado; erro é `click.ClickException` (prefixo "Error:" é do Click).
+- **Ícones**: macro `icone(nome)` com os caminhos em `_CAMINHOS_ICONE` (Lucide copiado do oficial, `currentColor`, `aria-hidden`); `notebook-pen` entrou na rodada 20, `percent` na 22, `refresh-cw` na 23 e `chart-line` na 24 (24 caminhos). Todo botão primário tem ícone. Botão só de ícone leva nome acessível (`.so-leitor` ou `aria-label`) e `title`.
 - **Barra superior**: cada tela preenche `titulo_pagina`, `subtitulo_pagina` e `acoes_pagina`. Sticky no desktop, estática no celular, onde os botões da barra dividem a linha por `flex` (um botão sozinho ocupa 100%).
 - **Ocultar valores (Visão Anual, rodada 19)**: o servidor manda `data-valores="ocultos"` no `<html>`; o script em `cabeca` do `layout_app.html` é o dono único do estado, guardado por aba (`sessionStorage`, chaves `freedom.valores…`). Navegação é `pagehide` antes de `hidden`; saída de aba é `hidden` sozinho; um prazo de 300 ms separa fechar a aba de navegar. Marcas: `sensivel` (valor em linha), `sensivel-bloco` (célula ou bloco inteiro — use quando um `<span>` mudaria o subpixel do texto), `sensivel-barra` (preenchimento), `sensivel-area` (gráfico, com `visibility: hidden` para o Chart.js não perder a medida). Os dois ícones vão no botão e o CSS escolhe; `aria-pressed` sai `false` do servidor e é corrigido no `DOMContentLoaded` (exceção conhecida à regra de estado único).
 - **Linha de apoio no celular**: coluna principal larga → texto dentro da célula; coluna principal estreita → `<tr class="linha-apoio">` com `colspan`. Ação vira ícone com `aria-label` descritivo.
-- Responsivo: < 768px sidebar vira barra; grades de cards 1/2/4 colunas (768/1100); gráficos 1/2. **Exceções deliberadas de rolagem interna** (`.tabela-caixa`): matriz pessoa × categoria (primeira coluna `sticky`, teto 130px no celular) e todas as tabelas do orçamento (tela desktop-first). `.so-leitor` absoluto dentro de contêiner que rola precisa de ancestral `position: relative`.
+- Responsivo: < 768px sidebar vira barra; grades de cards 1/2/4 colunas (768/1100); gráficos 1/2. **Exceções deliberadas de rolagem interna** (`.tabela-caixa`): matriz pessoa × categoria (primeira coluna `sticky` com `max-width` de 130px no celular — não é teto de altura; a matriz do IPCA rola só na horizontal) e todas as tabelas do orçamento (tela desktop-first). `.so-leitor` absoluto dentro de contêiner que rola precisa de ancestral `position: relative`.
 - Validação de entrega: **navegador real com login** (`--debug` ligado); números conferidos **lidos do DOM** contra a outra tela ou SQL; refatoração de CSS provada por **SHA-256 de capturas** com referência capturada duas vezes (instrumento determinístico: viewport e `device_scale_factor` fixos, espera pelos gráficos, expansão por `element.click()` sem `:hover`); ramo sem dado real exercitado por função pura (ou montado pelas funções puras e servido ao navegador); mudança de schema validada re-executando o script no banco com dados e num banco descartável. Na Visão Anual com o olho fechado: nenhum nó de texto visível com dígito em `.conteudo__corpo`. Cenários de visibilidade de aba e de bfcache pedem Chrome real via CDP — o Playwright não esconde aba nem usa bfcache.
 
 ## 7. Rodadas concluídas
@@ -195,23 +243,32 @@ Padrões já estabelecidos no código (o agente deve mantê-los):
 | 17 | **Refatoração visual I — tokens, layout e Visão Anual**: design system em `:root` com apelidos do tema antigo (seção 1(b)); macro `icone` (Lucide inline); sidebar escura recolhível com `localStorage`; barra superior sticky; cartão padrão; Visão Anual com 4 KPIs + 9 indicadores, seletor de ano em links com `aria-current`, gráficos 2×2; tokens de contraste `--accent-texto` e `--green-texto`; `fracao` promovida a `util.py` (três cópias removidas); favicon teal | ✅ |
 | 18 | **Refatoração visual II — lançamentos e cadastros**: controles de formulário e botões; lançar despesa em grade de 12 colunas com `#total-mes` na barra, prioridade em radios, aviso inline e linha recém-gravada piscando; editar despesa, consulta e receitas no visual novo; cinco cadastros com lista em cartão, badge e interruptor de inativos com contagem agregada; `requirements-dev.txt` com Playwright | ✅ |
 | 19 | **Ocultar valores na Visão Anual**: botão olho, esqueleto neutro sobre todo número, barras e gráficos; estado por aba distinguido pela ordem `pagehide`/`hidden` (bug de bfcache achado e corrigido na validação); blocos `atributos_html` e `cabeca` em `base.html`; `.btn--icone`, `--esqueleto`, seção 5.16; `.pagina-acoes .btn` por `flex` | ✅ |
+| 20 | **Resumo anual**: `tb_resumos_anuais` (ano PK com CHECK 2000–2100, texto com caractere visível, trigger de `atualizado_em`; DDL idempotente); página "Resumos anuais" em Cadastros (criar por `<select>` de anos sem resumo, editar só o texto, excluir com confirmação, `?retorno=`); card "Resumo do ano" na Anual sujeito ao olho; ícone `notebook-pen`. Revisão não registrada no orquestrador — o que está aqui vem do prompt e do schema | ✅ |
+| 21 | **Carga do IPCA**: `freedom/ipca.py` (buscar / interpretar pura / gravar em transação única) e `flask carregar-ipca`; 393 meses gravados (dez/1993 a ago/2026) sem perda de precisão; idempotência, correção de linha adulterada e atomicidade provadas; falha de rede com código de saída 1; README ganhou "Comandos flask"; sem mudança de schema e sem dependência nova | ✅ |
+| 22 | **Tela do IPCA**: matriz ano × 12 meses com alternância Variação \| Índice (`.segmentado`), "No ano" conferido contra a variável 69 do IBGE (0,00 pp), nota de ano incompleto, rolagem horizontal com ano fixo no celular; ícone `percent`. Limpezas: `nome_do_periodo` e `MESES_CURTOS` em `util.py` (quatro cópias removidas, não duas), `dobrar` promovida (a dívida de `unicodedata` estava em `_dobrar`, não em `_rotulo`), comandos antigos acentuados, aviso de variação nula. Dez capturas com SHA idêntico | ✅ |
+| 23 | **Botão "Atualizar do IBGE"**: `ipca.carregar` compartilhada por comando e botão, POST HTMX com cartão inteiro + subtítulo fora de banda, faixa de resultado com três formas de erro (502/502/503), dica de mês provável (corte no dia 12), `<meta htmx-config>` para 409/502/503 — que revelou e corrigiu o **409 do orçamento nunca exibido desde a 15**. Cenário de outubro provado num banco descartável com a série menos agosto: o clique buscou agosto no IBGE em 0,77 s e a tela mudou sem recarregar. Limpeza: `nome_do_mes` em `util.py` (três cópias) | ✅ |
+
+| 24 | **Análise por subcategoria**: `/analise/subcategoria` com subcategoria × período × agrupamento (mensal, trimestral, anual, 12 meses móveis) × correção pelo IPCA; uma consulta por requisição, composição pura, zero é zero, "No ano" dos buckets parciais marcado. Números do DOM iguais ao SQL independente e à Visão Mensal (zero divergências). `static/js/graficos.js` extraído do `visao_anual.js` (cor por variável CSS, moeda, eixo, opções, linha) e o rótulo do eixo corrigido para olhar o **passo** entre marcações — escrevia "R$ 2 mil" duas vezes com valores de mil. Limpezas: `somar_meses` e `intervalo_de_meses` para `util.py`, `.ipca-nota` → `.nota-rodape`. Doze capturas com SHA idêntico | ✅ |
 
 ## 8. Roteiro (ordem sugerida)
 
-1. **Rodada 20 — resumo anual** (prompt escrito): `tb_resumos_anuais` (DDL idempotente, com o `.md` do banco junto), página "Resumos anuais" em Cadastros e card na Visão Anual sujeito ao olho. Regras na seção 3.
-2. **Refatoração visual pendente**: Visão Mensal, Orçamento, configurações e login; remover os apelidos da seção 1(b) e `card--solido` quando nada mais os usar. Citar sempre pelo nome: o número já mudou duas vezes.
+1. **Despesas mensais somadas com `integra_ipca`** (tela futura, decisão do dono): primeiro e único uso da flag. Escopo a definir quando chegar.
+2. **Refatoração visual pendente**: Visão Mensal, Orçamento, configurações e login; remover os apelidos da seção 1(b) e `card--solido` quando nada mais os usar; abrir sozinho o grupo da sidebar que contém o item ativo (hoje um grupo recolhido esconde o item aceso). Citar sempre pelo nome: o número já mudou duas vezes.
 3. **Metas de independência** (página própria): TSR, S e R vigentes, número de independência, taxa de poupança realizada × meta.
 4. **Patrimônio**: ativos e snapshots.
-5. **IPCA**: carga (API SIDRA/IBGE, `INSERT ... ON CONFLICT (mes) DO UPDATE`) e gráficos deflacionados.
-6. **Deploy**: serviço `app` no `docker-compose` com gunicorn; Tailscale; segundo usuário. Com o celular na rede, conferir o olho no aparelho (ver seção 9).
+5. **Deploy**: serviço `app` no `docker-compose` com gunicorn (`--timeout` compatível com o botão do IPCA) e `TZ=America/Sao_Paulo` (a dica de mês provável usa a data local); Tailscale; segundo usuário; decidir se o Agendador de Tarefas do Windows roda `carregar-ipca` nos dias 12 e 15 como rede de segurança. Com o celular na rede, conferir o olho no aparelho (ver seção 9).
 
-Backlog consciente: exportação CSV/Excel, duplicar lançamento, edição em lote, intervalo livre de datas, ordenação por cabeçalho, sugestão que preencha valor, autocomplete em receitas, comparação entre anos/meses, links dos cards para a consulta, detalhe por categoria na Anual (subcategoria × mês), detalhe por pessoa, setas entre meses, exportação de gráfico, animação dos gráficos, orçamento por pessoa, cópia de orçamento entre anos, histórico de alterações do orçamento, integração dos painéis com o orçamento, decidir se o `letter-spacing` herdado no detalhe é desejado, edição em linha nos cadastros e na despesa, busca nos cadastros, paginação dos recentes (os três recusados como mudança funcional na rodada 18).
+Backlog consciente: exportação CSV/Excel, duplicar lançamento, edição em lote, intervalo livre de datas, ordenação por cabeçalho, sugestão que preencha valor, autocomplete em receitas, comparação entre anos/meses, links dos cards para a consulta, detalhe por categoria na Anual (subcategoria × mês), detalhe por pessoa, setas entre meses, exportação de gráfico, animação dos gráficos, orçamento por pessoa, cópia de orçamento entre anos, histórico de alterações do orçamento, integração dos painéis com o orçamento, decidir se o `letter-spacing` herdado no detalhe é desejado, edição em linha nos cadastros e na despesa, busca nos cadastros, paginação dos recentes (os três recusados como mudança funcional na rodada 18), acumulado em 12 meses na tela do IPCA, ticket médio deflacionado na análise por subcategoria, deflação na Visão Anual (série real do ano).
 
 ## 9. Pendências e lembretes
 
-- **Commitar até a rodada 19 antes da 20**, que muda o schema. Conferir no git se as rodadas 13 a 18 estão lá.
-- O repositório anexado ao projeto do orquestrador só reflete o último sync: sincronizar depois de cada commit, senão revisão e prompt olham código velho (em 10/09 ele ainda não tinha a rodada 19).
-- A revisão da entrega da rodada 18 não ficou registrada no orquestrador; o que está aqui sobre ela vem do prompt e do código.
+- **Rodadas 22, 23 e 24 não estão commitadas** (o commit `16600c6` "0.14" cobriu exatamente 20 e 21). São dez arquivos novos e vinte e um alterados; commitar antes da rodada seguinte.
+- O repositório anexado ao projeto do orquestrador só reflete o último sync: sincronizar depois de cada commit, senão revisão e prompt olham código velho (em 12/09 o orquestrador não tinha o código das rodadas 16 a 21).
+- **`docs/Freedom - Estrutura do Banco de Dados.md` foi posto em dia em 13/09/2026**, depois da rodada 24: o roteiro saiu dele (fica só aqui, seções 7 e 8), `tb_ipca` passou a dizer quem a alimenta e quem a lê, `integra_ipca` está marcada como reservada e não lida, o cruzamento com o IPCA é pelo **mês da data** (nunca pelo `ano_mes`) e os padrões de acesso ganharam o upsert, a deflação por lançamento e a consulta da análise. O DDL não muda desde a rodada 20.
+- As revisões das entregas das rodadas 18 e 20 não ficaram registradas no orquestrador; o que está aqui sobre elas vem dos prompts, do código e do schema.
+- ~~Conferir a mensagem de erro do comando depois da refatoração de `ErroIpca`~~ — feito na rodada 24: com a URL inválida a saída continua `Não foi possível falar com a API do SIDRA: [Errno 11001] getaddrinfo failed. Confira a conexão e tente de novo.`, legível e em português. Nenhum ajuste foi preciso.
+- Grupo recolhido da sidebar esconde o item aceso (comportamento desde a 18); vai para a refatoração visual pendente.
+- Ritual mensal: depois do dia 10, `python -m flask --app freedom carregar-ipca` (ou, a partir da 23, o botão da tela) e conferir o último mês com o site do IBGE. Se o IBGE revisar um mês passado, a recarga corrige sozinha (é upsert). Nenhum dos dois caminhos precisa do agente.
 - **Olho, a conferir no celular real** (quando houver acesso pela rede): se a miniatura do trocador de apps é capturada antes do `hidden`; alvo de toque de 30px, abaixo dos 44px recomendados; bfcache do Safari/iOS. Risco residual medido: aba reaberta em menos de 300 ms do fechamento volta à mostra. O logout limpa o estado interceptando o formulário de sair — redundante com o prazo, mantido.
 - Apelidos do tema antigo (seção 1(b) do CSS) e `card--solido` vazio continuam até a refatoração visual pendente.
 - Usuários: `tiago`, `zz_consulta` (desativado), `zz_teste` — senha em `senha_teste`. **Todo prompt nomeia a variável.** Validação que edita dado real carimba `atualizado_em`; se isso incomodar, o agente cria e apaga a própria despesa de teste.
@@ -225,11 +282,21 @@ Backlog consciente: exportação CSV/Excel, duplicar lançamento, edição em lo
 
 ## 10. Lições aprendidas (para não repetir)
 
+**Gráficos e JavaScript** (rodadas 9–11, 17, 24)
+- Chart.js só na tela que desenha, pelo `{% block scripts %}`; contêiner com **altura fixa** e `maintainAspectRatio: false`, senão o canvas cresce a cada redimensionamento. Cores por `getComputedStyle` de variável CSS — nenhum hexadecimal no JS.
+- O que a segunda tela com gráfico repetiria sai para um arquivo comum (`graficos.js`, rodada 24) antes de ser copiado, como helper de Python sai para `util.py`. O SHA da tela antiga prova que a extração não mexeu em pixel.
+- **Rótulo de eixo arredondado tem de olhar o passo entre marcações, não o maior valor**: com marcações de 500 em 500, arredondar para milhar escreve "R$ 2 mil" duas vezes seguidas. Achado na Análise por subcategoria, corrigido no helper comum, sem efeito na Anual (marcações de 50 mil).
+- **Suavização é decisão por tela, não padrão**: `tension: 0.4` ajuda em série contínua e mente em série com zeros — a curva passa por baixo do zero entre dois pontos. Onde o zero é resposta legítima, reta entre pontos.
+- Valor chega ao JS **já arredondado a centavos**; `float` só na serialização final, num ponto único e nomeado.
+
 **Ambiente e Postgres**
 - pgAdmin recente rejeita e-mail `.local`. `teardown_appcontext` não é lugar para fechar pool. psycopg conta `%s` em comentário. `ESCAPE '\'` precisa de raw string.
 - Filtrar por coluna derivada de view mata o índice; intervalo pela coluna base resolve — e o EXPLAIN na validação prova.
 - `sorted()` puro ordena por ponto de código ("Água" depois de "Zoo"); chave NFD resolve sem `locale`. `en_US.utf8` no banco dá a mesma ordem.
 - Mudança de schema em tabela vazia é troca de coluna com blocos idempotentes, nunca `DROP TABLE`; validar no banco com dados, re-executar, e num banco descartável do zero.
+- Upsert: `ON CONFLICT ... DO UPDATE ... WHERE (...) IS DISTINCT FROM (...)` não reescreve linha igual e não a devolve no `RETURNING`; `RETURNING (xmax = 0)` separa inserido de atualizado. Contar no banco, não em Python: o banco compara depois de arredondar para o tipo da coluna. Identidade consumida em toda tentativa — o `id` pula e não importa.
+- SIDRA (tabela 1737): a API devolve 13 casas no número-índice sem pedir `d/`; `d/` serve para reduzir, não ampliar. Os índices desde dez/1993 têm no máximo duas casas significativas; antes disso, moedas antigas e índice minúsculo — descartar pelo código do período antes de converter. Dez/1993 = 100 é a verificação de sanidade da série.
+- Percentual tem duas unidades no banco: `tb_ipca.variacao_mensal` em pontos percentuais (como publicado) e `tb_configuracoes.valor` em fração. Documentar a diferença onde as duas se encontram; nunca "corrigir" o dado do IBGE.
 
 **Flask, Jinja e HTMX**
 - `flask run` precisa de `--app`/`FLASK_APP`. **Sem `--debug` nada recarrega**, e a captura "depois" compara HTML velho com CSS novo — custou uma rodada de teste em duas ocasiões.
@@ -268,3 +335,13 @@ Backlog consciente: exportação CSV/Excel, duplicar lançamento, edição em lo
 - Handoff de ferramenta de design chega com premissas erradas sobre a stack (Java, CDN, biblioteca de ícones, sem celular). Ler o README do handoff contra a seção 5 deste documento antes de transformá-lo em prompt. O protótipo é referência, não contrato (rodada 17): gráficos 2×2 em vez do `auto-fit`, contraste corrigido por tokens `--*-texto`, celular preservado.
 - Ramo sem dado real montado pelas funções puras do serviço e servido ao navegador pega o que a tela real não mostra: foi assim que apareceu o dígito em "Nenhuma despesa em <ano>" com o olho fechado.
 - Trabalho adiado se cita pelo nome, não pelo número da rodada: a refatoração visual pendente já foi "19" e "20" em comentários do código.
+- `git diff` não alcança arquivo novo (untracked) nem arquivo no `.gitignore`: restauração de uma edição temporária nesses arquivos se prova por SHA-256 antes e depois.
+- Fonte externa se valida com a resposta salva em arquivo fora do repositório e cópias adulteradas, uma por regra de recusa, contra a função pura — sem rede, sem banco, e o arquivo é apagado no fim. A primeira carga real fica no banco e não é "dado de teste".
+- Roteiro em um documento só (este). O `.md` do banco descreve o schema; quando ele ganhou um roteiro próprio, desatualizou em duas rodadas.
+- Quando prompt e Histórico saem na mesma mensagem, a regra fica escrita **uma vez** e o outro aponta: "No ano" ficou "calculada na consulta" aqui e "na função pura" no prompt, e custou um ponto de interpretação. E o prompt afirmou um "teto de 130px" que era `max-width`: conferir o CSS antes de citar, como já valia para arquivos e macros.
+- Dívida apontada por sintoma (imports suspeitos) estava em outra função: "confira e explique" rendeu mais do que "conserte X" teria rendido.
+- Instrumento de captura com o olho: **fixar** o estado (`dataset.valores`) em vez de alternar por clique — o `sessionStorage` devolve a aba já aberta na segunda passada e o clique cego a fecha.
+- **Status certo no test client não é faixa na tela**: o 409 do orçamento existiu oito rodadas sem nunca aparecer, porque o HTMX 2 descarta 4xx/5xx em silêncio. Erro que deve ser visto se valida no navegador, e a política de swap é declarada uma vez (`htmx-config`), nunca por script.
+- Premissa errada no prompt ("reutilize o mecanismo que exibe o 409") custa uma rodada se o agente obedecer; custou uma pergunta porque ele mediu antes. "Pergunte antes de decidir" vale também contra o orquestrador.
+- No Windows, o prompt oculto do Click lê do console (`msvcrt`), não do stdin: `echo senha | flask create-user` trava; injeta-se a entrada com `CliRunner`. E um launcher de segundo servidor não pode fazer `os.chdir`: o recarregador do Werkzeug reexecuta pelo caminho relativo.
+- Deflação não precisa de série contínua — é uma conta por mês. O que a descontinuidade quebra é a leitura, e isso se resolve com granularidade escolhida pelo usuário, não com classificação dos dados.

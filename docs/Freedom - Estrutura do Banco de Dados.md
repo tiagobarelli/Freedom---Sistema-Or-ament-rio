@@ -4,7 +4,9 @@ Sistema web pessoal de controle financeiro. Roda localmente; acesso de outros me
 
 > **Status**: schema implementado em `db/init/01_schema.sql` (idempotente). Este documento reflete exatamente o que está no banco. Se o SQL mudar, atualizar aqui; se este documento mudar, atualizar o SQL.
 >
-> Histórico do DDL: criado na rodada 1 e inalterado até a rodada 6. São **três mudanças** desde então. A **rodada 7** acrescentou a view `vw_receitas`. A **rodada 15** criou `tb_orcamento_meses` e trocou `tb_orcamentos` de categoria para subcategoria (a tabela nunca recebera uma linha, então foi troca de coluna, sem migração de dados). A **rodada 20** criou `tb_resumos_anuais` e ampliou o `COMMENT` de `fn_set_atualizado_em()`, que agora serve três tabelas — nada mais foi tocado. Nenhuma tabela de movimento foi alterada em nenhuma das três. O que as rodadas 4 a 20 acrescentaram além disso está em **Regras da aplicação** e em **Padrões de acesso**.
+> Histórico do DDL: criado na rodada 1 e inalterado até a rodada 6. São **três mudanças** desde então. A **rodada 7** acrescentou a view `vw_receitas`. A **rodada 15** criou `tb_orcamento_meses` e trocou `tb_orcamentos` de categoria para subcategoria (a tabela nunca recebera uma linha, então foi troca de coluna, sem migração de dados). A **rodada 20** criou `tb_resumos_anuais` e ampliou o `COMMENT` de `fn_set_atualizado_em()`, que agora serve três tabelas — nada mais foi tocado. Nenhuma tabela de movimento foi alterada em nenhuma das três.
+>
+> **Desde a rodada 20 o DDL não muda.** As rodadas 21 a 24 encheram e leram `tb_ipca` sem tocar em uma linha do schema: carga pelo comando (21), tela de leitura (22), botão de atualizar (23) e o primeiro uso do índice, na Análise por subcategoria (24). O que as rodadas 4 a 24 acrescentaram fora do DDL está em **Regras da aplicação** e em **Padrões de acesso**.
 
 ## Decisões de projeto
 
@@ -59,11 +61,15 @@ Sistema web pessoal de controle financeiro. Roda localmente; acesso de outros me
 - **Sugestão de descrição** (só despesas): agrupa por `lower(descricao)`, ordena por número de usos e desempata pela mais recente, e traz `subcategoria_id`, `conta_id`, `pessoa_id` e o último valor do lançamento mais recente daquela descrição — tudo em **uma** consulta. Receitas não têm autocomplete (decisão da rodada 7: poucas fontes, o select resolve).
 - **Valor vigente de configuração** (rodada 8): o valor de uma chave numa data é o registro com maior `vigente_desde <= data`. Para todas as chaves de uma vez, `DISTINCT ON (chave) ... ORDER BY chave, vigente_desde DESC` — uma consulta só. As duas funções (`valor_vigente` de uma chave e a de todas) vivem em `freedom/configuracoes/servico.py` e são o que o dashboard deve usar.
 
+- **Upsert do IPCA** (rodada 21): `INSERT ... ON CONFLICT (mes) DO UPDATE ... WHERE tb_ipca.numero_indice IS DISTINCT FROM EXCLUDED.numero_indice OR ...` — o `WHERE` é o que faz o mês já igual não ser tocado. As contagens saem do próprio comando: `RETURNING mes, (xmax = 0) AS nasceu` separa a linha que nasceu da que foi atualizada, e um `array_agg` diz **quais** meses entraram (a faixa da tela precisa nomear o mês novo). Uma transação só, 393 linhas, `unnest` de três arrays — não há laço de `INSERT` linha a linha.
+- **Deflação por lançamento, soma depois** (rodada 24): `SUM(v.valor * base / COALESCE(i.numero_indice, base))` sobre `vw_despesas LEFT JOIN tb_ipca i ON i.mes = date_trunc('month', v.data)::date`. A ordem importa: deflacionar a **soma do trimestre** por um índice só daria outro número, e o agrupamento por trimestre e ano é o que a tela oferece. O `COALESCE` no denominador resolve o mês posterior à base (fator 1). O arredondamento a centavos acontece **só no ponto exibido**; as somas em SQL ficam com a precisão do `NUMERIC`.
+- **Série de uma subcategoria** (rodada 24): **uma** consulta por requisição devolve, por mês, soma nominal, soma corrigida e `COUNT(*)`. Meses sem lançamento simplesmente não voltam — quem os transforma em **zero** é a composição em Python, porque zero é resposta ("não gastei") e buraco não é. O filtro continua sendo `data >= ... AND data < ...`; `date_trunc('month', data)` aparece só no `GROUP BY` e no `JOIN` com o IPCA, nunca no `WHERE`.
+
 ## Convenções
 
 - Nomes de tabelas e colunas em `snake_case`, minúsculas, sem acento.
 - Valores monetários: `NUMERIC(12,2)` (`NUMERIC(14,2)` em patrimônio).
-- Percentuais: em fração (4% = `0.04`).
+- Percentuais: em fração (4% = `0.04`) — **com uma exceção documentada**: `tb_ipca.variacao_mensal` guarda **pontos percentuais**, como o IBGE publica (`0.3800` é 0,38 %). As duas convenções convivem porque a do IPCA é dado de terceiro, copiado como veio; a fração é a do que o sistema mesmo grava.
 - Datas: `DATE`. Carimbos de auditoria: `TIMESTAMPTZ`.
 - `criado_em`: `NOT NULL DEFAULT now()`. `atualizado_em`: `NULL` até o primeiro `UPDATE`, preenchido pela trigger `fn_set_atualizado_em()`.
 - Constraints nomeadas: `ck_` (CHECK), `uq_` (UNIQUE), `ix_` (índice), `tg_` (trigger), `fn_` (função), `vw_` (view), `fk_` (chave estrangeira). O prefixo `fk_` entrou na rodada 15 e vale para FK nova: as anteriores usam o nome automático do Postgres, e renomeá-las não traria nada. Nomear importa quando o script precisa perguntar "esta constraint já existe?" antes de criá-la.
@@ -145,11 +151,13 @@ De onde o dinheiro sai. Serve apenas para classificar a saída — não há sald
 
 Série histórica do IPCA, para deflacionar despesas e ver crescimento real.
 
-**Como é alimentada.** Pelo comando `flask carregar-ipca` (rodada 21), e por mais nada: não há tela nem `INSERT` manual. O comando lê a **tabela 1737 do SIDRA/IBGE** (Brasil, variáveis **2266** — número-índice, base dezembro/1993 = 100 — e **63** — variação mensal, em %), em `https://apisidra.ibge.gov.br/values/t/1737/n1/all/v/2266,63/p/all`, e grava de **dezembro/1993 em diante**: antes disso a série vem reconstruída em moedas extintas, com índice na casa de 0,0000000076, que não caberia em `NUMERIC(14,6)` e não tem uso no Freedom.
+**Como é alimentada.** Por **dois gatilhos, os dois manuais e os dois passando pela mesma função** (`ipca.carregar`): o comando `flask carregar-ipca` (rodada 21) e o botão "Atualizar do IBGE" da tela do IPCA (rodada 23). Não há `INSERT` manual e não há agendamento — nem cron, nem thread, nem tarefa do Windows. O comando lê a **tabela 1737 do SIDRA/IBGE** (Brasil, variáveis **2266** — número-índice, base dezembro/1993 = 100 — e **63** — variação mensal, em %), em `https://apisidra.ibge.gov.br/values/t/1737/n1/all/v/2266,63/p/all`, e grava de **dezembro/1993 em diante**: antes disso a série vem reconstruída em moedas extintas, com índice na casa de 0,0000000076, que não caberia em `NUMERIC(14,6)` e não tem uso no Freedom.
 
 A gravação é um `INSERT ... ON CONFLICT (mes) DO UPDATE` com `WHERE ... IS DISTINCT FROM ...`, numa transação só: o mês que já está igual não é tocado, **nenhuma linha é apagada** e qualquer erro no meio desfaz tudo — não existe carga parcial, porque meia série não serve (o número-índice só vale encadeado). A série inteira é recusada, sem gravar nada, se dezembro/1993 faltar ou não valer exatamente 100, se houver mês faltando entre o primeiro e o último, se algum índice não for positivo ou se algum mês vier duplicado.
 
-**Quando rodar.** Depois do dia 10 de cada mês, quando o IBGE publica o índice do mês anterior. Rodar de novo é inofensivo — o resultado é "0 inseridos, 0 atualizados".
+**Quando rodar.** Depois do dia 10 de cada mês, quando o IBGE publica o índice do mês anterior. Rodar de novo é inofensivo — o resultado é "0 inseridos, 0 atualizados". A tela do IPCA diz sozinha quando está na hora: a partir do **dia 12** ela espera o mês anterior (antes disso, o retrasado) e mostra "O IBGE já deve ter publicado <mês>" enquanto o último mês carregado for mais velho que isso.
+
+**Quem lê.** A tela `/cadastros/ipca` (rodada 22), que mostra a série em matriz ano × mês, e a **Análise por subcategoria** (rodada 24), primeiro uso do índice para deflacionar. A **base da correção é o último mês carregado** — `SELECT mes, numero_indice FROM tb_ipca ORDER BY mes DESC LIMIT 1` —, e mês posterior a ela usa fator 1: corrigir para um mês que o IBGE ainda não publicou seria inventar inflação.
 
 | Coluna | Tipo | Função |
 |---|---|---|
@@ -198,7 +206,7 @@ Tabela principal. **Movimento**: admite `DELETE` físico pela interface (ver Dec
 | `usuario_id` | `INT NOT NULL FK → tb_usuarios` | Quem fez o lançamento (autoria). Vem de `current_user` e não muda na edição. |
 | `essencialidade` | `TEXT` | **Nula por padrão.** Preencher só para sobrescrever a essencialidade da subcategoria nesta despesa específica. `CHECK` nos mesmos dois valores da subcategoria. Relatórios usam `COALESCE(despesa.essencialidade, subcategoria.essencialidade)`. |
 | `prioridade` | `SMALLINT` | 1 a 4, apenas para despesas não essenciais (1 = mais importante). `CHECK (prioridade BETWEEN 1 AND 4)`. Nula quando essencial — regra da aplicação, não do banco. |
-| `integra_ipca` | `BOOLEAN NOT NULL DEFAULT TRUE` | Se entra no agregado de despesas deflacionado. `FALSE` para gastos pontuais que distorceriam a série. |
+| `integra_ipca` | `BOOLEAN NOT NULL DEFAULT TRUE` | Se entra no agregado de despesas deflacionado. `FALSE` para gastos pontuais que distorceriam a série. **Nada lê esta coluna até hoje** (estado da rodada 24): ela está reservada para uma tela futura de despesas mensais somadas só das marcadas, e a Análise por subcategoria **não** a consulta — decisão do dono, para a série de uma subcategoria ser a subcategoria inteira. |
 | `observacoes` | `TEXT` | Anotação livre. |
 | `criado_em` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Auditoria. Ordena a lista de lançamentos recentes. |
 | `atualizado_em` | `TIMESTAMPTZ` | Auditoria. `NULL` até o primeiro `UPDATE`; preenchido pela trigger `tg_despesas_atualizado_em`. |
@@ -347,7 +355,8 @@ tb_pessoas 1──n tb_usuarios
 tb_usuarios 1──n tb_despesas
 tb_usuarios 1──n tb_receitas
 tb_ativos 1──n tb_patrimonio_snapshots
-tb_ipca (sem FK; cruza com vw_despesas.ano_mes)
+tb_ipca (sem FK; cruza com vw_despesas pelo MES DA DATA,
+         date_trunc('month', data) = tb_ipca.mes - nao pelo ano_mes)
 tb_configuracoes (sem FK; consultada por chave e data)
 tb_resumos_anuais (sem FK; consultada pelo ano, que e a chave)
 ```
@@ -359,20 +368,13 @@ tb_resumos_anuais (sem FK; consultada pelo ano, que e a chave)
 | Taxa de poupança do mês | `(receitas − despesas) / receitas`, agregando `vw_receitas` e `vw_despesas` pelo mesmo intervalo de datas |
 | Patrimônio total | soma de `tb_patrimonio_snapshots` na última data disponível |
 | Número de independência | `despesas anuais / TSR`, com a TSR vigente na data de referência |
-| Despesa deflacionada | `valor × indice_base / indice_do_mes`, só para `integra_ipca = TRUE` |
+| Despesa deflacionada | `valor × indice_base / indice_do_mes`, por lançamento, somada depois; `indice_base` é o do último mês carregado em `tb_ipca`. Implementado na Análise por subcategoria (rodada 24), que **não filtra por `integra_ipca`** |
+| Série de uma subcategoria | soma nominal, soma corrigida e `COUNT(*)` por mês, agrupadas depois em mês, trimestre, ano ou janela de 12 meses; mês sem lançamento é zero. Nada disso é gravado |
 | Realizado vs. orçado | soma de `vw_despesas` por **subcategoria** no intervalo de `data` do mês, comparada a `tb_orcamentos` do mesmo `ano_mes`; a categoria é a soma das subcategorias dela |
 | Poupança planejada do mês | `tb_orcamento_meses.receita_planejada` − soma de `tb_orcamentos.valor_planejado` do mês; a taxa é a poupança sobre a receita planejada |
 | Total do período e divisão essencial × não essencial | agregados sobre `vw_despesas` no intervalo de datas filtrado (implementado na consulta de despesas) |
 | Total de receitas do período por categoria | agregados sobre `vw_receitas` no intervalo filtrado (implementado na tela de receitas) |
 
-## Roteiro
+## O roteiro não mora aqui
 
-1. ~~DDL em `db/init/01_schema.sql`~~ — feito.
-2. ~~Criar o usuário master via `flask create-user`~~ — feito.
-3. ~~Cadastro de categorias, subcategorias, contas, pessoas e fontes de receita pela interface~~ — feito.
-4. ~~Lançamento, consulta, edição e exclusão de **despesas**~~ — feito (rodadas 4 a 6).
-5. ~~Lançamento e visualização de **receitas** em página única, com `vw_receitas`~~ — feito (rodada 7).
-6. ~~**Configurações** com vigência (TSR, R, S e chaves livres)~~ — feito (rodada 8).
-7. ~~**Painéis**: Visão Anual em `/` e Visão Mensal em `/mensal`~~ — feito (rodadas 9 a 14).
-8. ~~**Orçamento**: schema por subcategoria, `tb_orcamento_meses`, montagem do mês a partir do histórico~~ — feito (rodada 15).
-9. Próximo: acompanhamento realizado × orçado, patrimônio, carga do IPCA (API SIDRA/IBGE, `INSERT ... ON CONFLICT (mes) DO UPDATE`) e deploy via Tailscale.
+O que está feito e o que falta vive em `docs/Freedom - Histórico e Estado do Projeto.md`, seções 7 e 8. Este documento descreve **o banco**: duas listas de roteiro derivariam uma da outra e uma delas envelheceria — foi o que aconteceu com a que ficava aqui, que ainda dava como futuros o acompanhamento do orçamento (rodada 16) e a carga do IPCA (rodada 21).

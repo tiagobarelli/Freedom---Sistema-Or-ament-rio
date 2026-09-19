@@ -410,8 +410,16 @@ def sugestoes_de_descricao(termo):
 
     Uma consulta so. As funcoes de janela agrupam por lower(descricao) para
     contar usos e escolher a linha mais recente de cada grupo; dai saem a
-    grafia exibida e os ids que o formulario vai preencher. Fazer uma consulta
-    por sugestao seria seis idas ao banco por tecla digitada.
+    grafia exibida, os ids que o formulario vai preencher (subcategoria, conta
+    e pessoa), o ultimo valor, a prioridade e a sobrescrita de essencialidade.
+    Fazer uma consulta por sugestao seria seis idas ao banco por tecla digitada.
+
+    `sobrescrita` e a essencialidade gravada na propria despesa, e so quando
+    difere da subcategoria: a view expoe a efetiva, e `NULLIF` contra a da
+    subcategoria devolve NULL tanto para quem herdou quanto para quem
+    sobrescreveu com o mesmo valor - sobrescrita inocua nao precisa viajar.
+    O JOIN com tb_subcategorias e 1:1 (FK para a PK), entao nao mexe nas
+    janelas: nem na contagem de usos, nem na recencia.
 
     Ordem: mais usadas primeiro; empate desfeito pela mais recente. Descricao
     usada uma unica vez continua aparecendo, atras das demais.
@@ -431,15 +439,18 @@ def sugestoes_de_descricao(termo):
                    v.categoria,
                    v.conta_id,
                    v.pessoa_id,
+                   v.prioridade,
+                   NULLIF(v.essencialidade, s.essencialidade) AS sobrescrita,
                    count(*)    OVER (PARTITION BY lower(v.descricao)) AS usos,
                    max(v.data) OVER (PARTITION BY lower(v.descricao)) AS ultima,
                    row_number() OVER (PARTITION BY lower(v.descricao)
                                       ORDER BY v.data DESC, v.id DESC) AS recencia
               FROM vw_despesas v
+              JOIN tb_subcategorias s ON s.id = v.subcategoria_id
              WHERE v.descricao ILIKE '%%' || %s || '%%' ESCAPE '\\'
         )
         SELECT descricao, valor, subcategoria_id, subcategoria, categoria,
-               conta_id, pessoa_id, usos, ultima
+               conta_id, pessoa_id, prioridade, sobrescrita, usos, ultima
           FROM achadas
          WHERE recencia = 1
          ORDER BY usos DESC, ultima DESC, descricao

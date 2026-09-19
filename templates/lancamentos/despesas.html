@@ -87,7 +87,9 @@
   <script>
     // --- Autocomplete de descricao -------------------------------------
     // A lista vem pronta do servidor (HTMX). Aqui so cuidamos de teclado,
-    // ARIA e do preenchimento dos campos ao escolher um item.
+    // ARIA e do preenchimento dos campos ao escolher um item: descricao,
+    // subcategoria, conta, pessoa, a sobrescrita de essencialidade e a
+    // prioridade do ultimo lancamento daquela descricao (o valor nao).
     (function () {
       var d = document;
       var campo = function () { return d.querySelector('#form-despesa [name="descricao"]'); };
@@ -120,6 +122,27 @@
         el.hidden = !texto;
       }
 
+      // Pede a classificacao pela mesma rota, com o mesmo alvo e o mesmo swap
+      // que o <select name="subcategoria_id"> declara - lidos dele, para a
+      // declaracao continuar num lugar so, o template.
+      //
+      // Por que `htmx.ajax` e nao `htmx.trigger`: a prioridade da sugestao tem
+      // de SUBSTITUIR o radio marcado antes, e marcar o radio nao serve porque
+      // o bloco pode estar vazio (a despesa anterior era essencial) - dai nao
+      // ha radio nenhum para carregar o valor. O `values` do htmx apaga a
+      // chave que veio do `hx-include` antes de escrever a sua, entao na
+      // querystring chega UM `prioridade`, nunca dois. O valor viaja na
+      // requisicao e morre nela: quem decide continua sendo a rota.
+      function classificar(f, prioridade) {
+        var sel = f.querySelector('[name="subcategoria_id"]');
+        htmx.ajax('GET', sel.getAttribute('hx-get'), {
+          source: sel,
+          target: sel.getAttribute('hx-target'),
+          swap: sel.getAttribute('hx-swap'),
+          values: {prioridade: prioridade}
+        });
+      }
+
       function escolher(item) {
         var f = d.getElementById('form-despesa');
         campo().value = item.dataset.descricao;
@@ -133,12 +156,19 @@
           if (sel && [].some.call(sel.options, function (o) { return o.value === id; })) sel.value = id;
           else faltando.push(par[2]);
         });
+        // A sobrescrita de essencialidade e escrita ANTES do pedido: e o
+        // `hx-include="#form-despesa"` que a leva. Vazio e escrito tambem -
+        // sem isso a sobrescrita da escolha anterior vazaria para esta.
+        // Atribuir por JS nao dispara `change`, entao o select nao pede uma
+        // segunda classificacao por conta propria.
+        var ess = f.querySelector('[name="essencialidade"]');
+        if (ess) ess.value = item.dataset.essencialidade || '';
         apoio('valor-apoio', 'último: ' + item.dataset.valor);   // valor NAO e copiado
         apoio('sugestao-aviso', faltando.length
           ? 'A ' + faltando.join(', ') + ' do lançamento anterior está desativada; escolha outra.' : '');
         fechar();
         // Sem isto, categoria, essencialidade e prioridade ficariam mentindo.
-        htmx.trigger(f.querySelector('[name="subcategoria_id"]'), 'change');
+        classificar(f, item.dataset.prioridade || '');
         var valor = f.querySelector('[name="valor"]');
         if (valor) { valor.focus(); valor.select(); }
       }

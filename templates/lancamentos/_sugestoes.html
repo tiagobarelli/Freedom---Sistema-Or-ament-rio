@@ -2,7 +2,13 @@
 {#
   Painel do autocomplete. Nao e <datalist>: datalist so carrega texto, e aqui
   cada item precisa levar os ids que vao preencher subcategoria, conta e
-  pessoa. Os dados viajam em data-*; quem le e o JS de campos_despesa.
+  pessoa, mais a prioridade e a sobrescrita de essencialidade do ultimo
+  lancamento. Os dados viajam em data-*; quem le e o JS de campos_despesa.
+
+  `data-prioridade` e `data-essencialidade` sao vazios quando a sugestao nao
+  tem: vazio tambem e resposta, e e o que apaga a escolha anterior. A
+  essencialidade vai com o texto exato do CHECK, que e o `value` do
+  <select name="essencialidade">.
 #}
 {% if sugestoes %}
   <ul class="sugestoes__lista" role="listbox" id="sugestoes-lista"
@@ -14,10 +20,12 @@
           data-subcategoria-id="{{ s.subcategoria_id }}"
           data-conta-id="{{ s.conta_id }}"
           data-pessoa-id="{{ s.pessoa_id }}"
+          data-prioridade="{{ s.prioridade or '' }}"
+          data-essencialidade="{{ s.sobrescrita or '' }}"
           data-valor="{{ m.reais(s.valor) | trim }}">
         <span class="sugestoes__descricao">{{ s.descricao }}</span>
         <span class="sugestoes__apoio">
-          {{ m.reais(s.valor) }} · {{ s.subcategoria }}
+          {{ m.reais(s.valor) }} · {{ s.subcategoria }}{% if s.prioridade %} · P{{ s.prioridade }}{% endif %}
           <span class="sugestoes__usos">{{ s.usos }}x</span>
         </span>
       </li>

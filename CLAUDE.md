@@ -21,8 +21,10 @@ financeira. A série do IPCA está no banco desde a rodada 21, tem tela própria
 desde a 22 e **já corrige valor** na Análise por subcategoria (rodada 24).
 Patrimônio e metas continuam sem nada implementado.
 
-**Há dado real em produção** (mais de 1.800 despesas e 145 receitas, de 2025 e
-2026). Ver a seção 8 antes de escrever qualquer coisa no banco.
+**Há dado real em produção** (mais de 3.500 despesas e quase 400 receitas, de
+2023 a 2026). O acervo cresce para trás: 2023 e 2024 entraram por carga a partir
+de CSV exportado do Moneystats, e o dono pretende chegar a 2012. Ver a seção 8
+antes de escrever qualquer coisa no banco.
 
 ## 2. Rodar
 

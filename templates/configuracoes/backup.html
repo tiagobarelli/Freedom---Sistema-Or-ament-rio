@@ -1,0 +1,68 @@
+{% extends "layout_app.html" %}
+
+{#
+  Backup do banco: um cartão de prosa e um botão em dois passos.
+
+  A prosa não é enfeite. Um `.sql` de 450 kB com o `senha_hash` de todo mundo
+  dentro é um arquivo que precisa dizer o que é antes de existir, e o comando
+  de restauração precisa estar escrito em algum lugar que o dono encontre —
+  esta tela é o lugar, já que restaurar pela interface não existe.
+
+  O `#backup-acao` é trocado por HTMX (botão -> confirmação -> botão). O que
+  ele NÃO faz é executar: o "Confirmar e baixar" é um POST de formulário
+  comum, sem nenhum atributo `hx-`, porque HTMX troca DOM e não dispara
+  download. Ver a docstring de `backup_executar`.
+#}
+
+{% block title %}Backup - Freedom{% endblock %}
+{% block titulo_pagina %}Backup{% endblock %}
+{% block subtitulo_pagina %}
+  <p class="pagina-subtitulo">
+    Esta página só exporta: baixa o banco inteiro num arquivo. Restaurar é no
+    terminal.
+  </p>
+{% endblock %}
+
+{% block content %}
+<div class="painel painel--estreito">
+  <div class="card card--solido pilha">
+    <p>
+      O arquivo é um dump do banco inteiro: o schema completo — tabelas,
+      views, índices, restrições e gatilhos — mais todos os dados de todas as
+      tabelas. É texto puro, um <code class="texto-mono">.sql</code> que o
+      <code class="texto-mono">psql</code> executa de cima a baixo para
+      reconstruir o banco como ele está agora.
+    </p>
+
+    <p>
+      Dentro dele vai também a
+      <code class="texto-mono">senha_hash</code> de
+      <code class="texto-mono">tb_usuarios</code>, junto com tudo o que a casa
+      gasta e recebe. Guarde o arquivo com o mesmo cuidado que o
+      <code class="texto-mono">.env</code>: quem o tem, tem o sistema.
+    </p>
+
+    <p>
+      Não há restauração por aqui, e não vai haver: restaurar é derrubar o
+      banco que está no ar e pôr outro no lugar. Com o container em pé, na
+      pasta do projeto, o comando é este —
+      <code class="texto-mono">&lt;usuario&gt;</code> e
+      <code class="texto-mono">&lt;banco&gt;</code> são os valores do
+      <code class="texto-mono">.env</code>:
+    </p>
+
+    <code class="backup-comando">docker compose exec -T postgres psql -U &lt;usuario&gt; -d &lt;banco&gt; &lt; freedom_AAAAMMDD-HHMM.sql</code>
+
+    <p class="texto-suave">
+      Onde o arquivo cai quem decide é o navegador, e não o sistema. No Chrome,
+      com “Perguntar onde salvar cada arquivo” ligado, ele pergunta a cada vez;
+      desligado, vai direto para a pasta de downloads.
+    </p>
+
+    {# O alvo da troca. Começa com o botão; vira a confirmação e volta. #}
+    <div id="backup-acao">
+      {% include "configuracoes/_backup_botao.html" %}
+    </div>
+  </div>
+</div>
+{% endblock %}

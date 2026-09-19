@@ -1,8 +1,12 @@
 {% extends "layout_app.html" %}
 {% import "_macros.html" as m %}
 
-{% block title %}Configurações - Freedom{% endblock %}
-{% block titulo_pagina %}Configurações{% endblock %}
+{# O nome visível virou "Parâmetros" na rodada 25, quando Configurações
+   passou a ser o GRUPO da sidebar e esta deixou de ser a única tela dele. O
+   endpoint e a URL /configuracoes continuam os mesmos: o que mudou é o
+   rótulo, não o lugar. #}
+{% block title %}Parâmetros - Freedom{% endblock %}
+{% block titulo_pagina %}Parâmetros{% endblock %}
 {% block subtitulo_pagina %}
   <p class="pagina-subtitulo">
     Parâmetros com histórico de vigência: mudar um valor hoje não altera o que

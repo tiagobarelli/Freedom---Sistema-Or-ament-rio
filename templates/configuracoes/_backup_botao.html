@@ -1,0 +1,9 @@
+{#
+  Primeiro passo, e o que o "Cancelar" repõe. Conteúdo de `#backup-acao`
+  (swap `innerHTML`): o <div> com o id fica na página e não viaja na resposta.
+#}
+<div class="card__rodape">
+  <button type="button" class="btn btn--primario"
+          hx-get="{{ url_for('configuracoes.backup_confirmar') }}"
+          hx-target="#backup-acao" hx-swap="innerHTML">Executar backup</button>
+</div>

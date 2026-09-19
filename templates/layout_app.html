@@ -16,8 +16,9 @@
   icone). A chave e o sufixo da chave do localStorage e o id do painel que o
   botao controla; o icone e o nome que a macro `icone` conhece.
 
-  Configuracoes continua no fim de Cadastros: e cadastro de parametro, e nao um
-  grupo de um item so.
+  Configuracoes era o ultimo item de Cadastros enquanto era um item so. Com a
+  pagina de Backup ao lado dos parametros viraram dois, e o grupo proprio
+  passou a se pagar. Fechado por padrao, como Cadastros.
 #}
 {% set navegacao = [
   ("Painel", "painel", true, [
@@ -39,7 +40,10 @@
     ("cadastros.ref_receitas_lista",  "Fontes de receita",  "banknote"),
     ("cadastros.resumos_lista",       "Resumos anuais",     "notebook-pen"),
     ("cadastros.serie_ipca",          "IPCA",               "percent"),
-    ("configuracoes.configuracoes_tela", "Configurações",   "settings"),
+  ]),
+  ("Configurações", "configuracoes", false, [
+    ("configuracoes.configuracoes_tela", "Parâmetros",      "settings"),
+    ("configuracoes.backup_tela",        "Backup",          "database"),
   ]),
 ] %}
 

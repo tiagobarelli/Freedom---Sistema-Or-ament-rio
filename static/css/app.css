@@ -55,6 +55,10 @@
         5.17 IPCA (o recuo da nota e da dica e os dois rotulos do botao de
             atualizar; a tabela, a faixa e o alternador sao componentes de
             5.13.2, 5.14, 5.6 e 5.2)
+        5.18 Analise por subcategoria (a caixa de marcar na barra de filtros e
+            a marca de periodo parcial; o resto e componente existente)
+        5.19 Backup (o comando de restauracao e a letra pequena da
+            confirmacao; o resto e .card, .pilha, .card__rodape e .btn)
      6. Tela de login
      7. Responsivo (< 768px)
      8. Utilitarios
@@ -3575,6 +3579,48 @@ body {
 }
 
 
+/* --- 5.19 Backup --------------------------------------------------------
+   A tela e quase toda componente existente: o .card da 5.1 com o .pilha da 8
+   espacando os paragrafos, o .card__rodape da 5.1 segurando os botoes, o
+   .btn da 5.2, o .texto-mono e o .texto-suave da 8, e a mensagem de falha e
+   a .flash--erro da 5.6.
+
+   Sobram duas coisas que nenhuma tela tinha: o comando de restauracao, que e
+   uma linha longa de terminal impressa dentro de um cartao, e a letra pequena
+   que avisa que o download comeca sem a tela mudar.
+
+   Ha uma terceira classe, a `.backup-envio`, que NAO tem regra aqui: ela so
+   existe na secao 7, porque so no celular o formulario do "Confirmar e
+   baixar" precisa dizer alguma coisa. No desktop ele e um item de flex de
+   largura de conteudo, que e o que se quer.
+*/
+
+/* O comando do psql. Bloco, e nao trecho no meio de frase: e uma linha
+   inteira, para copiar. O que mais importa aqui e o `overflow-wrap`: a 390px
+   a linha nao cabe de jeito nenhum, e sem ele o cartao esticaria e a PAGINA
+   rolaria na horizontal - a mesma armadilha do `nowrap` herdado em tabela. */
+.backup-comando {
+  display: block;
+  padding: 10px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-control);
+  background: var(--surface-alt);
+  font-family: var(--fonte-mono);
+  font-size: 12px;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+/* A letra pequena embaixo dos dois botoes da confirmacao. Fica FORA do
+   .card__rodape, que e flex: la dentro ela viraria um terceiro item na mesma
+   linha dos botoes. */
+.backup-nota {
+  margin-top: var(--e-2);
+  font-size: 11px;
+  color: var(--ink-4);
+}
+
+
 /* ==========================================================================
    6. TELA DE LOGIN
    Sem sidebar: card unico centrado. Aqui o vidro e a moldura, e os campos
@@ -3802,6 +3848,17 @@ body {
   }
 
   .card__rodape .btn {
+    flex: 1 1 auto;
+  }
+
+  /* No cartao de backup quem e item do .card__rodape e o <form> do
+     "Confirmar e baixar" (POST comum, sem HTMX), e nao o botao - entao a
+     regra acima crescia so o "Cancelar", e a acao secundaria ficava maior
+     que a principal. O formulario cresce e vira flex; o botao la dentro
+     continua sendo alcancado pela mesma regra e preenche. Nada de
+     `width: 100%`, pela mesma razao da barra superior. */
+  .backup-envio {
+    display: flex;
     flex: 1 1 auto;
   }
 

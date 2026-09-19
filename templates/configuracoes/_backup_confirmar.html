@@ -1,0 +1,34 @@
+{#
+  Segundo passo. Duas coisas diferentes lado a lado, de propósito:
+
+  - "Confirmar e baixar" é <button type="submit"> de um <form method="post">
+    SEM nenhum atributo `hx-`. É a exceção declarada da rodada 25: o HTMX
+    troca DOM, não dispara download — uma resposta com `Content-Disposition`
+    chegando por `hx-post` é engolida pelo swap e o arquivo nunca aparece.
+    Sem HTMX no formulário, o token CSRF precisa ir no campo escondido: o
+    `hx-headers` do <body> não vale para um POST que o navegador faz sozinho.
+  - "Cancelar" é HTMX como todo o resto, e fica FORA do formulário: dentro
+    dele o htmx mandaria o csrf_token junto na URL do GET.
+
+  A letra pequena existe porque o POST responde com anexo e não muda a tela:
+  sem ela, quem clica fica esperando algo acontecer.
+#}
+<p>
+  O banco inteiro será exportado agora, num arquivo que o navegador vai
+  baixar.
+</p>
+
+<div class="card__rodape">
+  <form class="backup-envio" method="post"
+        action="{{ url_for('configuracoes.backup_executar') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn--primario">Confirmar e baixar</button>
+  </form>
+  <button type="button" class="btn btn--secundario"
+          hx-get="{{ url_for('configuracoes.backup_acao') }}"
+          hx-target="#backup-acao" hx-swap="innerHTML">Cancelar</button>
+</div>
+
+<p class="backup-nota">
+  O download começa e a tela permanece como está.
+</p>

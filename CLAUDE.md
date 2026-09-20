@@ -19,7 +19,8 @@ e mostra painéis anual e mensal, além de um orçamento por subcategoria. O obj
 de longo prazo inclui deflação por IPCA, patrimônio e metas de independência
 financeira. A série do IPCA está no banco desde a rodada 21, tem tela própria
 desde a 22 e **já corrige valor** na Análise por subcategoria (rodada 24).
-Patrimônio e metas continuam sem nada implementado.
+Patrimônio e metas continuam sem nada implementado. A refatoração visual está
+**concluída** (rodadas 17, 18, 27 e 28): não existe tema antigo no repositório.
 
 **Há dado real em produção** (mais de 3.500 despesas e quase 400 receitas, de
 2023 a 2026). O acervo cresce para trás: 2023 e 2024 entraram por carga a partir
@@ -59,7 +60,8 @@ flask create-user --login <login> --pessoa "<Nome>"
 flask set-password --login <login>
 ```
 
-A série do IPCA entra por comando, e por mais nada — não há tela:
+A série do IPCA entra pelo comando abaixo ou pelo botão "Atualizar do IBGE" da
+tela do IPCA (`/cadastros/ipca`, rodada 23) — os dois passam pela mesma função:
 
 ```powershell
 flask carregar-ipca
@@ -97,7 +99,7 @@ relatório ou documento.** Referencie sempre pelo nome da variável.
 | Formulários | Flask-WTF (CSRF em todo POST) |
 | Interatividade | HTMX 2.0.4 (arquivo local) + JS vanilla pontual |
 | Gráficos | Chart.js 4.5.1, UMD **local**, nas três telas que desenham (Visão Anual e as duas Análises). Núcleo, sem plugins. O comum a elas mora em `static/js/graficos.js`; `analise.js` serve às duas Análises sem ramificar por página |
-| CSS | Um arquivo escrito à mão (`static/css/app.css`), tokens em `:root`. **Sem Tailwind, sem React, sem biblioteca de ícones** |
+| CSS | Um arquivo escrito à mão (`static/css/app.css`), tokens em `:root`, uma camada só. **Sem Tailwind, sem React, sem biblioteca de ícones** |
 | Ícones | Lucide (ISC), **SVG inline** pela macro `icone` em `templates/_macros.html` |
 | Dinheiro | `Decimal` em todo cálculo; `float` só na serialização final para JSON de gráfico |
 | Testes/validação | Playwright (`requirements-dev.txt`), navegador real |
@@ -148,7 +150,9 @@ freedom/
                                      (origem única dos totais), _tabela_mensal,
                                      _tabela_categorias, _graficos;
                                      helpers card e percentual — `card` serve
-                                     também à Mensal e ao resumo das análises;
+                                     também à Mensal, ao resumo das análises e ao
+                                     acompanhamento do Orçamento (apoio_rotulo,
+                                     apoio_classe e nota desde a 28);
                                      anos_com_lancamento e resumo_do_ano, que o
                                      cadastro de resumos importa daqui
                    servico_mensal.py Mensal: painel_do_mes e as três tabelas
@@ -181,9 +185,16 @@ freedom/
                    backup.py a página de backup (rodada 25): gerar_dump() roda
                              pg_dump por docker exec, bufferiza e devolve os
                              bytes mais o nome do arquivo
-  orcamento/       /orcamento — servico.py (montagem) e acompanhamento.py (leitura)
+  orcamento/       /orcamento — servico.py (montagem; criar() escolhe a origem:
+                   copia o mês anterior se houver, senão média de 12 meses) e
+                   acompanhamento.py (leitura; _card traduz para main.servico.card)
 templates/         base.html (o `htmx-config` que libera 409/502/503),
-                   layout_app.html, _macros.html + uma pasta por blueprint.
+                   layout_app.html (sidebar: temAtivo() abre o grupo do item
+                   ativo antes de pintar, sem gravar), auth/login.html (fora do
+                   layout, cartão de 380px), _macros.html + uma pasta por
+                   blueprint. orcamento/ tem dez arquivos; configuracoes/ tem
+                   configuracoes.html, _lista.html, _formulario.html e
+                   _linha_edicao.html.
                    main/_analise.html é o corpo que as duas Análises estendem;
                    analise.html e analise_prioridade.html só preenchem título,
                    primeiro campo do filtro, convite e (só a segunda) o aviso
@@ -252,7 +263,13 @@ Regras que se aplicam a todo código novo:
 - Orçamento é por subcategoria, mês a mês, com uma receita planejada global.
   **Zero é planejado legítimo** ("está no plano, não pretendo gastar") — assimetria
   deliberada com lançamento, que exige `> 0`. Mês **encerrado** não recebe
-  INSERT/UPDATE/DELETE; reabrir só se não existir mês orçado posterior.
+  INSERT/UPDATE/DELETE; reabrir só se não existir mês orçado posterior. Criar um
+  mês copia o anterior se existir, senão usa a média de 12 meses — `criar()`
+  escolhe, o usuário só aperta "Criar". A recusa por mês encerrado é **409** com
+  faixa vermelha (`flash--erro` em `#orcamento-aviso`) que fica até a próxima
+  ação — da 23 à 28 ela era verde e sumia em 4,5 s, por colisão de nome com
+  `.aviso-inline`. Modo (Montagem | Acompanhamento) e período (Mês | Acumulado
+  no ano) são `.segmentado`; a URL é o estado. A montagem não tem cards.
 - Nos painéis, só categorias e pessoas **com despesa no período** aparecem. Na
   tabela mensal da Anual os 12 meses aparecem sempre.
 - **Análise por subcategoria** (`/analise/subcategoria`, rodada 24): no grupo
@@ -422,22 +439,32 @@ Regras que se aplicam a todo código novo:
   página de Backup. Por ser POST comum, a falha também segue o caminho
   comum — `flash` mais redirect, e não fragmento com status de erro.
 
-### CSS (`static/css/app.css`, ~4.565 linhas, seções numeradas)
+### CSS (`static/css/app.css`, ~4.670 linhas, seções numeradas)
 
 ```
 1 Variáveis   2 Reset   3 Fundo   4 Layout   5 Componentes   6 Login
 7 Responsivo (< 768px)   8 Utilitários
+
+Dentro de 5: 5.1 Card, 5.2 Botão, 5.3 Formulário, 5.4 Tabela, 5.5 Badge,
+5.6 Flash, 5.8 Estado vazio, 5.9 Lançamento, 5.10 Consulta, 5.11 Autocomplete,
+5.12 Parâmetros, 5.13 Painéis (5.13.1 Gráficos, 5.13.2 Tabelas, 5.13.3 Visão
+Anual), 5.14 Visão Mensal (5.14.1 Detalhe), 5.15 Orçamento (5.15.1 faixas),
+5.16 Valores sensíveis, 5.17 IPCA, 5.18 Análises, 5.19 Backup,
+5.20 Edição em linha. 5.7 é lacuna (modal removido na 17) e fica lacuna:
+componente novo entra no fim.
 ```
 
-- A seção 1 tem **duas camadas**: (a) tokens do design system (`--bg`, `--ink-*`,
-  `--accent`, `--control-h`, `--green-ink`…) e (b) **apelidos do tema roxo antigo**
-  (`--cor-destaque`, `--linha`, `--vidro*`…) apontando para eles. Os apelidos
-  existem só até as telas antigas serem refeitas. **Nada de novo deve usar um
-  apelido.**
+- A seção 1 tem **uma camada só**: os tokens do design system (`--bg`, `--ink-*`,
+  `--accent`, `--control-h`, `--green-ink`…). Os apelidos do tema roxo antigo
+  (`--cor-*`, `--vidro*`, `--solido*`, `--linha*`, `--raio-*`, `--sombra-*`)
+  viveram numa camada (b) da rodada 17 à 28 e **não existem mais**: um deles
+  reaparecendo é código velho sem definição, e o navegador o ignora em silêncio.
+  `card--solido` também não existe.
 - Tema: fundo `#F5F5F7`, cartão branco raio 14, sidebar escura, acento teal
   `#30B0C7`. **Verde e vermelho são reservados** a receita, despesa e valor
   negativo — não servem de decoração. O único `backdrop-filter` do sistema é o da
-  barra superior.
+  `.pagina-cabecalho` (desktop); a `.topo-mobile` não tem, e tirar o dela mudou o
+  antialiasing da marca (ver seção 9).
 - `font-variant-numeric: tabular-nums` é global (no `body`).
 - Utilitário nasce **global**, na seção 8. Classe utilitária criada dentro de um
   seletor de tela não funciona fora dela e o erro é silencioso.
@@ -451,7 +478,34 @@ Regras que se aplicam a todo código novo:
   `.nota-topo` na 5.1, ao lado da irmã, quando a análise por prioridade
   passou a abrir com um aviso no mesmo lugar. Copiar teria criado a segunda
   cópia; deixar o nome teria criado o comentário que mente. Renomear não mexe
-  em pixel, e o SHA prova.
+  em pixel, e o SHA prova. Nas rodadas 27 e 28 foram mais quatro: o `.kpi`
+  saiu de 5.13.3 para 5.13 quando as Análises já o usavam; `.tabela--anual`
+  virou `.tabela--painel` em 5.13.2 quando a Mensal a adotou; `.linha-subgrupo`
+  subiu de 5.14.1 para 5.13.2 (três telas); e `.linha-edicao`/`.config-edicao*`,
+  que o Orçamento escrevia desde a 15 sem ser configuração, virou `.edicao-linha`
+  na 5.20. A tabela mês a mês da Anual chama-se `.tabela--meses` — o nome antigo
+  (`.tabela--mensal`) era o da outra tela.
+- **Tokens em pares**: `--orange-ink`/`--orange`, `--green-ink`/`--green` — o
+  `-ink` é tinta de texto, o puro é preenchimento. Um apelido só para os dois
+  deixou a barra do alerta do orçamento marrom até a 28. Lavagem neutra de
+  estrutura (coluna fixa da matriz, linha de subtotal) é `--ink-ghost` (`--ink` a
+  2,5%); teal, verde e vermelho contam alguma coisa e não servem para separar.
+- **Seletor de descendência alcança tabela aninhada e linha especial**:
+  `.tabela--painel td:first-child` chega ao detalhe da Mensal e à célula da
+  edição em linha. Quem não é ponta de cartão se protege com regra de mesmo peso
+  declarada depois (`.tabela--painel .linha-detalhe > td`, as guardas de 5.14.1)
+  ou com classe própria (`.edicao-linha__celula`) — nunca subindo o peso da regra
+  de que a Anual depende.
+- **Todo card vem do helper `card` de `main/servico.py`** (Anual, Mensal,
+  análises, acompanhamento do Orçamento). O template `.kpi` lê `c.classe`,
+  `c.apoio_rotulo`, `c.apoio_classe` e `c.nota`; cor, travessão e texto nascem
+  lá. `apoio_rotulo` existe porque a classe pinta o número, não a palavra
+  "planejado".
+- **Sidebar**: preferência das seções em `localStorage`
+  (`freedom.sidebar.<secao>`; Cadastros e Configurações fechadas por padrão). O
+  grupo do item ativo abre sozinho pelo `temAtivo()` do script colado às seções,
+  antes de pintar e **sem gravar** — a preferência é do usuário; fechar à mão
+  grava, e a próxima tela do mesmo grupo reabre.
 - **O vão entre os blocos de uma tela é o `.painel` da seção 4**, e não
   `margin-top` em cada bloco: quem conhece a distância é o arranjo da página.
   As duas Análises passaram a usá-lo na rodada 26 — até ali os cartões se
@@ -586,7 +640,9 @@ Título do card e link "Editar" continuam visíveis.
 - Coluna principal larga (descrição) → texto de apoio **dentro da célula**;
   coluna principal estreita (mês) → `<tr class="linha-apoio">` com `colspan`.
 - Rolagem interna (`.tabela-caixa`) é aceitável e é o padrão; **rolagem horizontal
-  da página não é**.
+  da página não é**. As duas tabelas do Orçamento rolam por dentro e repõem o
+  `min-width: 560px` que `.tabela--painel` larga; Parâmetros não rola (é
+  `.tabela--cadastro`). O Orçamento não tem layout de celular, e isso é decisão.
 - Ações viram ícone com `aria-label` só onde o padrão já existe (detalhe da
   Mensal); nas demais tabelas os botões empilham com texto.
 - Botão da barra superior cresce por `flex: 1 1 auto`, e não por `width: 100%`:
@@ -646,9 +702,24 @@ O que se espera de uma validação:
 ` trocado por
   `
 `, senão todo arquivo LF parece ter mudado).
+- Quando a rodada **não** mexe na sidebar mas troca token em seção global
+  (reset, layout, responsivo, utilitários), a captura de página inteira volta a
+  valer — com o `localStorage` das seções **fixado** pelo instrumento (os quatro
+  grupos abertos), senão o grupo do item ativo muda o quadro.
 - **A referência da Visão Anual tem quatro estados por largura**, não um: cada
   ano relevante × olho fechado e aberto. Capturar só o estado aberto esconde
   metade da tela desde a rodada 19.
+- **Zero pixel se prova em etapas** — visual (referência nova das telas que
+  mudam), limpeza (tudo idêntico), mudança de propósito (diff delimitado) — e o
+  diff delimitado só prova se o seletor cobre **todos** os alvos: na 28 faltou a
+  coluna fixa da matriz da Mensal e 7.444 px pareceram "fora". Antialiasing muda
+  sem cor nem layout mudar: camada de `background-image` a menos (27, 822 px)
+  e `backdrop-filter` a menos (28, 335 px). Diff de pixels, não SHA, é o que
+  decide se foi regressão.
+- **Texto do DOM antes e depois** é a prova de que refatoração visual não mudou
+  número: cards, células, rodapés, valores de input, `href`s e atributos `hx-*`,
+  comparados recursivamente; o "antes" sai de `git stash push -u`.
+- Grep de nome de token com fronteira: `--solido` casa dentro de `card--solido`.
 - Console limpo e **aba Rede só com `/static/...`**.
 - Celular conferido em 390px (e 900px quando houver grade intermediária):
   `scrollWidth === clientWidth`.
@@ -709,12 +780,15 @@ decisões, lições aprendidas). Resumo:
   `servico_analise.py` virou o serviço das duas, com `Recorte` e `painel()`;
   `.ipca-dica` promovida a `.nota-topo`. Depois da 26, a pedido do dono:
   **resumo de média, mediana e total** antes do gráfico, nas duas análises.
-- **Pendente**: a refatoração visual das telas que faltam — Visão Mensal,
-  Orçamento, configurações e login ainda rodam sobre os apelidos da seção 1(b)
-  do CSS. **Citada pelo nome, e não por número de rodada**: o número já mudou
-  duas vezes, e cada mudança deixou comentário mentindo pelo código.
-- **Depois**, na ordem sugerida pelo histórico: a refatoração visual pendente;
-  **metas de independência** (TSR/S/R já estão em `tb_configuracoes`, nada os
+  Rodada 27: **refatoração visual, parte I** — Visão Mensal e login no design
+  system, sidebar abrindo o grupo do item ativo, `.kpi` e `.tabela--painel`
+  compartilhados. Rodada 28: **parte II** — Orçamento (modo e período em
+  `.segmentado`, `card()` estendido, faixa do 409 corrigida) e Parâmetros,
+  componente `.edicao-linha`, **seção 1(b) apagada**, `card--solido` fora,
+  `--ink-ghost` nos últimos literais roxos.
+- **Não há refatoração visual pendente.** O tema antigo não existe no
+  repositório; comentário que diga o contrário é velho.
+- **Depois**, na ordem sugerida pelo histórico: **metas de independência** (TSR/S/R já estão em `tb_configuracoes`, nada os
   lê); **patrimônio** (`tb_ativos` e `tb_patrimonio_snapshots` existem e estão
   vazias); **deploy** com gunicorn no docker-compose (`--timeout` compatível
   com os 20 s do botão do IPCA), `TZ=America/Sao_Paulo`, Tailscale e segundo
@@ -751,5 +825,8 @@ fazem parte da aplicação.
   "esporádica"): quem escolhe a granularidade é quem olha, pelo agrupamento.
 - Não agende a chamada ao SIDRA (cron, thread, Agendador de Tarefas dentro do
   app). O disparo é o comando ou o botão.
+- Não reintroduza apelido de tema (`--cor-*`, `--vidro*`…) nem `card--solido`:
+  são código velho sem definição.
+- Não cite trabalho adiado por número de rodada; pelo nome do que é.
 - Não escreva valor de senha, chave ou token em lugar nenhum.
 - Não faça commit nem push sem o dono pedir.

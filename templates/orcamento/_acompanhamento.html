@@ -7,6 +7,13 @@
   Nada e decidido aqui. A cor de cada percentual vem de `c.situacao` (`ok`,
   `alerta`, `estouro`), calculada em acompanhamento.py; o Jinja so escreve a
   classe. O travessao tambem vem de la, como `pct` nulo.
+
+  Desde a rodada 28 os cards sao os `kpi` da 5.13 - os mesmos da Visao Anual,
+  da Mensal e do resumo das analises - montados pelo `card` de
+  `main/servico.py`. Rotulo de apoio, classe do apoio e a nota do consumido
+  sao os tres campos que o helper ganhou para caber este cartao, que diz duas
+  coisas sobre o mesmo numero. Nenhum texto se escreve aqui: `R$`, `%` e
+  travessao chegam prontos.
 #}
 {% macro pct_celula(c) %}
   {# Numero, barra e cor da mesma resposta de `consumo()`. A barra e limitada a
@@ -30,126 +37,125 @@
   {%- endif -%}
 {%- endmacro %}
 
-<section class="card card--solido orcamento-mes">
+<div class="painel">
   {% include "orcamento/_cabecalho.html" %}
 
   {#
     Os quatro cards do acompanhamento, na grade de cards dos paineis. Cada um
     traz o REALIZADO em destaque e o planejado na linha de apoio; o de Despesas
     traz tambem o percentual consumido, na cor que a regra mandou.
+
+    Sem a marca `.sensivel`: o olho e so da Visao Anual.
   #}
-  <div class="painel-grade orcamento-cards">
+  <div class="painel-grade">
     {% for c in a.cards %}
-      <article class="card painel-card">
-        <p class="painel-card__rotulo">{{ c.rotulo }}</p>
-        <p class="painel-card__valor{{ ' painel-card__valor--negativo' if c.negativo }}">
-          {%- if c.valor is not none -%}
-            {{ m.reais(c.valor) }}
-          {%- elif c.texto is not none -%}
-            {{ c.texto | numero(1) }}%
-          {%- else -%}
-            &mdash;
-          {%- endif -%}
+      <article class="card kpi">
+        <p class="kpi__rotulo">{{ c.rotulo }}</p>
+        <p class="kpi__valor {{ c.classe or '' }}">
+          {%- if c.valor is not none %}{{ m.reais(c.valor) }}{% else %}{{ c.texto }}{% endif -%}
         </p>
         {#
-          Linha de apoio: o que estava planejado. Vermelho no <span>, nunca na
-          linha inteira - a poupanca planejada pode ser negativa quando o plano
-          gasta mais do que se espera receber.
+          Linha de apoio: o que estava planejado. O rotulo fica FORA do span
+          que leva a classe - a poupanca planejada pode ser negativa, e quem
+          fica vermelho e o numero, nao a palavra "planejado".
         #}
-        <p class="painel-card__apoio">planejado
-          {% if c.planejado is none and c.texto_planejado is none %}&mdash;
-          {# So o NOME da classe e interpolado: um `{{ 'class="x"' }}` inteiro
-             passaria pelo autoescape e viraria class=&#34;x&#34;. #}
-          {% else %}<span class="{{ 'negativo' if c.negativo_planejado }}">{%
-            if c.planejado is not none %}{{ m.reais(c.planejado) }}{%
-            else %}{{ c.texto_planejado | numero(1) }}%{% endif %}</span>
-          {% endif %}</p>
-        {% if c.consumo %}
-          <p class="orcamento-card__consumo consumo consumo--{{ c.consumo.situacao }}">
-            {% if c.consumo.pct is none %}&mdash;{% else %}{{ c.consumo.pct | numero(1) }}%{% endif %}
-            consumido
-          </p>
+        <p class="kpi__apoio">{{ c.apoio_rotulo }}
+          <span class="{{ c.apoio_classe or '' }}">{{ c.apoio }}</span></p>
+        {% if c.nota %}
+          <p class="kpi__nota consumo {{ c.nota.classe }}">{{ c.nota.texto }}</p>
         {% endif %}
       </article>
     {% endfor %}
   </div>
 
-  <div class="tabela-caixa">
-    <table class="tabela tabela--resumo tabela--acompanhamento">
-      <caption class="so-leitor">
-        Planejado contra realizado em {{ a.rotulo_periodo }}
-      </caption>
-      <thead>
-        <tr>
-          <th>Subcategoria</th>
-          <th class="col-num">Planejado</th>
-          <th class="col-num">Realizado</th>
-          <th class="col-num">Diferença</th>
-          <th class="col-pct">% consumido</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for g in a.grupos %}
-          {# Subtotal da categoria, com a mesma regra de cor das linhas. #}
-          <tr class="linha-subgrupo">
-            <td>{{ g.categoria }}</td>
-            <td class="col-num">{{ m.reais(g.planejado) }}</td>
-            <td class="col-num">{{ m.reais(g.realizado) }}</td>
-            <td class="col-num">{{ dinheiro(g.diferenca) }}</td>
-            {{ pct_celula(g.consumo) }}
+  <section class="card card--tabela">
+    <div class="tabela-caixa">
+      <table class="tabela tabela--resumo tabela--painel tabela--acompanhamento">
+        <caption class="so-leitor">
+          Planejado contra realizado em {{ a.rotulo_periodo }}
+        </caption>
+        <thead>
+          <tr>
+            <th>Subcategoria</th>
+            <th class="col-num">Planejado</th>
+            <th class="col-num">Realizado</th>
+            <th class="col-num">Diferença</th>
+            <th class="col-pct">% consumido</th>
           </tr>
-          {% for l in g.linhas %}
+        </thead>
+        <tbody>
+          {% for g in a.grupos %}
+            {# Subtotal da categoria, com a mesma regra de cor das linhas. #}
+            <tr class="linha-subgrupo">
+              <td>{{ g.categoria }}</td>
+              <td class="col-num">{{ m.reais(g.planejado) }}</td>
+              <td class="col-num">{{ m.reais(g.realizado) }}</td>
+              <td class="col-num">{{ dinheiro(g.diferenca) }}</td>
+              {{ pct_celula(g.consumo) }}
+            </tr>
+            {% for l in g.linhas %}
+              <tr>
+                <td class="tabela__principal">{{ l.subcategoria }}</td>
+                <td class="col-num">{{ m.reais(l.planejado) }}</td>
+                <td class="col-num">{{ m.reais(l.realizado) }}</td>
+                <td class="col-num">{{ dinheiro(l.diferenca) }}</td>
+                {{ pct_celula(l.consumo) }}
+              </tr>
+            {% endfor %}
+          {% else %}
             <tr>
-              <td class="tabela__principal">{{ l.subcategoria }}</td>
-              <td class="col-num">{{ m.reais(l.planejado) }}</td>
-              <td class="col-num">{{ m.reais(l.realizado) }}</td>
-              <td class="col-num">{{ dinheiro(l.diferenca) }}</td>
-              {{ pct_celula(l.consumo) }}
+              <td class="tabela__vazio" colspan="5">
+                Nenhuma subcategoria no plano deste período.
+              </td>
             </tr>
           {% endfor %}
-        {% else %}
-          <tr>
-            <td class="tabela__vazio" colspan="5">
-              Nenhuma subcategoria no plano deste período.
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
+        </tbody>
 
-      <tfoot>
-        <tr>
-          <td>Total</td>
-          <td class="col-num">{{ m.reais(a.total.planejado) }}</td>
-          <td class="col-num">{{ m.reais(a.total.realizado) }}</td>
-          <td class="col-num">{{ dinheiro(a.total.diferenca) }}</td>
-          {{ pct_celula(a.total.consumo) }}
-        </tr>
-        {% if a.fora.total %}
-          {#
-            O rodape conta o periodo INTEIRO, nao so o que estava orcado. Esta
-            linha diz quanto dele veio de subcategoria sem linha no plano, para
-            a conta fechar a olho: rodape - fora = soma dos subtotais.
-          #}
-          <tr class="orcamento-resumo">
-            <td colspan="2">Do realizado, fora do orçamento</td>
-            <td class="col-num">{{ m.reais(a.fora.total) }}</td>
-            <td colspan="2"></td>
+        <tfoot>
+          <tr>
+            <td>Total</td>
+            <td class="col-num">{{ m.reais(a.total.planejado) }}</td>
+            <td class="col-num">{{ m.reais(a.total.realizado) }}</td>
+            <td class="col-num">{{ dinheiro(a.total.diferenca) }}</td>
+            {{ pct_celula(a.total.consumo) }}
           </tr>
-        {% endif %}
-      </tfoot>
-    </table>
-  </div>
+          {% if a.fora.total %}
+            {#
+              O rodape conta o periodo INTEIRO, nao so o que estava orcado. Esta
+              linha diz quanto dele veio de subcategoria sem linha no plano, para
+              a conta fechar a olho: rodape - fora = soma dos subtotais.
+            #}
+            <tr class="orcamento-resumo">
+              <td colspan="2">Do realizado, fora do orçamento</td>
+              <td class="col-num">{{ m.reais(a.fora.total) }}</td>
+              <td colspan="2"></td>
+            </tr>
+          {% endif %}
+        </tfoot>
+      </table>
+    </div>
+  </section>
 
   {% if a.fora.grupos %}
-    <section class="orcamento-fora">
-      <h3 class="orcamento-fora__titulo">Fora do orçamento</h3>
-      <p class="campo__dica">
-        Subcategorias que tiveram despesa em {{ a.rotulo_periodo }} e não têm
-        linha em nenhum dos meses considerados. Some acrescentando a linha na
-        Montagem.
-      </p>
+    {#
+      Bloco a parte, num cartao proprio: nao e erro nem linha faltando, e o
+      que o plano nao previu. O texto de apoio fica no cabecalho do cartao,
+      embaixo do titulo - `.card__cabecalho` e flex, e um filho unico ocupa o
+      lado esquerdo inteiro.
+    #}
+    <section class="card card--tabela">
+      <div class="card__cabecalho">
+        <div>
+          <h2 class="card__titulo">Fora do orçamento</h2>
+          <p class="card__nota">
+            Subcategorias que tiveram despesa em {{ a.rotulo_periodo }} e não têm
+            linha em nenhum dos meses considerados. Some acrescentando a linha na
+            Montagem.
+          </p>
+        </div>
+      </div>
       <div class="tabela-caixa">
-        <table class="tabela tabela--resumo tabela--fora">
+        <table class="tabela tabela--resumo tabela--painel tabela--fora">
           <thead>
             <tr>
               <th>Subcategoria</th>
@@ -180,4 +186,4 @@
       </div>
     </section>
   {% endif %}
-</section>
+</div>

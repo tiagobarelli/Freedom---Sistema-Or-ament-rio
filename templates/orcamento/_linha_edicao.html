@@ -7,19 +7,23 @@
   O alvo declarado e a propria linha, que e o que a resposta de ERRO precisa
   trocar. No sucesso a rota responde com HX-Retarget para o corpo inteiro,
   porque o subtotal da categoria, o total, a poupanca e a taxa mudam junto.
+
+  O desenho e o `edicao-linha` da secao 5.20, o mesmo de Parametros: as duas
+  telas tinham a mesma linha virada formulario, e uma delas estava copiando a
+  outra pelo nome `config-edicao`.
 #}
-<tr id="orcamento-linha-{{ l.id }}" class="linha-edicao">
-  <td colspan="5">
-    <form class="config-edicao"
+<tr id="orcamento-linha-{{ l.id }}" class="edicao-linha">
+  <td class="edicao-linha__celula" colspan="5">
+    <form class="edicao-linha__form"
           hx-post="{{ url_for('orcamento.orcamento_linha_gravar', linha_id=l.id) }}"
           hx-target="#orcamento-linha-{{ l.id }}"
           hx-swap="outerHTML">
       {{ form.hidden_tag() }}
 
-      <div class="config-edicao__campos">
+      <div class="edicao-linha__campos">
         <div class="campo">
           <span class="campo__rotulo">Subcategoria</span>
-          <p class="orcamento-edicao__nome">{{ l.categoria }} · {{ l.subcategoria }}</p>
+          <p class="edicao-linha__leitura">{{ l.categoria }} · {{ l.subcategoria }}</p>
         </div>
         <div class="campo">
           {{ form.valor.label(class="campo__rotulo", text="Planejado") }}
@@ -29,7 +33,7 @@
                           inputmode="decimal", autocomplete="off", autofocus=true) }}
           </div>
         </div>
-        <div class="config-edicao__acoes">
+        <div class="edicao-linha__acoes">
           <button type="submit" class="btn btn--primario btn--pequeno">Salvar</button>
           <button type="button" class="btn btn--secundario btn--pequeno"
                   hx-get="{{ url_for('orcamento.orcamento_linha', linha_id=l.id) }}"

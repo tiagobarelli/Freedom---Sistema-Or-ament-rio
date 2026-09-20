@@ -1,2 +1,8 @@
-{# Regra recusada pelo servico: mes encerrado, reabertura barrada. Nunca 500. #}
-<div class="flash flash--aviso" role="status">{{ mensagem }}</div>
+{#
+  Regra recusada pelo servico: mes encerrado, reabertura barrada. Nunca 500.
+
+  `flash--erro`, e nao `flash--aviso`, desde a rodada 28: o 409 e uma recusa,
+  e a tela ja usa o vermelho do erro em toda outra resposta recusada (IPCA,
+  backup, periodo invalido das analises).
+#}
+<div class="flash flash--erro" role="status">{{ mensagem }}</div>

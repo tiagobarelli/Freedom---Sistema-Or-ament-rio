@@ -3,66 +3,72 @@
   Uma seção por chave, em ordem alfabética: o valor vigente hoje em destaque e
   o histórico completo abaixo. É a resposta da exclusão e da edição, e o swap
   out-of-band da gravação.
+
+  Desde a rodada 28 cada seção é um `.card--tabela` com o cabeçalho do cartão
+  (5.1) e a tabela colada nas bordas, no desenho das listas de cadastro; o vão
+  entre elas é o gap do `.painel` (seção 4), e não margem de cada uma.
 #}
 {% if not secoes %}
 
-  <div class="card card--solido">
+  <div class="card">
     {{ m.vazio("Nenhum parâmetro cadastrado",
                "TSR é a taxa segura de retirada anual, R é o retorno real anual esperado da carteira e S é a meta de taxa de poupança. Cadastre o primeiro valor no formulário acima.") }}
   </div>
 
 {% else %}
 
-  {% for s in secoes %}
-    <section class="card card--solido config-secao" id="secao-{{ s.slug }}">
-      <div class="config-secao__cabecalho">
-        <div class="config-secao__identidade">
-          <h2 class="config-secao__chave texto-mono">{{ s.chave }}</h2>
-          {% if s.rotulo %}
-            <p class="config-secao__rotulo">{{ s.rotulo }}</p>
-          {% else %}
-            <p class="config-secao__rotulo">Chave livre</p>
-          {% endif %}
-          <p class="campo__dica">
-            {{ s.descricao or 'Fora do catálogo: o valor é guardado e exibido como número puro.' }}
-          </p>
+  <div class="painel">
+    {% for s in secoes %}
+      <section class="card card--tabela config-secao" id="secao-{{ s.slug }}">
+        <div class="card__cabecalho">
+          <div class="config-secao__identidade">
+            <h2 class="config-secao__chave texto-mono">{{ s.chave }}</h2>
+            {% if s.rotulo %}
+              <p class="config-secao__rotulo">{{ s.rotulo }}</p>
+            {% else %}
+              <p class="config-secao__rotulo">Chave livre</p>
+            {% endif %}
+            <p class="card__nota">
+              {{ s.descricao or 'Fora do catálogo: o valor é guardado e exibido como número puro.' }}
+            </p>
+          </div>
+
+          <div class="config-vigente">
+            {% if s.vigente %}
+              <span class="config-vigente__rotulo">Vigente hoje</span>
+              <strong class="config-vigente__valor">{{ s.texto_vigente }}</strong>
+              <span class="texto-fraco texto-p">
+                desde {{ s.vigente.vigente_desde.strftime('%d/%m/%Y') }}
+              </span>
+            {% else %}
+              <span class="config-vigente__rotulo">Sem valor vigente hoje</span>
+              <span class="texto-fraco texto-p">
+                a primeira vigência começa em
+                {{ s.historico[-1].vigente_desde.strftime('%d/%m/%Y') }}
+              </span>
+            {% endif %}
+          </div>
         </div>
 
-        <div class="config-vigente">
-          {% if s.vigente %}
-            <span class="config-vigente__rotulo">Vigente hoje</span>
-            <strong class="config-vigente__valor">{{ s.texto_vigente }}</strong>
-            <span class="texto-fraco texto-p">
-              desde {{ s.vigente.vigente_desde.strftime('%d/%m/%Y') }}
-            </span>
-          {% else %}
-            <span class="config-vigente__rotulo">Sem valor vigente hoje</span>
-            <span class="texto-fraco texto-p">
-              a primeira vigência começa em
-              {{ s.historico[-1].vigente_desde.strftime('%d/%m/%Y') }}
-            </span>
-          {% endif %}
+        <div class="tabela-caixa">
+          <table class="tabela tabela--cadastro tabela--config">
+            <thead>
+              <tr>
+                <th class="col-data">Vigente desde</th>
+                <th class="col-valor">Valor</th>
+                <th class="col-observacao">Observação</th>
+                <th class="tabela__acoes"><span class="so-leitor">Ações</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in s.historico %}
+                {% include "configuracoes/_linha.html" %}
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
-      </div>
-
-      <div class="tabela-caixa">
-        <table class="tabela tabela--config">
-          <thead>
-            <tr>
-              <th class="col-data">Vigente desde</th>
-              <th class="col-valor">Valor</th>
-              <th class="col-observacao">Observação</th>
-              <th class="tabela__acoes"><span class="so-leitor">Ações</span></th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for item in s.historico %}
-              {% include "configuracoes/_linha.html" %}
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  {% endfor %}
+      </section>
+    {% endfor %}
+  </div>
 
 {% endif %}

@@ -277,7 +277,8 @@ def meses_do_eixo(divisor):
 # --------------------------------------------------------------------------
 
 def card(rotulo, valor=None, texto=None, apoio=None, negativo=False,
-         classe=None, barra=None):
+         classe=None, barra=None, apoio_rotulo=None, apoio_classe=None,
+         nota=None):
     """Um card do painel.
 
     `valor` é dinheiro (Decimal) e o template o passa pela macro `reais`;
@@ -295,13 +296,30 @@ def card(rotulo, valor=None, texto=None, apoio=None, negativo=False,
       {"classe": ..., "pct": Decimal}. `None` quando não há barra a desenhar
       (sem receita não existe a fração despesa ÷ receita).
 
-    Sem underscore porque a Visão Mensal monta os cards dela com esta mesma
-    função: o formato que o template lê é um só, e não dois parecidos. Ela não
-    passa `classe` nem `barra`, e o template dela ignora os dois.
+    Os três últimos entraram na rodada 28, quando o acompanhamento do
+    orçamento passou a montar os cards dele por aqui em vez de ter um
+    `_card` próprio. Existem porque o card dele diz DUAS coisas sobre o
+    mesmo número:
+
+    - `apoio_rotulo` é a palavra antes do valor de apoio ("planejado"). Fica
+      separada porque a cor não pode alcançá-la: quem fica vermelho é o
+      número, não o rótulo dele. Sem `apoio_rotulo` o `apoio` é a frase
+      inteira, como sempre foi na Anual e nas análises.
+    - `apoio_classe` é a classe do valor de apoio (a poupança PLANEJADA
+      também pode ser negativa, num mês que planeja gastar mais do que
+      recebe).
+    - `nota` é a terceira linha do card, no formato {"texto", "classe"} — o
+      "X% consumido" do card de Despesas, na cor que a faixa mandou.
+
+    Sem underscore porque a Visão Mensal e o orçamento montam os cards deles
+    com esta mesma função: o formato que o template lê é um só, e não três
+    parecidos. Cada tela lê do dicionário o que usa e ignora o resto.
     """
     return {"rotulo": rotulo, "valor": valor, "texto": texto,
             "apoio": apoio, "negativo": negativo,
-            "classe": classe, "barra": barra}
+            "classe": classe, "barra": barra,
+            "apoio_rotulo": apoio_rotulo, "apoio_classe": apoio_classe,
+            "nota": nota}
 
 
 def percentual(parte, total):

@@ -3,19 +3,15 @@
 
 {% block title %}Orçamento - Freedom{% endblock %}
 {% block titulo_pagina %}Orçamento{% endblock %}
+{#
+  O periodo por extenso, como na Visao Mensal. Estatico: nao muda com o modo
+  nem com o periodo do acompanhamento - quem diz em que modo se esta e o
+  proprio seletor, logo abaixo.
+#}
 {% block subtitulo_pagina %}
-  <p class="pagina-subtitulo">
-    {% if a %}
-      O plano de {{ a.rotulo_periodo }} contra o que já foi gasto. O realizado sai
-      dos lançamentos a cada visita — nunca fica gravado.
-    {% elif p %}
-      O plano de {{ p.periodo }}, por subcategoria. Média 12m e Realizado no mês
-      anterior são recalculados dos lançamentos a cada visita — nunca ficam gravados.
-    {% else %}
-      Planeje o mês antes de ele acontecer: o primeiro orçamento nasce da média
-      dos doze meses fechados, e os seguintes, do mês anterior.
-    {% endif %}
-  </p>
+  {% if cab %}
+    <p class="pagina-subtitulo">{{ cab.periodo }}</p>
+  {% endif %}
 {% endblock %}
 
 {% block content %}
@@ -25,6 +21,8 @@
     novo. Sao formularios separados porque fazem coisas diferentes - e porque o
     segundo e POST com CSRF, enquanto o primeiro e GET com recarga inteira,
     como o seletor da Visao Mensal.
+
+    Ficam FORA do `.painel`: as duas ja tem margem propria.
   #}
   <div class="orcamento-barras">
     {% if anos %}
@@ -54,27 +52,52 @@
         </label>
 
         {#
-          Modo: montar o plano ou acompanha-lo. O padrao vem do servidor (mes
-          com despesa abre no acompanhamento; mes vazio, na montagem), mas a
-          escolha explicita manda e viaja na URL como os demais seletores.
+          Modo e periodo sao o `.segmentado` da 5.2 desde a rodada 28 - o mesmo
+          grupo de LINKS do seletor de ano da Visao Anual e do modo da tela do
+          IPCA. Eles ja eram GET com recarga inteira, que e exatamente o que um
+          link e: navegavel por teclado, abrivel em outra aba, sem JavaScript.
+          A opcao em exibicao leva aria-current="page", e e ela que o CSS pinta.
+
+          Os parametros sao os mesmos e a URL resultante e a mesma que o
+          <select> produzia: ano, mes, modo e - so no acompanhamento, que e
+          onde o seletor de periodo existe - periodo. Por isso os links do modo
+          levam `periodo` apenas quando ele esta na tela.
+
+          Os dois ficam DENTRO do <form>, junto dos dois selects, porque e
+          uma barra de filtros so; link nao e campo e nao viaja no submit,
+          entao trocar de mes continua produzindo a mesma URL de antes.
+          Cada um vai num <div>, e nao num <label>: rotulo nao rotula um
+          grupo de links.
         #}
-        <label class="filtro-campo">
+        <div class="filtro-campo">
           <span class="filtro-campo__rotulo">Modo</span>
-          <select class="selecao" name="modo" onchange="this.form.submit()">
-            <option value="montagem" {{ 'selected' if modo == 'montagem' }}>Montagem</option>
-            <option value="acompanhamento" {{ 'selected' if modo == 'acompanhamento' }}>Acompanhamento</option>
-          </select>
-        </label>
+          <nav class="segmentado" aria-label="Modo">
+            {% for valor, rotulo in [('montagem', 'Montagem'),
+                                     ('acompanhamento', 'Acompanhamento')] %}
+              <a class="segmentado__item"
+                 href="{{ url_for('orcamento.orcamento_tela',
+                                  ano=ano_mes.year, mes=ano_mes.month, modo=valor,
+                                  periodo=periodo if modo == 'acompanhamento' else none) }}"
+                 {% if modo == valor %}aria-current="page"{% endif %}>{{ rotulo }}</a>
+            {% endfor %}
+          </nav>
+        </div>
 
         {# So no acompanhamento: na montagem nao ha o que acumular. #}
         {% if modo == 'acompanhamento' %}
-          <label class="filtro-campo">
+          <div class="filtro-campo">
             <span class="filtro-campo__rotulo">Período</span>
-            <select class="selecao" name="periodo" onchange="this.form.submit()">
-              <option value="mes" {{ 'selected' if periodo == 'mes' }}>Mês</option>
-              <option value="acumulado" {{ 'selected' if periodo == 'acumulado' }}>Acumulado no ano</option>
-            </select>
-          </label>
+            <nav class="segmentado" aria-label="Período">
+              {% for valor, rotulo in [('mes', 'Mês'),
+                                       ('acumulado', 'Acumulado no ano')] %}
+                <a class="segmentado__item"
+                   href="{{ url_for('orcamento.orcamento_tela',
+                                    ano=ano_mes.year, mes=ano_mes.month,
+                                    modo='acompanhamento', periodo=valor) }}"
+                   {% if periodo == valor %}aria-current="page"{% endif %}>{{ rotulo }}</a>
+              {% endfor %}
+            </nav>
+          </div>
         {% endif %}
       </form>
     {% endif %}
@@ -94,15 +117,25 @@
           </select>
         </label>
         <div class="filtro-campo filtro-campo--acao">
-          <button type="submit" class="btn btn--primario">Criar</button>
+          <button type="submit" class="btn btn--primario">
+            {{ m.icone("plus", tamanho=14, tracado=2.25) }}Criar
+          </button>
         </div>
       </form>
     {% endif %}
   </div>
 
-  {# Faixa das regras recusadas (mes encerrado, reabertura barrada). O HTMX
-     joga a mensagem aqui com HX-Retarget, venha ela de que botao vier. #}
-  <div id="orcamento-aviso" class="aviso-inline" role="status"></div>
+  {#
+    Faixa das regras recusadas (mes encerrado, reabertura barrada). O HTMX
+    joga a mensagem aqui com HX-Retarget, venha ela de que botao vier.
+    Continua SEMPRE no DOM: elemento que some nao pode ser trocado.
+
+    A classe e `orcamento-aviso`, e nao a `aviso-inline` da 5.9: aquela e o
+    "Valor gravado." verde de receitas e de Parametros, que e inline e some
+    sozinha em 3,5s. As duas eram a mesma classe ate a rodada 28, e por isso
+    esta faixa nascia verde, inline e com prazo de validade.
+  #}
+  <div id="orcamento-aviso" class="orcamento-aviso" role="status"></div>
 
   {% if cab %}
     <div id="orcamento-corpo">
@@ -113,7 +146,7 @@
       {% endif %}
     </div>
   {% else %}
-    <div class="card card--solido">
+    <div class="card">
       {{ m.vazio("Nenhum mês orçado ainda",
                  "Escolha um mês acima e clique em Criar. O primeiro orçamento vem da média dos doze meses fechados anteriores: uma linha por subcategoria que teve despesa no período, com a soma dividida por doze.") }}
     </div>

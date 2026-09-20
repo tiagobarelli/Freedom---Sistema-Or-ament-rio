@@ -8,16 +8,20 @@
   O alvo declarado é a própria linha, que é o que a resposta de erro precisa
   trocar. No sucesso a rota responde com HX-Retarget para a lista inteira,
   porque mudar a data reordena a seção e pode trocar o valor vigente hoje.
+
+  O desenho é o `edicao-linha` da seção 5.20 do CSS, compartilhado com o
+  Orçamento desde a rodada 28 — antes chamava-se `config-edicao` e o
+  Orçamento escrevia esse nome sem ser configuração nenhuma.
 #}
-<tr id="config-{{ item.id }}" class="linha-edicao">
-  <td colspan="4">
-    <form class="config-edicao"
+<tr id="config-{{ item.id }}" class="edicao-linha">
+  <td class="edicao-linha__celula" colspan="4">
+    <form class="edicao-linha__form"
           hx-post="{{ url_for('configuracoes.configuracoes_editar', config_id=item.id) }}"
           hx-target="#config-{{ item.id }}"
           hx-swap="outerHTML">
       {{ form.hidden_tag() }}
 
-      <div class="config-edicao__campos">
+      <div class="edicao-linha__campos">
         <div class="campo">
           {{ form.vigente_desde.label(class="campo__rotulo") }}
           {{ form.vigente_desde(class="entrada"
@@ -30,11 +34,11 @@
                                ~ (" entrada--erro" if form.valor.errors else ""),
                         inputmode="decimal", autocomplete="off", autofocus=true) }}
         </div>
-        <div class="campo config-edicao__observacao">
+        <div class="campo edicao-linha__larga">
           {{ form.observacao.label(class="campo__rotulo") }}
           {{ form.observacao(class="entrada", rows=1) }}
         </div>
-        <div class="config-edicao__acoes">
+        <div class="edicao-linha__acoes">
           <button type="submit" class="btn btn--primario btn--pequeno">Salvar</button>
           <button type="button" class="btn btn--secundario btn--pequeno"
                   hx-get="{{ url_for('configuracoes.configuracoes_linha', config_id=item.id) }}"

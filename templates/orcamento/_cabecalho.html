@@ -3,13 +3,19 @@
   Compartilhado pelos DOIS modos - a montagem e o acompanhamento mostram o
   mesmo cabecalho, e duplica-lo daria duas chances de divergir.
 
+  Desde a rodada 28 e um cartao proprio, primeiro bloco do `.painel` dos dois
+  modos, no lugar do cabecalho de dentro do cartao unico que a tela tinha. O
+  estado e o mesmo badge de `badge_ativo` (5.5), e as acoes continuam AQUI, e
+  nao na barra superior: encerrar e reabrir trocam este parcial por HTMX, e
+  leva-las para a barra exigiria um swap fora de banda que nao existe.
+
   Recebe `cab` (servico.cabecalho_do_mes) e `modo`, que viaja nas acoes para a
   resposta voltar no modo em que a pessoa estava.
 #}
-<div class="orcamento-cabecalho">
-  <div>
+<section class="card orcamento-cabecalho">
+  <div class="orcamento-cabecalho__identidade">
     <h2 class="card__titulo">{{ cab.periodo | capitalize }}</h2>
-    <p class="campo__dica">
+    <p class="card__nota">
       {% if cab.aberto %}
         {{ cab.quantidade }} subcategoria{{ 's' if cab.quantidade != 1 }} no plano.
       {% else %}
@@ -70,4 +76,4 @@
       {% endif %}
     {% endif %}
   </div>
-</div>
+</section>

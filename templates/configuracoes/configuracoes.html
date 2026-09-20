@@ -15,10 +15,13 @@
 {% endblock %}
 
 {% block content %}
-  <div class="card card--solido form-lancamento">
+  {# O formulario de nova vigencia fica no cartao, e nao na barra superior:
+     sao quatro campos, e `acoes_pagina` e para um botao. #}
+  <div class="card form-lancamento">
     {% include "configuracoes/_formulario.html" %}
   </div>
-  {# Preenchido pelo swap out-of-band depois de gravar. #}
+  {# Preenchido pelo swap out-of-band depois de gravar. Continua sempre no
+     DOM: elemento que some nao pode ser trocado. #}
   <div id="aviso-configuracao" class="aviso-inline" role="status"></div>
 
   <div id="lista-configuracoes" class="mt-5">

@@ -20,8 +20,10 @@ Duas coisas que valem por todo o módulo:
 from decimal import Decimal
 
 from freedom.db import query_all, query_one
+from freedom.main.servico import SEM_VALOR, VALOR_NEGATIVO, card
 from freedom.orcamento.servico import ZERO, _intervalo, meses_com_orcamento
-from freedom.util import chave_alfabetica, fracao, nome_do_periodo
+from freedom.util import (chave_alfabetica, formatar_numero, formatar_valor,
+                          fracao, nome_do_periodo)
 
 # Modos da tela e períodos do acompanhamento. Texto fora da lista cai no
 # padrão, sem erro, como todo seletor deste projeto.
@@ -234,21 +236,54 @@ def _agrupar(itens):
     return grupos
 
 
+def _dinheiro(valor):
+    """Decimal -> 'R$ 1.234,56'. O mesmo `R$` escrito à mão que a Visão Anual
+    usa na nota da média mensal: o prefixo é do texto, e não do filtro."""
+    return f"R$ {formatar_valor(valor)}"
+
+
+def _percentual(fracao_):
+    """Fração -> '13,4%', ou travessão quando não há denominador."""
+    return SEM_VALOR if fracao_ is None else f"{formatar_numero(fracao_, 1)}%"
+
+
 def _card(rotulo, valor, planejado, negativo=False, texto=None,
           texto_planejado=None, consumo_=None):
     """Um card do acompanhamento: realizado em cima, planejado no apoio.
 
-    Formato próprio, e não o `card` da Visão Anual: aqui todo card tem DOIS
-    números (o que aconteceu e o que estava previsto), e importar o helper de
-    outro blueprint seria pior que estas seis linhas.
+    Desde a rodada 28 é o `card` de `main/servico.py` que monta o dicionário
+    — o mesmo dos KPIs da Visão Anual, da Mensal e das análises. Esta função
+    ficou como a tradução do par realizado × previsto para os campos dele:
+    o realizado vira `valor` (ou `texto`, na taxa), o previsto vira o apoio
+    com rótulo e classe próprios, e o consumido vira a `nota`.
+
+    Todo texto sai pronto daqui, inclusive o `R$` e o `%`: no template só
+    entra o que já está escrito.
     """
     # O planejado tambem pode ser negativo (poupanca prevista de um mes que
     # planeja gastar mais do que recebe), e um menos sem cor passa batido.
     previsto = planejado if planejado is not None else texto_planejado
-    return {"rotulo": rotulo, "valor": valor, "texto": texto,
-            "planejado": planejado, "texto_planejado": texto_planejado,
-            "negativo": negativo, "consumo": consumo_,
-            "negativo_planejado": previsto is not None and previsto < 0}
+    if planejado is not None:
+        apoio = _dinheiro(planejado)
+    elif texto_planejado is not None:
+        apoio = _percentual(texto_planejado)
+    else:
+        apoio = SEM_VALOR
+    nota = None
+    if consumo_ is not None:
+        nota = {"texto": f"{_percentual(consumo_['pct'])} consumido",
+                "classe": f"consumo--{consumo_['situacao']}"}
+    return card(
+        rotulo,
+        valor=valor,
+        texto=None if valor is not None else _percentual(texto),
+        classe=VALOR_NEGATIVO if negativo else None,
+        apoio_rotulo="planejado",
+        apoio=apoio,
+        apoio_classe=("negativo" if previsto is not None and previsto < 0
+                      else None),
+        nota=nota,
+    )
 
 
 def _cards(receita, receita_prevista, despesa, despesa_prevista, consumo_):

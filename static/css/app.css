@@ -5,18 +5,18 @@
    O tema Glassmorphism roxo saiu na rodada 17 e entrou o design system
    sobrio: fundo #F5F5F7, fonte do sistema, cinzas neutros, um acento teal
    (#30B0C7) e verde/vermelho RESERVADOS a receita, despesa e valor negativo.
-   A sidebar e escura; os unicos backdrop-filter que sobraram sao os das
-   duas barras superiores - a .pagina-cabecalho do desktop e a .topo-mobile
-   do celular. Ver secao 1 sobre os apelidos do tema antigo.
+   A sidebar e escura e ha UM backdrop-filter no sistema inteiro: o da
+   barra superior do desktop, que precisa deixar entrever o que rola por
+   baixo dela.
 
-   A troca vem por partes. A rodada 17 refez tokens, layout e Visao Anual; a
-   18, as telas de lancamento e de cadastro; a 27, a Visao Mensal e o login.
-   Faltam o Orcamento e os Parametros: sao eles que ainda rodam sobre os
-   apelidos, com a paleta nova e o arranjo antigo, e e quando a refatoracao
-   visual pendente chegar neles que a secao 1(b) morre.
+   A troca foi feita em quatro rodadas e acabou. A 17 refez tokens, layout e
+   Visao Anual; a 18, as telas de lancamento e de cadastro; a 27, a Visao
+   Mensal e o login; a 28, o Orcamento e os Parametros. Com a ultima delas
+   saiu a camada de apelidos do tema roxo, que era o que mantinha as telas
+   nao refeitas legiveis com a paleta nova: a secao 1 tem uma camada so.
 
    Sumario:
-     1. Variaveis (tokens do desenho + apelidos do tema antigo)
+     1. Variaveis (os tokens do desenho, em uma camada so)
      2. Reset minimo
      3. Fundo da pagina
      4. Layout (sidebar escura recolhivel + barra superior + conteudo)
@@ -33,10 +33,11 @@
         (5.7 era o modal; removido por nao ter uso em template nenhum. Os
          numeros seguintes ficaram como estavam, para o resto do arquivo
          nao mudar de nome de uma vez so.)
-        5.9 Lancamento de despesa (a tela de receita reusa, por apelido)
+        5.9 Lancamento de despesa (a tela de receita reusa as mesmas classes)
         5.10 Consulta de despesas (idem para a lista filtrada de receitas)
         5.11 Autocomplete de descricao
-        5.12 Configuracoes (parametros com vigencia)
+        5.12 Parametros (o que identifica a chave e o numero que vale hoje;
+            cada secao e um .card--tabela com a .tabela--cadastro dentro)
         5.13 Paineis: o que a Visao Anual e a Visao Mensal compartilham -
             .filtro-barra, .painel-grade, o cartao .kpi (que as duas Analises
             tambem usam) e o .painel-card, que depois da rodada 27 so o
@@ -49,11 +50,12 @@
             Categoria e a primeira coluna fixa, esta ultima um modificador
             reutilizavel da .tabela-caixa; em 5.14.1, o detalhe da categoria
             em linha expansivel)
-        5.15 Orcamento (as duas barras de filtro lado a lado, o cabecalho de
-            estado do mes, a receita planejada e o rodape de resumo; a tabela e
-            a .tabela--resumo de 5.13.2 e a edicao em linha e a .config-edicao
-            de 5.12); em 5.15.1, o acompanhamento - cards de realizado x
-            planejado, faixas de cor do consumo e "fora do orcamento"
+        5.15 Orcamento (as duas barras de filtro lado a lado, a faixa do 409,
+            o cabecalho de estado do mes, a receita planejada, o minimo das
+            duas tabelas e o rodape de resumo; o resto e componente - a
+            .tabela--painel de 5.13.2, o .segmentado de 5.2 nos dois
+            alternadores e o edicao-linha de 5.20); em 5.15.1 sobrou so a
+            cor das tres faixas do consumo
         5.16 Valores sensiveis (o olho da Visao Anual: as quatro marcas que
             somem com o numero, lidas do data-valores do <html>)
         5.17 IPCA (so os dois rotulos do botao de atualizar; a tabela, a
@@ -64,6 +66,8 @@
             componente existente)
         5.19 Backup (o comando de restauracao e a letra pequena da
             confirmacao; o resto e .card, .pilha, .card__rodape e .btn)
+        5.20 Edicao em linha - a linha da tabela virada formulario, que
+            Parametros e Orcamento usam; nasceu como `config-edicao` na 5.12
      6. Tela de login
      7. Responsivo (< 768px)
      8. Utilitarios
@@ -76,31 +80,20 @@
 /* ==========================================================================
    1. VARIAVEIS
 
-   Duas camadas, e a ordem importa:
+   Uma camada so: os tokens do desenho (--bg, --ink-*, --accent, ...), que
+   sao a fonte da verdade da paleta.
 
-   a) TOKENS DO DESENHO - os nomes do handoff (--bg, --ink-*, --accent, ...).
-      Sao a fonte da verdade da paleta. Toda regra escrita da rodada 17 em
-      diante usa estes.
+   Ate a rodada 28 havia uma segunda, a (b): os nomes roxos do tema antigo
+   (--cor-destaque, --cor-texto, --linha, --vidro, --raio-*, --sombra-*)
+   apontando para estes, para as telas ainda nao refeitas continuarem
+   legiveis com a paleta nova. Ela morreu com a ultima delas. Se um nome
+   `--cor-*`, `--vidro*`, `--solido*`, `--linha*`, `--raio-*` ou
+   `--sombra-*` reaparecer em algum lugar, e codigo velho: nao ha mais o que
+   o defina.
 
-   b) APELIDOS DO TEMA ANTIGO - os nomes roxos (--cor-destaque, --cor-texto,
-      --linha, --vidro, ...) apontando para os tokens novos. Existem para que
-      as telas que a refatoracao visual ainda nao alcancou continuem
-      funcionando e legiveis com a paleta nova. Depois da rodada 27 sobraram
-      DUAS: o Orcamento e os Parametros. Quando elas forem refeitas, esta
-      camada inteira morre.
-
-      Depois da rodada 27 esta camada e SO isso: cor, superficie, vidro,
-      raio e sombra do tema que saiu. A escala de espacamento, as fontes, o
-      --topo-mobile e as cores dos graficos moravam aqui e subiram para a
-      (a) - nenhuma delas morre com a refatoracao, e uma delas o JavaScript
-      le pelo nome.
-
-   Nada de novo deve usar um apelido.
    ========================================================================== */
 
 :root {
-  /* --- (a) TOKENS DO DESENHO --------------------------------------------- */
-
   /* Superficies */
   --bg: #F5F5F7;
   --surface: #fff;
@@ -156,6 +149,7 @@
   --radius-card: 14px;
   --radius-control: 7px;
   --radius-chip: 5px;
+  --radius-pill: 999px;        /* badge: a capsula do desenho */
 
   /* Controles de formulario (rodada 18). Altura e raio sao os mesmos para
      input, select, textarea e o valor com prefixo: um controle nunca fica
@@ -182,6 +176,19 @@
      27, quando o aviso (5.6) e a matriz (5.14) sairam dos apelidos. */
   --accent-ghost: rgba(48, 176, 199, 0.10);
   --accent-line: rgba(48, 176, 199, 0.28);
+
+  /* A mesma ideia sobre a TINTA, e nao sobre o acento: o cinza do texto em
+     opacidade baixa, para lavar uma faixa de tabela sem pintar nada. Entrou
+     na rodada 28 no lugar de dois literais do tema roxo que faziam este
+     trabalho com hexadecimal escrito na regra - um na coluna fixa da matriz
+     (azulado) e outro na linha de subtotal (lilas).
+
+     Lavagem, e nao acento: linha de subtotal e ESTRUTURA. Teal, verde e
+     vermelho contam alguma coisa neste sistema, e um cabecalho de grupo nao
+     conta nada - ele separa. 0.025 e a opacidade que deixa a celula fixa do
+     cabecalho no mesmo tom das vizinhas (--surface-alt), que e o que ela
+     precisa parecer. */
+  --ink-ghost: rgba(29, 29, 31, 0.025);
 
   /* Pares fundo/texto das semanticas. O fundo e claro e o texto e a versao
      escura da mesma cor - e o que faz um badge de 12px ser legivel, coisa que
@@ -212,6 +219,11 @@
   /* Um degrau abaixo da do cartao, para o que so precisa descolar de leve do
      fundo (o aviso da 5.6). Era o literal do apelido --sombra-p. */
   --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.05);
+
+  /* A sombra do menu que desliza sobre o conteudo no celular. E a mais alta
+     das tres porque ela precisa dizer que ha uma camada por cima, e nao um
+     bloco na pagina. Era o literal do apelido --sombra-g. */
+  --shadow-menu: 0 8px 30px rgba(0, 0, 0, 0.10);
 
   /* Tipografia. O handoff pede a fonte do sistema e lista a pilha da Apple;
      nenhum daqueles nomes existe no Windows, onde a aplicacao roda, e a pilha
@@ -269,68 +281,6 @@
      dentro do JS. Aqui tambem sao variaveis: o JS continua sem hex nenhum. */
   --grafico-tooltip: var(--ink);
   --grafico-rotulo: var(--ink-4);
-
-  /* --- (b) APELIDOS DO TEMA ANTIGO --------------------------------------- */
-
-  /* Destaque: era o roxo #5b50e0, agora o teal */
-  --cor-destaque: var(--accent);
-  --cor-destaque-escura: var(--accent-hover);
-  --cor-destaque-clara: var(--accent-3);
-  --cor-destaque-fantasma: var(--accent-ghost);
-  --cor-destaque-borda: var(--accent-line);
-
-  /* Texto */
-  --cor-texto: var(--ink);
-  --cor-texto-suave: var(--ink-3);
-  --cor-texto-fraco: var(--ink-4);
-  --cor-texto-invertido: #fff;
-
-  /* Semanticas. --cor-erro vira o vermelho do desenho (e o que pinta valor
-     negativo em toda parte). --cor-sucesso vai para o verde de TEXTO, e nao
-     para --green, senao o badge "Ativo" some no branco. --cor-aviso fica como
-     estava: o ambar do desenho (#FF9500) tambem nao se le como texto, e o
-     orcamento usa esta cor em rotulo de faixa. */
-  --cor-sucesso: var(--green-ink);
-  --cor-sucesso-fundo: var(--green-soft);
-  --cor-erro: var(--red);
-  --cor-erro-fundo: var(--red-soft);
-  --cor-aviso: var(--orange-ink);
-  --cor-aviso-fundo: var(--orange-soft);
-  --cor-neutra: var(--ink-3);
-  --cor-neutra-fundo: rgba(110, 110, 115, 0.10);
-
-  /* Fundo da pagina: era degrade com tres circulos desfocados. Agora e uma
-     cor chapada, e as formas sairam junto com o vidro. */
-  --fundo-de: var(--bg);
-  --fundo-ate: var(--bg);
-
-  /* Vidro: o blur saiu do cartao e da sidebar e ficou SO na barra superior,
-     que tem o proprio rgba escrito na regra. Estes apelidos viraram
-     superficie solida - o backdrop-filter que sobrou em tela ainda nao
-     refeita passa a desfocar fundo opaco, ou seja, nao faz nada. */
-  --vidro: var(--surface);
-  --vidro-forte: var(--surface);
-  --vidro-borda: var(--line);
-  --desfoque: 20px;
-
-  /* Superficies solidas de leitura */
-  --solido: var(--surface);
-  --solido-sutil: var(--surface-alt);
-  --linha: var(--line);
-  --linha-forte: var(--line);
-
-  /* Raios */
-  --raio-p: var(--radius-control);
-  --raio-m: var(--radius-card);
-  --raio-g: var(--radius-card);
-  --raio-pill: 999px;
-
-  /* Sombras: o desenho tem uma so, a do cartao. --sombra-destaque existia para
-     o botao primario roxo brilhar; o botao do desenho e chapado. */
-  --sombra-p: var(--shadow-soft);
-  --sombra-m: var(--shadow-card);
-  --sombra-g: 0 8px 30px rgba(0, 0, 0, 0.10);
-  --sombra-destaque: none;
 
 }
 
@@ -396,9 +346,9 @@ a:hover {
 }
 
 :focus-visible {
-  outline: 2px solid var(--cor-destaque);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: var(--raio-p);
+  border-radius: var(--radius-control);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -701,8 +651,10 @@ body {
   flex-wrap: wrap;
   padding: 14px 28px;
   background: rgba(255, 255, 255, 0.75);
-  -webkit-backdrop-filter: blur(var(--desfoque));
-  backdrop-filter: blur(var(--desfoque));
+  /* O unico backdrop-filter do sistema. 20px escrito aqui, e nao em token:
+     e uma medida de um lugar so. */
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--line);
 }
 
@@ -774,19 +726,6 @@ body {
   background: var(--surface);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
-}
-
-/* Era o cartao "de leitura", quase opaco, por oposicao ao de vidro. Todo
-   cartao e opaco agora, entao o modificador nao tem mais o que fazer.
-
-   Sobrou escrito em SETE templates (oito lugares): os tres do orcamento, os
-   tres de configuracoes e backup e a edicao de receita. Fica como apelido
-   vazio ate a refatoracao visual pendente tirar a classe deles; remove-la
-   aqui e agora nao mudaria pixel nenhum nem quebraria nada, mas deixaria a
-   busca por "card--solido" sem resposta. A contagem estava em "dezoito"
-   desde a rodada 17 e foi conferida na 27. */
-.card--solido {
-  background: var(--surface);
 }
 
 .card__titulo {
@@ -964,7 +903,7 @@ body {
 }
 
 .btn--discreto:hover {
-  background: var(--cor-destaque-fantasma);
+  background: var(--accent-ghost);
   color: var(--accent);
 }
 
@@ -1427,7 +1366,7 @@ body {
 }
 
 .tabela__suave {
-  color: var(--cor-texto-suave);
+  color: var(--ink-3);
 }
 
 .tabela__acoes {
@@ -1533,7 +1472,7 @@ body {
   align-items: center;
   gap: 6px;
   padding: 3px 9px;
-  border-radius: var(--raio-pill);
+  border-radius: var(--radius-pill);
   font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
@@ -1567,7 +1506,7 @@ body {
 }
 
 .badge--destaque {
-  background: var(--cor-destaque-fantasma);
+  background: var(--accent-ghost);
   color: var(--accent-texto);
 }
 
@@ -1705,8 +1644,8 @@ body {
 }
 
 /* Receitas continuam com a grade de dois campos por linha: sao cinco campos e
-   nenhum deles se beneficiaria de doze colunas. A tela ganha o visual
-   definitivo quando a refatoracao visual chegar nela. */
+   nenhum deles se beneficiaria de doze colunas - nao e divida, e a forma que
+   a tela pede. */
 .grade-lancamento {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2394,31 +2333,23 @@ body {
 .campo__apoio {
   margin-top: var(--e-1);
   font-size: 12px;
-  color: var(--cor-texto-suave);
+  color: var(--ink-3);
 }
 
 .campo__apoio--aviso {
-  color: var(--cor-aviso);
+  color: var(--orange-ink);
 }
 
-/* --- 5.12 Configuracoes (parametros com vigencia) ----------------------
-   Uma secao por chave: identidade a esquerda, valor vigente hoje a direita e
-   o historico embaixo. Tudo o mais (card, tabela, badge, formulario) vem das
-   secoes anteriores; aqui so mora o que nao existia.
+/* --- 5.12 Parametros (configuracoes com vigencia) ----------------------
+   Uma secao por chave, refeita na rodada 28: cada uma e um `.card--tabela`
+   da 5.1, com a identidade e o valor vigente no `.card__cabecalho` e o
+   historico na `.tabela--cadastro` da 5.4, o desenho das listas de cadastro.
+   O vao entre as secoes e o gap do `.painel` (secao 4).
+
+   Sobrou pouco: o que identifica a chave e o numero que vale hoje. A linha
+   virada formulario saiu daqui na mesma rodada - nasceu nesta tela, mas o
+   Orcamento a escrevia com o mesmo nome, e virou o `edicao-linha` da 5.20.
 */
-
-.config-secao + .config-secao {
-  margin-top: var(--e-4);
-}
-
-.config-secao__cabecalho {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--e-4);
-  flex-wrap: wrap;
-  margin-bottom: var(--e-3);
-}
 
 .config-secao__identidade {
   min-width: 0;
@@ -2435,20 +2366,20 @@ body {
   margin-top: 2px;
   font-size: 13.5px;
   font-weight: 600;
-  color: var(--cor-texto-suave);
+  color: var(--ink-3);
 }
 
 /* O numero que vale hoje: e o que se vem conferir nesta tela. */
 .config-vigente {
   display: flex;
   align-items: baseline;
-  gap: var(--e-2);
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .config-vigente__rotulo {
   font-size: 13px;
-  color: var(--cor-texto-suave);
+  color: var(--ink-3);
 }
 
 .config-vigente__valor {
@@ -2460,46 +2391,6 @@ body {
 
 .tabela--config .col-observacao {
   width: 45%;
-}
-
-/* Linha em edicao: fundo de destaque para nao se perder no historico. */
-.linha-edicao > td {
-  background: var(--cor-destaque-fantasma);
-}
-
-.config-edicao__campos {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--e-3);
-  flex-wrap: wrap;
-}
-
-.config-edicao__campos .campo {
-  margin-top: 0;
-}
-
-.config-edicao__campos .entrada {
-  width: auto;
-  min-width: 150px;
-  padding-top: 6px;
-  padding-bottom: 6px;
-  font-size: 13.5px;
-}
-
-.config-edicao__observacao {
-  flex: 1 1 220px;
-}
-
-.config-edicao__observacao .entrada {
-  width: 100%;
-  resize: vertical;
-}
-
-.config-edicao__acoes {
-  display: flex;
-  align-items: center;
-  gap: var(--e-2);
-  padding-bottom: 2px;
 }
 
 /* --- 5.13 Paineis: o que a Anual e a Mensal compartilham ---------------
@@ -2680,6 +2571,15 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* Terceira linha do card, embaixo do apoio: hoje so o "X% consumido" do
+   acompanhamento do orcamento (rodada 28), que vem com a classe da faixa
+   junto - a cor esta na 5.15.1, porque a regra que a escolhe e de la. */
+.kpi__nota {
+  margin-top: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
 /* --- 5.13.1 Graficos do ano -------------------------------------------
    Duas colunas acima de 1100px, uma abaixo. O handoff pede
    `auto-fit, minmax(340px, 1fr)`, que em 1440px da TRES colunas e deixa o
@@ -2732,7 +2632,7 @@ body {
    tambem a tabela das duas Analises e a do IPCA. `.tabela--painel` e a
    tipografia do desenho novo por cima dela, que desde a rodada 27 as duas
    telas de painel usam. O que e de uma tela so vira modificador com nome
-   proprio (.tabela--mensal e .tabela--categorias em 5.13.3, .tabela--matriz
+   proprio (.tabela--meses e .tabela--categorias em 5.13.3, .tabela--matriz
    em 5.14, .tabela--detalhe em 5.14.1).
 */
 
@@ -2752,13 +2652,13 @@ body {
   border-bottom: none;
 }
 
-.tabela--mensal .col-mes {
+.tabela--meses .col-mes {
   white-space: nowrap;
 }
 
 /* No desktop o mes vai por extenso; a abreviacao entra no celular (secao 7). */
-.tabela--mensal .mes-curto,
-.tabela--mensal .linha-apoio {
+.tabela--meses .mes-curto,
+.tabela--meses .linha-apoio {
   display: none;
 }
 
@@ -2865,6 +2765,30 @@ body {
 .tabela--painel tfoot .col-mes,
 .tabela--painel tfoot .col-saldo {
   font-weight: 700;
+}
+
+/* --- linha de subtotal de grupo ---
+   Cabecalho de grupo dentro da tabela: a categoria, com o subtotal das
+   subcategorias dela na mesma linha. Tres telas a usam - o detalhe da Visao
+   Mensal (5.14.1), a montagem do orcamento e o acompanhamento (5.15) -, e
+   por isso ela mora aqui desde a rodada 28, e nao na secao da primeira.
+
+   Pesa mais que o lancamento e menos que o rodape: e um meio de caminho
+   entre linha e total. A lavagem e o `--ink-ghost` desde a rodada 28: era
+   um lilas do tema roxo (rgba(91, 80, 224, 0.045)) que ninguem tinha
+   trocado porque o Orcamento ainda nao fora refeito. */
+.linha-subgrupo td {
+  font-weight: 600;
+  background: var(--ink-ghost);
+  border-bottom: 1px solid var(--line);
+}
+
+/* "6 lancamentos", ao lado do nome do grupo. */
+.linha-subgrupo__contagem {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-4);
 }
 
 /* --- 5.13.3 Visao Anual ------------------------------------------------
@@ -2978,36 +2902,39 @@ body {
 
 /* --- as duas tabelas do ano --- */
 
-/* --- tabela mes a mes --- */
+/* --- tabela mes a mes ---
+   `.tabela--meses` desde a rodada 28. Chamava-se `.tabela--mensal`, que era
+   o nome da OUTRA tela: esta e a tabela das doze linhas do ano, na Visao
+   Anual, e quem procurava a Visao Mensal caia aqui. */
 
-.tabela--mensal .col-mes {
+.tabela--meses .col-mes {
   font-weight: 500;
 }
 
-.tabela--mensal .col-saldo {
+.tabela--meses .col-saldo {
   font-weight: 600;
 }
 
 /* Saldo do ano no acento, como o KPI: e o mesmo numero. O seletor trocou o
-   `.tabela--anual` pelo `.tabela--mensal` na rodada 27: `.col-saldo` so
+   `.tabela--anual` pelo `.tabela--meses` na rodada 27: `.col-saldo` so
    existe nesta tabela, entao o alcance e o mesmo e a regra fica com o nome
    de quem ela serve. */
-.tabela--mensal tfoot .col-saldo {
+.tabela--meses tfoot .col-saldo {
   color: var(--accent);
 }
 
 /* Numeros de apoio um tom abaixo do mes e do saldo, que sao o que se le
    primeiro na linha. */
-.tabela--mensal tbody .col-num {
+.tabela--meses tbody .col-num {
   color: var(--ink-2);
 }
 
 /* Mes sem lancamento nenhum (a classe vem do servidor): a linha inteira
    esmaece. Nao e zero, e ausencia - e acumulado e taxa ja vem como
    travessao. O saldo perde tambem o vermelho, porque zero nao e negativo. */
-.tabela--mensal .linha--vazia td,
-.tabela--mensal .linha--vazia .col-num,
-.tabela--mensal .linha--vazia .col-saldo {
+.tabela--meses .linha--vazia td,
+.tabela--meses .linha--vazia .col-num,
+.tabela--meses .linha--vazia .col-saldo {
   color: var(--ink-disabled);
 }
 
@@ -3134,14 +3061,15 @@ body {
 /* Cabecalho e rodape tem a lavagem cinza da secao 5.4; sobre fundo opaco ela
    volta como camada, porque o `background` de la e atalho e zera a imagem.
 
-   O tom e um literal do tema antigo, e nao o --surface-alt das celulas
-   vizinhas: dao #F9F9FA e #FAFAFC, um a dois valores de diferenca. Alinhar
-   os dois muda pixel na tela do IPCA, que esta congelada nesta rodada - fica
-   para quando a refatoracao visual pendente terminar e a secao 1(b) sair. */
+   O tom e o `--ink-ghost` da secao 1 desde a rodada 28; era um rgba do tema
+   roxo, azulado, escrito aqui dentro. Continua nao sendo exatamente o
+   --surface-alt das celulas vizinhas (da #F9F9F9 contra #FAFAFC), e isso e
+   de proposito: a camada tem de ser TRANSLUCIDA para o `background-color`
+   opaco de baixo continuar tapando o que rola por tras. */
 .tabela-caixa--fixa-primeira thead th:first-child,
 .tabela-caixa--fixa-primeira tfoot td:first-child {
   background-image:
-    linear-gradient(rgba(26, 27, 46, 0.025), rgba(26, 27, 46, 0.025)),
+    linear-gradient(var(--ink-ghost), var(--ink-ghost)),
     linear-gradient(var(--surface), var(--surface));
 }
 
@@ -3216,12 +3144,14 @@ body {
    dava dois valores de diferenca; aqui podia ser alinhado porque a Visao
    Mensal e a unica tela com detalhe expansivel.
 
-   O `:first-child` nao esta selecionando nada (a celula e unica, com
-   colspan 3): esta pesando. Sem ele, `.tabela--painel td:first-child` da
-   5.13.2 pesa mais que este seletor e troca o recuo do aninhamento pelos
+   O `.tabela--painel` na frente nao esta filtrando nada (o detalhe so abre
+   dentro de uma): esta pesando. Sem ele, `.tabela--painel td:first-child`
+   da 5.13.2 pesa mais que este seletor e troca o recuo do aninhamento pelos
    20px das pontas do cartao. Com ele os dois pesam igual e ganha quem vem
-   depois, que e esta secao. */
-.linha-detalhe > td:first-child {
+   depois, que e esta secao - e o seletor diz onde a regra vale. Ate a
+   rodada 27 quem fazia esse peso era um `:first-child` na celula, que nao
+   selecionava nada. */
+.tabela--painel .linha-detalhe > td {
   padding: 0 16px 16px 24px;
   background: var(--surface-alt);
 }
@@ -3260,22 +3190,6 @@ body {
 
 /* Linha de subtotal: e cabecalho de grupo, entao pesa mais que o lancamento e
    menos que o rodape. */
-/* O orcamento usa esta linha tambem (montagem e acompanhamento), e por isso
-   o fundo continua o rgba do tema roxo: troca-lo mudaria pixel numa tela que
-   esta congelada nesta rodada. Vai junto com a refatoracao visual pendente. */
-.linha-subgrupo td {
-  font-weight: 600;
-  background: rgba(91, 80, 224, 0.045);
-  border-bottom: 1px solid var(--line);
-}
-
-.linha-subgrupo__contagem {
-  margin-left: 8px;
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--ink-4);
-}
-
 /* No desktop o botao Editar mostra a palavra; o icone entra no celular. */
 .tabela--detalhe .icone {
   display: none;
@@ -3304,14 +3218,17 @@ body {
 }
 
 /* --- 5.15 Orcamento -----------------------------------------------------
-   A tela do mes reaproveita quase tudo: .card, .filtro-barra (5.13),
-   .tabela--resumo e .linha-subgrupo (5.13.2 e 5.14.1), .tabela-caixa, o
-   .entrada-moeda do lancamento e a .config-edicao das configuracoes, que e a
-   linha virada formulario.
+   Refeita na rodada 28. A tela do mes e quase toda componente: o `.painel`
+   da secao 4 espacando os cartoes, a `.filtro-barra` da 5.13 com os
+   `.filtro-campo` da 5.10 e o `.segmentado` da 5.2 nos dois alternadores, o
+   `.card` e o `.card--tabela` da 5.1, a `.tabela--resumo` mais a
+   `.tabela--painel` da 5.13.2, a `.linha-subgrupo` da mesma 5.13.2, o
+   `.entrada-moeda` do lancamento e o `edicao-linha` da 5.20.
 
    Aqui mora so o que nao existia: as duas barras de filtro lado a lado (uma
-   navega, a outra cria), o cabecalho de estado do mes, a faixa da receita
-   planejada, o rodape de resumo e o formulario de acrescentar linha.
+   navega, a outra cria), a faixa do 409, o cabecalho de estado do mes, a
+   faixa da receita planejada, o rodape de resumo e o formulario de
+   acrescentar linha.
 */
 
 /* Duas barras na mesma faixa: a de escolher o mes e a de criar um novo. Cada
@@ -3319,32 +3236,47 @@ body {
 .orcamento-barras {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--e-4);
+  gap: 16px;
   align-items: flex-start;
 }
 
 .orcamento-barras > .filtro-barra {
   flex: 1 1 320px;
-  margin-bottom: var(--e-4);
+  margin-bottom: 16px;
 }
 
-/* Faixa das regras recusadas. Fica vazia (e sem altura) ate o servidor por
-   uma mensagem dentro, entao nao abre buraco na tela em uso normal. */
-.aviso-inline:empty {
+/* Faixa das regras recusadas (o 409). Fica vazia - e sem altura - ate o
+   servidor por uma mensagem dentro, entao nao abre buraco na tela em uso
+   normal.
+
+   Nome proprio desde a rodada 28. Ate a 27 ela escrevia `aviso-inline`, que
+   e OUTRO componente (o "Valor gravado." verde da 5.9, inline e com
+   animacao de 3,5s): por colisao de nome, a recusa de uma regra nascia
+   verde, com a largura do texto, e se apagava sozinha. Agora e um bloco que
+   fica, com o `.flash--erro` da 5.6 por dentro. */
+.orcamento-aviso:empty {
   display: none;
 }
 
-.aviso-inline {
-  margin-bottom: var(--e-4);
+.orcamento-aviso {
+  margin-bottom: 16px;
 }
 
-/* --- cabecalho do mes --- */
+/* --- cabecalho do mes ---
+   Primeiro cartao do painel nos dois modos: periodo e contagem a esquerda,
+   badge de estado no meio e as acoes na ponta. As acoes ficam AQUI, e nao na
+   barra superior da pagina: encerrar e reabrir trocam este bloco por HTMX, e
+   a barra superior exigiria um swap fora de banda que nao existe. */
 
 .orcamento-cabecalho {
   display: flex;
   align-items: flex-start;
-  gap: var(--e-4);
+  gap: 16px;
   flex-wrap: wrap;
+}
+
+.orcamento-cabecalho__identidade {
+  min-width: 0;
 }
 
 /* O estado empurra as acoes para a direita: o badge fica colado no titulo e os
@@ -3357,32 +3289,31 @@ body {
 .orcamento-acoes {
   display: flex;
   align-items: center;
-  gap: var(--e-2);
+  gap: 8px;
   flex-wrap: wrap;
 }
 
-/* --- receita planejada --- */
-
-/* Faixa propria, entre o cabecalho e a tabela: e o unico numero do mes que nao
-   e linha de tabela, e e o denominador da taxa de poupanca do rodape. */
+/* --- receita planejada ---
+   Um numero so, num cartao proprio: e o unico valor do mes que nao e linha de
+   tabela, e e o denominador da taxa de poupanca do rodape. Nao e um `.kpi`
+   de proposito - o numero grande do KPI e para o que se le de relance, e
+   este aqui se edita. A superficie e a do `.card`; aqui fica so o arranjo. */
 .orcamento-receita {
   display: flex;
   align-items: baseline;
-  gap: var(--e-3);
+  gap: 12px;
   flex-wrap: wrap;
-  margin-top: var(--e-4);
-  padding: var(--e-3) var(--e-4);
-  background: rgba(91, 80, 224, 0.045);
-  border: 1px solid var(--linha);
-  border-radius: var(--raio-m);
 }
 
+/* O mesmo versalete do rotulo dos cards de painel, e no mesmo tom: em 11,5px
+   maiusculo o --ink-4 nao se le (a mesma correcao que o cabecalho de tabela
+   recebeu na rodada 17). */
 .orcamento-receita__rotulo {
   font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--cor-texto-fraco);
+  color: var(--ink-3);
 }
 
 .orcamento-receita__valor {
@@ -3390,14 +3321,14 @@ body {
   font-weight: 700;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
-  color: var(--cor-texto);
+  color: var(--ink);
 }
 
 /* Em edicao a faixa vira formulario, com os campos na mesma linha de base. */
 .orcamento-receita__form {
   display: flex;
   align-items: flex-end;
-  gap: var(--e-3);
+  gap: 12px;
   flex-wrap: wrap;
   width: 100%;
 }
@@ -3406,11 +3337,17 @@ body {
   max-width: 220px;
 }
 
-/* --- tabela do mes --- */
+/* --- as tabelas do mes ---
+   As duas repoem o minimo de 560px da `.tabela` que a `.tabela--painel`
+   larga: sao cinco colunas, e uma delas tem cabecalho longo ("Realizado no
+   mes anterior"). Ou cabem, ou rolam por dentro da caixa - a mesma excecao
+   da matriz Pessoa x Categoria. Abaixo de 768px a regra da secao 7 larga o
+   minimo de novo e elas se ajustam, como antes da rodada 28. */
+.tabela--orcamento,
+.tabela--acompanhamento {
+  min-width: 560px;
+}
 
-/* A tabela tem cinco colunas e uma delas e um cabecalho longo ("Realizado no
-   mes anterior"): mantem o minimo da .tabela e rola por dentro da caixa
-   quando nao couber, a mesma excecao da matriz. */
 .tabela--orcamento .tabela__acoes {
   white-space: nowrap;
   /* O <span class="so-leitor"> do cabecalho de acoes e position:absolute. Sem
@@ -3420,35 +3357,27 @@ body {
   position: relative;
 }
 
-/* O nome da subcategoria em edicao, no lugar onde estaria o campo: e leitura,
-   nao entrada - subcategoria nao muda na edicao, troca-se a linha. */
-.orcamento-edicao__nome {
-  font-weight: 600;
-  color: var(--cor-texto);
-}
-
-/* Rodape: a primeira linha e o total das tres colunas de numero; as tres
-   seguintes sao o resumo do plano, e por isso vem em peso normal, para o
-   total continuar sendo o numero mais pesado do bloco. */
+/* Rodape da montagem: a primeira linha e o total das tres colunas de numero;
+   as tres seguintes sao o resumo do plano, e por isso vem em peso normal,
+   para o total continuar sendo o numero mais pesado do bloco. */
 .tabela--orcamento tfoot .orcamento-resumo td {
   font-weight: 500;
   border-top: none;
 }
 
 .tabela--orcamento tfoot .orcamento-resumo:first-of-type td {
-  border-top: 1px solid var(--linha);
+  border-top: 1px solid var(--line);
 }
 
-/* --- acrescentar subcategoria --- */
+/* --- acrescentar subcategoria ---
+   Cartao proprio depois da tabela desde a rodada 28; o filete que o separava
+   do resto virou a borda do cartao. */
 
 .orcamento-nova {
   display: flex;
   align-items: flex-end;
-  gap: var(--e-3);
+  gap: 12px;
   flex-wrap: wrap;
-  margin-top: var(--e-4);
-  padding-top: var(--e-4);
-  border-top: 1px solid var(--linha);
 }
 
 .orcamento-nova .selecao {
@@ -3464,102 +3393,65 @@ body {
   padding-bottom: 2px;
 }
 
-.orcamento-nova__vazio {
-  margin-top: var(--e-4);
-  padding-top: var(--e-4);
-  border-top: 1px solid var(--linha);
-}
-
 /* --- 5.15.1 Acompanhamento do orcamento --------------------------------
    O outro modo da mesma tela: em vez da faixa de receita planejada, quatro
    cards de realizado x planejado; em vez da tabela de montagem, a de
    planejado x realizado com percentual consumido.
 
-   Reaproveita .painel-grade e .painel-card (5.13), .tabela--resumo e
-   .pct-celula (5.13.2), .linha-subgrupo (5.14.1) e .tabela-caixa.
+   Depois da rodada 28 sobrou so a COR. Os cards sao os `.kpi` da 5.13, na
+   `.painel-grade` da mesma secao; a tabela e a `.tabela--painel` com a
+   `.pct-celula`; o bloco "fora do orcamento" e um `.card--tabela` como os
+   outros, e o titulo dele e o `.card__titulo` da 5.1.
 
    A COR NAO E DECIDIDA AQUI. `acompanhamento.situacao()` devolve `ok`,
-   `alerta` ou `estouro`, o template escreve `consumo--<estado>` e estas tres
+   `alerta` ou `estouro`, o template escreve `consumo--<estado>` e estas
    regras so pintam. As faixas (90%, 100%) sao regra de negocio e vivem no
    Python; mudar a cor aqui nao muda quando ela aparece, e vice-versa.
 */
 
-.orcamento-cards {
-  margin-top: var(--e-4);
-}
-
-/* O percentual consumido do card Despesas, embaixo da linha de apoio. */
-.orcamento-card__consumo {
-  margin-top: var(--e-1);
-  font-size: 12.5px;
-  font-weight: 600;
-}
-
 /* --- as tres faixas ---
    `ok` nao pinta nada: o normal e a maioria das linhas, e colorir tudo faria
-   o alerta e o estouro sumirem no meio. Ambar e vermelho reusam as cores
-   semanticas da secao 1 (--cor-aviso ja existia, do .flash--aviso; nao foi
-   preciso inventar uma cor de alerta). */
+   o alerta e o estouro sumirem no meio. Ambar e vermelho sao as semanticas
+   da secao 1 - `--orange-ink` e o ambar que se le como TEXTO (o `--orange`
+   puro nao se le sobre branco) e `--red` e o mesmo vermelho do `.negativo`.
 
-/* O numero pega a cor em TODOS os niveis - linha, subtotal e rodape. No
+   O numero pega a cor em TODOS os niveis - linha, subtotal e rodape. No
    rodape e preciso o seletor mais longo para vencer a regra da 5.13.2, que
    manda o percentual do rodape herdar a cor da linha de totais; sem ele, a
    barra ficaria vermelha e o numero preto ao lado dela. */
 .consumo--alerta .pct-celula__numero,
 .tabela--acompanhamento tfoot .consumo--alerta .pct-celula__numero,
-.orcamento-card__consumo.consumo--alerta {
-  color: var(--cor-aviso);
+.kpi__nota.consumo--alerta {
+  color: var(--orange-ink);
 }
 
 .consumo--estouro .pct-celula__numero,
 .tabela--acompanhamento tfoot .consumo--estouro .pct-celula__numero,
-.orcamento-card__consumo.consumo--estouro {
-  color: var(--cor-erro);
+.kpi__nota.consumo--estouro {
+  color: var(--red);
   font-weight: 600;
 }
 
 /* A barra acompanha o numero: e o mesmo dado, e ver a barra vermelha cheia
-   diz "estourou" antes de o olho chegar no numero. */
+   diz "estourou" antes de o olho chegar no numero.
+
+   Aqui o ambar e o `--orange` puro, e nao o `--orange-ink` do texto: barra e
+   PREENCHIMENTO, e o par de tokens existe exatamente para isso. Ate a rodada
+   27 os dois liam o mesmo apelido `--cor-aviso`, e a barra saia no marrom do
+   texto - que ao lado da barra vermelha do estouro nao se lia como aviso. */
 .consumo--alerta .barra__preenchimento {
-  background: var(--cor-aviso);
+  background: var(--orange);
 }
 
 .consumo--estouro .barra__preenchimento {
-  background: var(--cor-erro);
-}
-
-/* --- fora do orcamento ---
-   Bloco a parte, depois da tabela: nao e erro nem linha faltando, e o que o
-   plano nao previu. Fica visualmente separado para nao se confundir com o
-   planejado, e some quando nao ha nada nele. */
-
-.orcamento-fora {
-  margin-top: var(--e-5);
-  padding-top: var(--e-4);
-  border-top: 1px solid var(--linha);
-}
-
-.orcamento-fora__titulo {
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--cor-texto);
-}
-
-.orcamento-fora .tabela-caixa {
-  margin-top: var(--e-3);
-}
-
-/* Duas colunas so; a de valor nao precisa de mais que o proprio numero. */
-.tabela--fora {
-  min-width: 0;
+  background: var(--red);
 }
 
 /* --- 5.16 Valores sensiveis (o olho) ------------------------------------
    O estado mora em UM lugar: `data-valores` no <html>, escrito pelo script do
    layout_app.html. Aqui so se le. Nada abaixo esta preso a um seletor da
    Visao Anual: para outra tela aderir, basta marcar os elementos - e a licao
-   da `.negativo`, que nasceu dentro de .tabela--mensal e ficou meia rodada
+   da `.negativo`, que nasceu dentro de .tabela--meses e ficou meia rodada
    sem funcionar no rodape do orcamento.
 
    Quatro marcas, uma para cada forma de valor na tela:
@@ -3580,7 +3472,7 @@ body {
    Todos os seletores comecam em `:root[...]`, e nao so em `[...]`: o peso
    precisa vencer o das regras de tela, que sao de duas classes mais um
    elemento. A primeira versao usava so o atributo e o texto da linha de apoio
-   continuou pintado, porque `.tabela--mensal .linha-apoio td` pesa mais.
+   continuou pintado, porque `.tabela--meses .linha-apoio td` pesa mais.
 */
 
 /* `color: transparent` com fundo, e nao `visibility: hidden`: o bloco precisa
@@ -3774,6 +3666,74 @@ body {
 }
 
 
+/* --- 5.20 Edicao em linha -----------------------------------------------
+   A linha da tabela virada formulario, sem sair da tabela: Parametros (uma
+   vigencia do historico) e Orcamento (o planejado de uma subcategoria).
+
+   Nasceu em Parametros na rodada 8 com o nome `config-edicao`, e o Orcamento
+   passou a escrever esse mesmo nome na rodada 15 sem ser configuracao
+   nenhuma. Virou componente na 28, com o nome do que e - a regra do projeto:
+   componente que uma segunda tela adota sai da secao da primeira.
+
+   O <form> vive dentro de um unico <td colspan>: <form> solto entre <td>s e
+   marcacao invalida e o navegador o expulsa da tabela (licao da rodada 8).
+
+   A celula leva classe PROPRIA, e nao so o `> td`, por peso: as duas tabelas
+   que a hospedam declaram o recuo das pontas com `td:first-child` (a
+   `.tabela--painel` da 5.13.2 e a `.tabela--cadastro` da 5.4), que pesa duas
+   classes; `.edicao-linha > td` pesaria uma, e a linha em edicao herdaria o
+   recuo de coluna de ponta em vez do respiro dela.
+*/
+
+.edicao-linha > .edicao-linha__celula {
+  padding: 12px 20px;
+  background: var(--accent-ghost);
+}
+
+.edicao-linha__campos {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.edicao-linha__campos .campo {
+  margin-top: 0;
+}
+
+.edicao-linha__campos .entrada {
+  width: auto;
+  min-width: 150px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  font-size: 13.5px;
+}
+
+/* O campo que fica com a sobra da linha: a observacao, em Parametros. */
+.edicao-linha__larga {
+  flex: 1 1 220px;
+}
+
+.edicao-linha__larga .entrada {
+  width: 100%;
+  resize: vertical;
+}
+
+.edicao-linha__acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 2px;
+}
+
+/* O que nao se edita, no lugar onde estaria o campo: a subcategoria do
+   Orcamento, que nao muda na edicao - troca-se a linha. */
+.edicao-linha__leitura {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+
 /* ==========================================================================
    6. TELA DE LOGIN
    Refeita na rodada 27, e quase toda componente: o fundo --bg da secao 3, o
@@ -3782,7 +3742,7 @@ body {
 
    Sem sidebar e sem barra superior: esta tela nao usa o layout_app.html. E
    sem vidro - o cartao era a moldura translucida do tema antigo, e o unico
-   backdrop-filter que sobrou no sistema e o das duas barras superiores.
+   backdrop-filter que sobrou no sistema e o da barra superior do desktop.
 
    380px de largura maxima: cabe o rotulo mais longo ("Senha") com folga, o
    botao de bloco nao fica largo demais para um alvo de clique e a caixa nao
@@ -3845,11 +3805,12 @@ body {
     gap: var(--e-3);
     height: var(--topo-mobile);
     padding: 0 var(--e-4);
-    background: var(--vidro-forte);
-    -webkit-backdrop-filter: blur(var(--desfoque));
-    backdrop-filter: blur(var(--desfoque));
-    border-bottom: 1px solid var(--vidro-borda);
-    box-shadow: var(--sombra-p);
+    /* Sem backdrop-filter: o fundo aqui e opaco desde a rodada 17, e
+       desfocar o que esta atras de uma superficie opaca custa uma camada de
+       composicao para nao fazer nada. Saiu na 28, com os apelidos. */
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    box-shadow: var(--shadow-soft);
   }
 
   .topo-mobile__marca {
@@ -3894,7 +3855,7 @@ body {
     overflow-y: auto;
     padding: var(--e-4);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: var(--sombra-g);
+    box-shadow: var(--shadow-menu);
     transform: translateY(-8px);
     opacity: 0;
     visibility: hidden;
@@ -4185,7 +4146,7 @@ body {
     margin-top: 2px;
     font-size: 12px;
     font-weight: 400;
-    color: var(--cor-texto-fraco);
+    color: var(--ink-4);
   }
 
   /* A data sobe para dentro da celula do trecho (a coluna larga), como na
@@ -4211,7 +4172,7 @@ body {
   .tabela--receitas .col-data,
   .tabela--config .col-data {
     font-size: 12.5px;
-    color: var(--cor-texto-suave);
+    color: var(--ink-3);
   }
 
   /* --- Consulta de despesas no celular --- */
@@ -4328,21 +4289,23 @@ body {
     white-space: normal;
   }
 
-  .config-secao__cabecalho {
+  /* O cabecalho da secao e o `.card__cabecalho` da 5.1 desde a rodada 28;
+     em 390px identidade e valor vigente empilham com menos respiro. */
+  .config-secao .card__cabecalho {
     gap: var(--e-2);
   }
 
-  .config-edicao__campos {
+  .edicao-linha__campos {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .config-edicao__campos .entrada {
+  .edicao-linha__campos .entrada {
     width: 100%;
     min-width: 0;
   }
 
-  .config-edicao__acoes .btn {
+  .edicao-linha__acoes .btn {
     flex: 1 1 auto;
   }
 
@@ -4407,19 +4370,19 @@ body {
     min-width: 0;
   }
 
-  .tabela--mensal .col-essenciais,
-  .tabela--mensal .col-nao-essenciais,
-  .tabela--mensal .col-acumulado,
-  .tabela--mensal .col-taxa,
-  .tabela--mensal .mes-longo {
+  .tabela--meses .col-essenciais,
+  .tabela--meses .col-nao-essenciais,
+  .tabela--meses .col-acumulado,
+  .tabela--meses .col-taxa,
+  .tabela--meses .mes-longo {
     display: none;
   }
 
-  .tabela--mensal .mes-curto {
+  .tabela--meses .mes-curto {
     display: inline;
   }
 
-  .tabela--mensal .linha-apoio {
+  .tabela--meses .linha-apoio {
     display: table-row;
   }
 
@@ -4486,21 +4449,21 @@ body {
 
   /* Mes e apoio sao um bloco so: a borda fica embaixo do par, nao entre os
      dois. */
-  .tabela--mensal tbody tr:not(.linha-apoio) td,
-  .tabela--mensal tfoot tr:not(.linha-apoio) td {
+  .tabela--meses tbody tr:not(.linha-apoio) td,
+  .tabela--meses tfoot tr:not(.linha-apoio) td {
     border-bottom: none;
   }
 
-  .tabela--mensal .linha-apoio td {
+  .tabela--meses .linha-apoio td {
     padding-top: 0;
     padding-bottom: var(--e-2);
     font-size: 11.5px;
-    color: var(--cor-texto-fraco);
-    border-bottom: 1px solid var(--linha);
+    color: var(--ink-4);
+    border-bottom: 1px solid var(--line);
     white-space: normal;
   }
 
-  .tabela--mensal tbody tr:last-child td {
+  .tabela--meses tbody tr:last-child td {
     border-bottom: none;
   }
 
@@ -4583,9 +4546,10 @@ body {
   }
 
   /* Menos recuo: em 390px o de 24px + 16px comeria a largura util da tabela
-     interna. O filete continua dizendo que ha aninhamento. O `:first-child`
-     e o mesmo peso da 5.14.1, pelo mesmo motivo. */
-  .linha-detalhe > td:first-child {
+     interna. O filete continua dizendo que ha aninhamento. O
+     `.tabela--painel` na frente e o mesmo peso da 5.14.1, pelo mesmo
+     motivo. */
+  .tabela--painel .linha-detalhe > td {
     padding: 0 8px 12px 12px;
   }
 
@@ -4665,13 +4629,13 @@ body {
 
 /* Valor negativo. Vive num <span>, e nunca na celula, para o travessao de
    "sem valor" nao sair vermelho junto - e a regra de formatacao do projeto.
-   Nasceu presa a .tabela--mensal na rodada 11; virou utilitario na 16, quando
+   Nasceu presa a .tabela--meses na rodada 11; virou utilitario na 16, quando
    se viu que o rodape da Montagem do orcamento emitia a classe desde a 15 e
    nunca ficava vermelho, por estar fora daquela tabela. */
-.negativo { color: var(--cor-erro); }
+.negativo { color: var(--red); }
 
-.texto-suave { color: var(--cor-texto-suave); }
-.texto-fraco { color: var(--cor-texto-fraco); }
+.texto-suave { color: var(--ink-3); }
+.texto-fraco { color: var(--ink-4); }
 .texto-p { font-size: 13px; }
 .texto-mono { font-family: var(--fonte-mono); }
 

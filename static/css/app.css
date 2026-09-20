@@ -5,13 +5,15 @@
    O tema Glassmorphism roxo saiu na rodada 17 e entrou o design system
    sobrio: fundo #F5F5F7, fonte do sistema, cinzas neutros, um acento teal
    (#30B0C7) e verde/vermelho RESERVADOS a receita, despesa e valor negativo.
-   A sidebar e escura; o unico backdrop-filter que sobrou e o da barra
-   superior. Ver secao 1 sobre os apelidos do tema antigo.
+   A sidebar e escura; os unicos backdrop-filter que sobraram sao os das
+   duas barras superiores - a .pagina-cabecalho do desktop e a .topo-mobile
+   do celular. Ver secao 1 sobre os apelidos do tema antigo.
 
-   A troca e em tres rodadas. A 17 refez tokens, layout e Visao Anual; as
-   telas de lancamento e cadastro sao da 18; Mensal, Orcamento e configuracoes
-   sao da 19. Ate la elas rodam sobre os apelidos, com a paleta nova e o
-   arranjo antigo.
+   A troca vem por partes. A rodada 17 refez tokens, layout e Visao Anual; a
+   18, as telas de lancamento e de cadastro; a 27, a Visao Mensal e o login.
+   Faltam o Orcamento e os Parametros: sao eles que ainda rodam sobre os
+   apelidos, com a paleta nova e o arranjo antigo, e e quando a refatoracao
+   visual pendente chegar neles que a secao 1(b) morre.
 
    Sumario:
      1. Variaveis (tokens do desenho + apelidos do tema antigo)
@@ -36,15 +38,17 @@
         5.11 Autocomplete de descricao
         5.12 Configuracoes (parametros com vigencia)
         5.13 Paineis: o que a Visao Anual e a Visao Mensal compartilham -
-            .filtro-barra, .painel-grade e .painel-card; em 5.13.1 os graficos
-            (so da Anual) e em 5.13.2 o empilhamento .painel-tabelas mais a
-            .tabela--resumo, visual comum das seis tabelas dos dois paineis;
-            em 5.13.3 o que e so da Visao Anual refeita (KPIs, indicadores,
-            cartao com cabecalho, tabelas do desenho novo)
-        5.14 Visao mensal (so o que a Anual nao tem: .tabela--resumo--estreita,
-            a matriz Pessoa x Categoria e a primeira coluna fixa, esta ultima
-            um modificador reutilizavel da .tabela-caixa; em 5.14.1, o detalhe
-            da categoria em linha expansivel)
+            .filtro-barra, .painel-grade, o cartao .kpi (que as duas Analises
+            tambem usam) e o .painel-card, que depois da rodada 27 so o
+            acompanhamento do orcamento usa; em 5.13.1 os graficos (so da
+            Anual) e em 5.13.2 o visual das tabelas dos dois paineis - a
+            .tabela--resumo e a .tabela--painel do desenho novo; em 5.13.3 o
+            que ainda e so da Visao Anual (os nove indicadores, o resumo do
+            ano, a tabela mes a mes e a tabela por categoria)
+        5.14 Visao mensal (so o que a Anual nao tem: a matriz Pessoa x
+            Categoria e a primeira coluna fixa, esta ultima um modificador
+            reutilizavel da .tabela-caixa; em 5.14.1, o detalhe da categoria
+            em linha expansivel)
         5.15 Orcamento (as duas barras de filtro lado a lado, o cabecalho de
             estado do mes, a receita planejada e o rodape de resumo; a tabela e
             a .tabela--resumo de 5.13.2 e a edicao em linha e a .config-edicao
@@ -80,10 +84,16 @@
 
    b) APELIDOS DO TEMA ANTIGO - os nomes roxos (--cor-destaque, --cor-texto,
       --linha, --vidro, ...) apontando para os tokens novos. Existem para que
-      lancamentos, cadastros, configuracoes, Mensal e Orcamento continuem
-      funcionando e legiveis com a paleta nova ate a refatoracao visual
-      alcancar cada uma delas, quando sera reescrita e o apelido
-      correspondente morre.
+      as telas que a refatoracao visual ainda nao alcancou continuem
+      funcionando e legiveis com a paleta nova. Depois da rodada 27 sobraram
+      DUAS: o Orcamento e os Parametros. Quando elas forem refeitas, esta
+      camada inteira morre.
+
+      Depois da rodada 27 esta camada e SO isso: cor, superficie, vidro,
+      raio e sombra do tema que saiu. A escala de espacamento, as fontes, o
+      --topo-mobile e as cores dos graficos moravam aqui e subiram para a
+      (a) - nenhuma delas morre com a refatoracao, e uma delas o JavaScript
+      le pelo nome.
 
    Nada de novo deve usar um apelido.
    ========================================================================== */
@@ -164,6 +174,15 @@
   --accent-soft-line: #C9EBF1;
   --row-editing: #F7FCFD;
 
+  /* As duas versoes TRANSLUCIDAS do acento. Nao sao as de cima: aquelas sao
+     cor chapada, estas se compoem com o que houver atras e por isso servem
+     ao hover de uma celula que ja tem fundo proprio (a coluna fixa da
+     matriz) e a borda de um aviso. Eram literais dentro dos apelidos
+     --cor-destaque-fantasma e --cor-destaque-borda; viraram token na rodada
+     27, quando o aviso (5.6) e a matriz (5.14) sairam dos apelidos. */
+  --accent-ghost: rgba(48, 176, 199, 0.10);
+  --accent-line: rgba(48, 176, 199, 0.28);
+
   /* Pares fundo/texto das semanticas. O fundo e claro e o texto e a versao
      escura da mesma cor - e o que faz um badge de 12px ser legivel, coisa que
      --green e --red puros nao dao (1,9:1 e 3,3:1 sobre branco). */
@@ -174,6 +193,14 @@
   --red-soft: #FFF1F0;
   --red-ink: #D70015;
 
+  /* A borda do aviso (5.6): a mesma familia de cor, translucida, para o fio
+     nao competir com o texto. Estavam escritas a mao dentro da regra desde o
+     tema antigo; sao token desde a rodada 27, com o MESMO valor - trocar o
+     tom seria mexer em tela que esta congelada nesta rodada. */
+  --green-line: rgba(23, 121, 94, 0.28);
+  --red-line: rgba(192, 43, 63, 0.28);
+  --orange-line: rgba(154, 100, 20, 0.30);
+
   /* Painel flutuante (autocomplete). Mais alta que a do cartao: ele precisa
      descolar do que esta por baixo. */
   --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06);
@@ -181,6 +208,10 @@
   /* Sombra do cartao: a segunda camada e o fio de contorno, no lugar da borda
      solida que o desenho dispensa. */
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.03);
+
+  /* Um degrau abaixo da do cartao, para o que so precisa descolar de leve do
+     fundo (o aviso da 5.6). Era o literal do apelido --sombra-p. */
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.05);
 
   /* Tipografia. O handoff pede a fonte do sistema e lista a pilha da Apple;
      nenhum daqueles nomes existe no Windows, onde a aplicacao roda, e a pilha
@@ -193,36 +224,28 @@
   /* Tamanhos do handoff: 11 12 13 14 15 17, e o KPI em clamp(20, 1.6vw, 28).
      Ficam escritos nas regras, como o resto do arquivo ja faz com medida. */
 
-  /* --- (b) APELIDOS DO TEMA ANTIGO --------------------------------------- */
+  /* Escala de espacamento do projeto. Nao tem cor nenhuma e nao e apelido de
+     tema: o codigo mais novo do arquivo a usa. Morou na 1(b) ate a rodada
+     27, o que faria a remocao daquela camada leva-la junto. */
+  --e-1: 4px;
+  --e-2: 8px;
+  --e-3: 12px;
+  --e-4: 16px;
+  --e-5: 24px;
+  --e-6: 32px;
+  --e-7: 48px;
 
-  /* Destaque: era o roxo #5b50e0, agora o teal */
-  --cor-destaque: var(--accent);
-  --cor-destaque-escura: var(--accent-hover);
-  --cor-destaque-clara: var(--accent-3);
-  --cor-destaque-fantasma: rgba(48, 176, 199, 0.10);
-  --cor-destaque-borda: rgba(48, 176, 199, 0.28);
+  --fonte: var(--font);
+  --fonte-mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas,
+                monospace;
 
-  /* Texto */
-  --cor-texto: var(--ink);
-  --cor-texto-suave: var(--ink-3);
-  --cor-texto-fraco: var(--ink-4);
-  --cor-texto-invertido: #fff;
+  /* Medida de layout do celular (a largura da sidebar e --sidebar-largura). */
+  --topo-mobile: 60px;
 
-  /* Semanticas. --cor-erro vira o vermelho do desenho (e o que pinta valor
-     negativo em toda parte). --cor-sucesso vai para o verde de TEXTO, e nao
-     para --green, senao o badge "Ativo" some no branco. --cor-aviso fica como
-     estava: o ambar do desenho (#FF9500) tambem nao se le como texto, e o
-     orcamento usa esta cor em rotulo de faixa. */
-  --cor-sucesso: var(--green-ink);
-  --cor-sucesso-fundo: var(--green-soft);
-  --cor-erro: var(--red);
-  --cor-erro-fundo: var(--red-soft);
-  --cor-aviso: var(--orange-ink);
-  --cor-aviso-fundo: var(--orange-soft);
-  --cor-neutra: var(--ink-3);
-  --cor-neutra-fundo: rgba(110, 110, 115, 0.10);
-
-  /* Graficos: o visao_anual.js le TODAS as cores das series daqui, por
+  /* Cores das series dos graficos. Tambem sairam da 1(b) na rodada 27, e
+     por um motivo mais duro: o JavaScript as le pelo NOME, e nenhum grep
+     por `var(--grafico-...)` no CSS as encontra.
+     O visao_anual.js le TODAS as cores das series daqui, le TODAS as cores das series daqui, por
      getComputedStyle. Nenhum hex no JS. O mapeamento e o do handoff - receita
      verde, despesa vermelho, essenciais no acento, nao essenciais em ambar,
      total no cinza, prioridades na rampa de quatro tons de teal. */
@@ -246,6 +269,35 @@
      dentro do JS. Aqui tambem sao variaveis: o JS continua sem hex nenhum. */
   --grafico-tooltip: var(--ink);
   --grafico-rotulo: var(--ink-4);
+
+  /* --- (b) APELIDOS DO TEMA ANTIGO --------------------------------------- */
+
+  /* Destaque: era o roxo #5b50e0, agora o teal */
+  --cor-destaque: var(--accent);
+  --cor-destaque-escura: var(--accent-hover);
+  --cor-destaque-clara: var(--accent-3);
+  --cor-destaque-fantasma: var(--accent-ghost);
+  --cor-destaque-borda: var(--accent-line);
+
+  /* Texto */
+  --cor-texto: var(--ink);
+  --cor-texto-suave: var(--ink-3);
+  --cor-texto-fraco: var(--ink-4);
+  --cor-texto-invertido: #fff;
+
+  /* Semanticas. --cor-erro vira o vermelho do desenho (e o que pinta valor
+     negativo em toda parte). --cor-sucesso vai para o verde de TEXTO, e nao
+     para --green, senao o badge "Ativo" some no branco. --cor-aviso fica como
+     estava: o ambar do desenho (#FF9500) tambem nao se le como texto, e o
+     orcamento usa esta cor em rotulo de faixa. */
+  --cor-sucesso: var(--green-ink);
+  --cor-sucesso-fundo: var(--green-soft);
+  --cor-erro: var(--red);
+  --cor-erro-fundo: var(--red-soft);
+  --cor-aviso: var(--orange-ink);
+  --cor-aviso-fundo: var(--orange-soft);
+  --cor-neutra: var(--ink-3);
+  --cor-neutra-fundo: rgba(110, 110, 115, 0.10);
 
   /* Fundo da pagina: era degrade com tres circulos desfocados. Agora e uma
      cor chapada, e as formas sairam junto com o vidro. */
@@ -275,26 +327,11 @@
 
   /* Sombras: o desenho tem uma so, a do cartao. --sombra-destaque existia para
      o botao primario roxo brilhar; o botao do desenho e chapado. */
-  --sombra-p: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --sombra-p: var(--shadow-soft);
   --sombra-m: var(--shadow-card);
   --sombra-g: 0 8px 30px rgba(0, 0, 0, 0.10);
   --sombra-destaque: none;
 
-  /* Espacamentos: escala propria do projeto, sem cor nenhuma, mantida. */
-  --e-1: 4px;
-  --e-2: 8px;
-  --e-3: 12px;
-  --e-4: 16px;
-  --e-5: 24px;
-  --e-6: 32px;
-  --e-7: 48px;
-
-  --fonte: var(--font);
-  --fonte-mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas,
-                monospace;
-
-  /* Medida de layout do celular (a largura da sidebar e --sidebar-largura). */
-  --topo-mobile: 60px;
 }
 
 /* ==========================================================================
@@ -740,10 +777,14 @@ body {
 }
 
 /* Era o cartao "de leitura", quase opaco, por oposicao ao de vidro. Todo
-   cartao e opaco agora, entao o modificador nao tem mais o que fazer. Fica
-   como apelido vazio ate a refatoracao visual tirar a classe dos dezoito
-   templates que a escrevem; remove-la aqui e agora nao mudaria pixel nenhum
-   nem quebraria nada, mas deixaria a busca por "card--solido" sem resposta. */
+   cartao e opaco agora, entao o modificador nao tem mais o que fazer.
+
+   Sobrou escrito em SETE templates (oito lugares): os tres do orcamento, os
+   tres de configuracoes e backup e a edicao de receita. Fica como apelido
+   vazio ate a refatoracao visual pendente tirar a classe deles; remove-la
+   aqui e agora nao mudaria pixel nenhum nem quebraria nada, mas deixaria a
+   busca por "card--solido" sem resposta. A contagem estava em "dezoito"
+   desde a rodada 17 e foi conferida na 27. */
 .card--solido {
   background: var(--surface);
 }
@@ -785,6 +826,24 @@ body {
 
 .card__cabecalho .card__titulo {
   margin-bottom: 0;
+}
+
+/* A .tabela-caixa perde a superficie propria quando esta dentro de um
+   .card--tabela: o cartao ja e a superficie, e duas bordas concentricas a 1px
+   de distancia sao um erro visivel. Ela continua sendo quem rola na
+   horizontal se faltar largura.
+
+   Morou na 5.13.3 (Visao Anual) ate a rodada 27, e nunca foi de la: quem a
+   escreve hoje sao oito templates - as duas tabelas da Anual, as tres da
+   Mensal, a do IPCA, a das duas Analises, as recentes do lancamento, a lista
+   filtrada de receitas, a consulta e a macro `lista_cadastro`. E contrato do
+   .card--tabela, e por isso mora junto dele. */
+.card--tabela .tabela-caixa {
+  margin-top: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 /* A direita do titulo: um contador montado no servidor ("21 categorias") ou
@@ -1527,27 +1586,37 @@ body {
   color: var(--orange-ink);
 }
 
-/* --- 5.6 Flash --------------------------------------------------------- */
+/* --- 5.6 Flash ---------------------------------------------------------
+   O aviso da aplicacao: mensagem de `flash` em qualquer tela, a faixa de
+   resultado do IPCA, o erro de periodo das duas Analises, a falha do backup
+   e o "login ou senha invalidos" da tela de entrada.
+
+   Saiu dos apelidos na rodada 27, junto com o login: os quatro tons agora
+   leem os tokens do desenho, e os dois que nao tinham token (o fio das
+   semanticas e a sombra rasa) viraram token na secao 1(a). Os valores
+   calculados sao os MESMOS de antes - a troca e de nome, nao de cor, porque
+   o aviso aparece em tela que esta congelada nesta rodada.
+*/
 
 .flash-lista {
-  margin-bottom: var(--e-4);
+  margin-bottom: 16px;
 }
 
 .flash {
   display: flex;
   align-items: flex-start;
-  gap: var(--e-2);
-  padding: var(--e-3) var(--e-4);
+  gap: 8px;
+  padding: 12px 16px;
   border: 1px solid transparent;
-  border-radius: var(--raio-m);
+  border-radius: var(--radius-card);
   font-size: 14px;
   font-weight: 500;
-  background: var(--solido);
-  box-shadow: var(--sombra-p);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
 }
 
 .flash + .flash {
-  margin-top: var(--e-2);
+  margin-top: 8px;
 }
 
 .flash::before {
@@ -1560,33 +1629,37 @@ body {
   background: currentColor;
 }
 
+/* O fundo vai em duas camadas: a de cima e a cor da semantica, a de baixo e
+   a superficie. Era assim porque as cores suaves do tema antigo tinham alfa;
+   as de hoje sao chapadas nos tres primeiros e a camada de baixo so aparece
+   no `--accent-ghost` do informativo, que continua translucido. Mantido como
+   esta: e a mesma composicao para os quatro, e o resultado nao muda. */
 .flash--sucesso {
-  color: var(--cor-sucesso);
-  border-color: rgba(23, 121, 94, 0.28);
-  background: linear-gradient(var(--cor-sucesso-fundo), var(--cor-sucesso-fundo)),
-              var(--solido-sutil);
+  color: var(--green-ink);
+  border-color: var(--green-line);
+  background: linear-gradient(var(--green-soft), var(--green-soft)),
+              var(--surface-alt);
 }
 
 .flash--erro {
-  color: var(--cor-erro);
-  border-color: rgba(192, 43, 63, 0.28);
-  background: linear-gradient(var(--cor-erro-fundo), var(--cor-erro-fundo)),
-              var(--solido-sutil);
+  color: var(--red);
+  border-color: var(--red-line);
+  background: linear-gradient(var(--red-soft), var(--red-soft)),
+              var(--surface-alt);
 }
 
 .flash--aviso {
-  color: var(--cor-aviso);
-  border-color: rgba(154, 100, 20, 0.3);
-  background: linear-gradient(var(--cor-aviso-fundo), var(--cor-aviso-fundo)),
-              var(--solido-sutil);
+  color: var(--orange-ink);
+  border-color: var(--orange-line);
+  background: linear-gradient(var(--orange-soft), var(--orange-soft)),
+              var(--surface-alt);
 }
 
 .flash--info {
   color: var(--accent-texto);
-  border-color: var(--cor-destaque-borda);
-  background: linear-gradient(var(--cor-destaque-fantasma),
-                              var(--cor-destaque-fantasma)),
-              var(--solido-sutil);
+  border-color: var(--accent-line);
+  background: linear-gradient(var(--accent-ghost), var(--accent-ghost)),
+              var(--surface-alt);
 }
 
 /* --- 5.8 Estado vazio -------------------------------------------------- */
@@ -2432,16 +2505,18 @@ body {
 /* --- 5.13 Paineis: o que a Anual e a Mensal compartilham ---------------
    Nasceu com a Visao Anual e hoje serve as duas telas de painel: a barra de
    seletores (.filtro-barra), a grade de cards (.painel-grade), o miolo do
-   card (.painel-card), o empilhamento das tabelas (.painel-tabelas, em
-   5.13.2) e o visual comum delas (.tabela--resumo, tambem em 5.13.2). O que e
-   so da Anual (graficos) fica em 5.13.1; o que e so da Mensal, em 5.14.
+   cartao de numero (.kpi) e o visual das tabelas (.tabela--resumo e
+   .tabela--painel, em 5.13.2). O que e so da Anual (graficos) fica em
+   5.13.1; o que e so da Mensal, em 5.14.
 
-   Depois da rodada 17 a divisao ficou assim: a Anual usa .painel-grade (a
-   grade 4/2/1, que e o "como hoje" que o prompt manda preservar) e
-   .painel-graficos, mas o miolo dos cards dela agora e .kpi / .indicador, em
-   5.13.3. A Mensal e o acompanhamento do orcamento continuam em .painel-card
-   ate serem refeitas. Duas grades, um arranjo: quando a Mensal for refeita,
-   .painel-card sai e sobra .kpi.
+   O vao entre os blocos de uma tela nao esta aqui: e o `.painel` da secao 4,
+   que as duas telas de painel usam - a Anual desde a rodada 17, a Mensal
+   desde a 27, quando as .painel-tabelas que faziam esse papel so nela
+   sairam.
+
+   O .painel-card abaixo e o miolo de cartao do tema antigo. Depois da rodada
+   27 sobrou UM lugar que o usa: o acompanhamento do orcamento. Quando ele
+   for refeito, .painel-card sai e sobra .kpi.
 */
 
 /* Barra de seletores dos dois paineis: um campo na Anual (ano), tres na
@@ -2532,6 +2607,79 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* --- o cartao .kpi ---
+   O cartao de numero dos paineis: quatro na Visao Anual, seis na Visao
+   Mensal e tres no resumo das duas Analises. Morou na 5.13.3 ("Visao Anual")
+   da rodada 17 ate a 27; subiu para ca quando a Mensal o adotou, que e a
+   regra do projeto - componente que uma segunda tela usa sai da secao da
+   primeira.
+
+   Nao tem regra propria: a moldura e o `.card` e o vao entre os cartoes e a
+   `.painel-grade`. O que esta aqui e o miolo. Os modificadores do valor vem
+   do SERVIDOR pelo nome da classe; hoje o acento so a Anual pede (saldo do
+   ano), e o vermelho, as duas.
+*/
+
+.kpi__rotulo {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+/* clamp: o valor precisa caber numa coluna de 1/4 da largura sem quebrar, e
+   R$ 562.416,07 em 28px nao cabe em tela de 1280. */
+.kpi__valor {
+  margin-top: 8px;
+  font-size: clamp(20px, 1.6vw, 28px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+/* As duas cores vem do servidor, pelo nome da classe: saldo que sobra no
+   acento, saldo (ou taxa) negativo em vermelho. */
+.kpi__valor--acento {
+  color: var(--accent);
+}
+
+.kpi__valor--negativo {
+  color: var(--red);
+}
+
+/* Trilho de 3px sob o valor (so a Anual o pede). No cartao de receita ele
+   vai cheio, em verde - e a receita que e o total; no de despesa, o
+   preenchimento vermelho mede a fatia da receita que ja foi gasta. */
+.kpi__trilho {
+  margin-top: 8px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--fill);
+  overflow: hidden;
+}
+
+.kpi__preenchimento {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+}
+
+.kpi__preenchimento--receita {
+  background: var(--green);
+}
+
+.kpi__preenchimento--despesa {
+  background: var(--red);
+}
+
+.kpi__apoio {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+
 /* --- 5.13.1 Graficos do ano -------------------------------------------
    Duas colunas acima de 1100px, uma abaixo. O handoff pede
    `auto-fit, minmax(340px, 1fr)`, que em 1440px da TRES colunas e deixa o
@@ -2569,36 +2717,24 @@ body {
 }
 
 /* --- 5.13.2 Tabelas dos paineis ---------------------------------------
-   Tabelas empilhadas, cada uma dentro do .card; a .tabela-caixa e quem rola
-   na horizontal quando falta largura.
+   Tabelas empilhadas, cada uma dentro de um .card--tabela; a .tabela-caixa e
+   quem rola na horizontal quando falta largura, e o vao entre os cartoes e o
+   gap do `.painel` (secao 4).
 
    Sem grade aqui de proposito: elas ocupam a largura toda, e uma grade de
    uma coluna so daria a chance de repetir o problema do `1fr` com filho largo
-   (a tabela mensal tem oito colunas e usa a rolagem interna da .tabela-caixa
-   entre 768px e ~1100px).
+   (a tabela mes a mes tem oito colunas e usa a rolagem interna da
+   .tabela-caixa entre 768px e ~1100px).
 
-   `.tabela--resumo` e o visual comum das SEIS tabelas dos dois paineis: mes a
-   mes e por categoria na Anual, por categoria, por pessoa e a matriz na
-   Mensal, mais a do detalhe expansivel. O que e de uma so vira modificador
-   com nome proprio (.tabela--mensal, .tabela--resumo--estreita,
-   .tabela--matriz em 5.14, .tabela--detalhe em 5.14.1).
-
-   .painel-tabelas e o empilhamento da Mensal. A Anual deixou de usa-lo na
-   rodada 17: la o espacamento entre blocos vem do gap de .painel (5.13.3).
+   Sao duas camadas. `.tabela--resumo` e o visual comum das SEIS tabelas dos
+   dois paineis - mes a mes e por categoria na Anual, por categoria, por
+   pessoa e a matriz na Mensal, mais a do detalhe expansivel - e serve
+   tambem a tabela das duas Analises e a do IPCA. `.tabela--painel` e a
+   tipografia do desenho novo por cima dela, que desde a rodada 27 as duas
+   telas de painel usam. O que e de uma tela so vira modificador com nome
+   proprio (.tabela--mensal e .tabela--categorias em 5.13.3, .tabela--matriz
+   em 5.14, .tabela--detalhe em 5.14.1).
 */
-
-.painel-tabelas {
-  margin-top: 14px;
-}
-
-.painel-tabelas > .card + .card {
-  margin-top: 14px;
-}
-
-.painel-tabelas .tabela-caixa {
-  margin-top: var(--e-3);
-  box-shadow: none;          /* a sombra ja e a do card que a envolve */
-}
 
 /* Numeros alinhados a direita e com digito de largura fixa: em doze linhas, a
    virgula precisa cair sempre na mesma coluna - e na matriz isso vale para a
@@ -2666,75 +2802,78 @@ body {
   color: var(--ink-3);
 }
 
-/* --- 5.13.3 Visao Anual (desenho da rodada 17) -------------------------
-   O que existe so nesta tela: os quatro KPIs, o cartao dos nove indicadores e
-   o visual das duas tabelas. O seletor de ano usa o `.segmentado` da 5.2, que
-   morou aqui ate a rodada 22.
-   Quando a Mensal for refeita, o que for comum as duas sobe para
-   5.13 e este bloco encolhe.
+/* --- a tabela dos paineis no desenho novo ---
+   Nasceu como `.tabela--anual` na rodada 17, dentro da 5.13.3, quando so a
+   Visao Anual tinha o desenho novo. Na 27 as tres tabelas da Visao Mensal
+   passaram a usar as mesmas medidas, entao o modificador subiu para ca e
+   perdeu o nome que falava de uma tela so.
+
+   E a .tabela--resumo acima com a tipografia do desenho: 13px e as colunas
+   das pontas alinhadas com o cabecalho do cartao (20px). `min-width: 0`
+   desfaz o minimo de 560px da .tabela - nao ha rolagem interna a 1440px, e o
+   handoff pede min-width 960px com rolagem abaixo de ~1200px, que o projeto
+   nao segue: no celular a tabela mes a mes esconde colunas e usa a linha de
+   apoio (secao 7), como desde a rodada 11. A matriz Pessoa x Categoria e a
+   excecao, e por isso ela repoe o proprio min-width na 5.14.
+
+   ARMADILHA: estes seletores sao de DESCENDENCIA, e a tabela por categoria
+   da Mensal abre uma tabela ANINHADA dentro de uma celula (5.14.1). Os
+   recuos de 20px alcancam as pontas dela, que nao sao ponta de cartao
+   nenhuma - e o achado de 1px da rodada 15, de novo. Quem devolve o recuo
+   dela e um par de regras no fim da 5.14.1.
 */
-
-/* --- 1. os quatro KPIs --- */
-
-.kpi__rotulo {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--ink-3);
+.tabela--painel {
+  min-width: 0;
+  font-size: 13px;
 }
 
-/* clamp: o valor precisa caber numa coluna de 1/4 da largura sem quebrar, e
-   R$ 562.416,07 em 28px nao cabe em tela de 1280. */
-.kpi__valor {
-  margin-top: 8px;
-  font-size: clamp(20px, 1.6vw, 28px);
+.tabela--painel th {
+  padding: 9px 12px;
+  font-size: 11px;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.tabela--painel td {
+  padding: 10px 12px;
+}
+
+/* Primeira e ultima coluna alinhadas com o cabecalho do cartao (20px). */
+.tabela--painel th:first-child,
+.tabela--painel td:first-child {
+  padding-left: 20px;
+}
+
+.tabela--painel th:last-child,
+.tabela--painel td:last-child {
+  padding-right: 20px;
+}
+
+.tabela--painel tbody tr:last-child td {
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.tabela--painel tfoot td {
+  padding-top: 12px;
+  padding-bottom: 12px;
+  font-weight: 600;
+  border-top: none;
+}
+
+/* Na linha de totais so "Total" e o saldo da tabela mes a mes pesam 700; o
+   resto fica em 600. */
+.tabela--painel tfoot .col-mes,
+.tabela--painel tfoot .col-saldo {
   font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
-  white-space: nowrap;
-  color: var(--ink);
 }
 
-/* As duas cores vem do servidor, pelo nome da classe: saldo que sobra no
-   acento, saldo (ou taxa) negativo em vermelho. */
-.kpi__valor--acento {
-  color: var(--accent);
-}
-
-.kpi__valor--negativo {
-  color: var(--red);
-}
-
-/* Trilho de 3px sob o valor. No cartao de receita ele vai cheio, em verde -
-   e a receita que e o total; no de despesa, o preenchimento vermelho mede a
-   fatia da receita que ja foi gasta. */
-.kpi__trilho {
-  margin-top: 8px;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--fill);
-  overflow: hidden;
-}
-
-.kpi__preenchimento {
-  display: block;
-  height: 100%;
-  border-radius: 2px;
-}
-
-.kpi__preenchimento--receita {
-  background: var(--green);
-}
-
-.kpi__preenchimento--despesa {
-  background: var(--red);
-}
-
-.kpi__apoio {
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--ink-3);
-  overflow-wrap: anywhere;
-}
+/* --- 5.13.3 Visao Anual ------------------------------------------------
+   O que a rodada 27 deixou de exclusivo desta tela: o cartao dos nove
+   indicadores, o resumo do ano e o visual das duas tabelas dela. Os quatro
+   KPIs subiram para a 5.13 e a tabela do desenho novo, para a 5.13.2, quando
+   a Visao Mensal passou a usar os dois. O seletor de ano usa o `.segmentado`
+   da 5.2, que morou aqui ate a rodada 22.
+*/
 
 /* --- o resumo do ano (rodada 20) ---
    Texto livre escrito pelo dono, entre os indicadores e os graficos. O
@@ -2837,67 +2976,7 @@ body {
   content: none;
 }
 
-/* --- 4 e 5. as duas tabelas --- */
-
-/* A tabela encosta nas bordas do cartao: quem afasta e o padding das celulas
-   das pontas. `min-width: 0` desfaz o minimo de 560px da .tabela; nao ha
-   rolagem interna a 1440px, e o handoff pede min-width 960px com rolagem
-   abaixo de ~1200px, que o projeto nao segue - no celular a tabela mensal
-   esconde colunas e usa a linha de apoio (secao 7), como desde a rodada 11. */
-.tabela--anual {
-  min-width: 0;
-  font-size: 13px;
-}
-
-/* A .tabela-caixa perde a superficie propria: o cartao ja e a superficie, e
-   duas bordas concentricas a 1px de distancia sao um erro visivel. Ela
-   continua sendo quem rola na horizontal se faltar largura. */
-.card--tabela .tabela-caixa {
-  margin-top: 0;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-}
-
-.tabela--anual th {
-  padding: 9px 12px;
-  font-size: 11px;
-  letter-spacing: normal;
-  text-transform: none;
-}
-
-.tabela--anual td {
-  padding: 10px 12px;
-}
-
-/* Primeira e ultima coluna alinhadas com o cabecalho do cartao (20px). */
-.tabela--anual th:first-child,
-.tabela--anual td:first-child {
-  padding-left: 20px;
-}
-
-.tabela--anual th:last-child,
-.tabela--anual td:last-child {
-  padding-right: 20px;
-}
-
-.tabela--anual tbody tr:last-child td {
-  border-bottom: 1px solid var(--line-soft);
-}
-
-.tabela--anual tfoot td {
-  padding-top: 12px;
-  padding-bottom: 12px;
-  font-weight: 600;
-  border-top: none;
-}
-
-/* Na linha de totais so "Total" e o saldo pesam 700; o resto fica em 600. */
-.tabela--anual tfoot .col-mes,
-.tabela--anual tfoot .col-saldo {
-  font-weight: 700;
-}
+/* --- as duas tabelas do ano --- */
 
 /* --- tabela mes a mes --- */
 
@@ -2909,8 +2988,11 @@ body {
   font-weight: 600;
 }
 
-/* Saldo do ano no acento, como o KPI: e o mesmo numero. */
-.tabela--anual tfoot .col-saldo {
+/* Saldo do ano no acento, como o KPI: e o mesmo numero. O seletor trocou o
+   `.tabela--anual` pelo `.tabela--mensal` na rodada 27: `.col-saldo` so
+   existe nesta tabela, entao o alcance e o mesmo e a regra fica com o nome
+   de quem ela serve. */
+.tabela--mensal tfoot .col-saldo {
   color: var(--accent);
 }
 
@@ -2984,28 +3066,21 @@ body {
 }
 
 /* --- 5.14 Visao mensal --------------------------------------------------
-   A tela do mes reaproveita o que a 5.13 e a 5.13.2 tem de comum aos dois
-   paineis: .card, .painel-grade (a grade de quatro, com 4 + 2 nos seis
-   cards), .painel-card, .painel-tabelas, .tabela--resumo, .tabela-caixa,
-   .barra, .pct-celula e a .filtro-barra.
+   Refeita na rodada 27. A tela do mes e quase toda componente: o .painel da
+   secao 4 espacando os blocos, a .filtro-barra com os .filtro-campo da 5.10,
+   a .painel-grade--tres com seis cartoes .kpi (5.13), o .card--tabela da 5.1
+   e, nas tres tabelas, a .tabela--resumo mais a .tabela--painel da 5.13.2,
+   com a .barra e a .pct-celula.
 
-   Aqui mora so o que a Anual nao tem: o modificador de largura das duas
-   tabelas de participacao, a matriz Pessoa x Categoria e, como componente
-   reutilizavel, a primeira coluna fixa da .tabela-caixa.
+   Aqui mora so o que a Anual nao tem: a matriz Pessoa x Categoria e, como
+   componente reutilizavel, a primeira coluna fixa da .tabela-caixa - que a
+   tela do IPCA tambem usa desde a rodada 22.
+
+   O que saiu na 27: a `.tabela--resumo--estreita`, que largava o min-width
+   de 560px da .tabela nas duas tabelas de participacao. A .tabela--painel ja
+   faz isso para as tres, e um modificador que repete o vizinho e um nome a
+   mais para manter.
 */
-
-/* Tres colunas cabem em qualquer largura, entao as duas tabelas de
-   participacao do mes largam o min-width de 560px da .tabela: nome de
-   categoria longo quebra em duas linhas, o que e melhor que uma barra de
-   rolagem de 30px.
-
-   A irma da Anual (por categoria do ano) tem as mesmas tres colunas mas so
-   larga o minimo abaixo de 768px, e por isso rola por dentro entre 768px e
-   ~1030px. A diferenca vem da rodada 12, quando a Anual nao podia ser tocada;
-   alinhar as duas muda pixel e e decisao de produto, nao de refatoracao. */
-.tabela--resumo--estreita {
-  min-width: 0;
-}
 
 /* --- matriz Pessoa x Categoria --- */
 
@@ -3020,51 +3095,63 @@ body {
 
 /* R$ 0,00 continua legivel, mas para de competir com o que foi gasto. */
 .tabela--matriz .celula-zero {
-  color: var(--cor-texto-fraco);
+  color: var(--ink-4);
 }
 
 /* A coluna Total fecha a linha; o filete a separa das pessoas sem precisar de
    outra cor de fundo. */
 .tabela--matriz .col-total {
-  border-left: 1px solid var(--linha);
+  border-left: 1px solid var(--line);
 }
 
 /* --- primeira coluna fixa (modificador reutilizavel da .tabela-caixa) ---
    Vale para qualquer tabela que role por dentro da caixa e cuja primeira
-   coluna seja o rotulo da linha.
+   coluna seja o rotulo da linha: a matriz Pessoa x Categoria daqui e a
+   matriz do IPCA (rodada 22).
 
-   O fundo tem de ser OPACO: as celulas que rolam passam por baixo desta, e o
-   --solido tem alfa 0.96, o que deixaria o texto delas aparecer de leve. Duas
-   camadas da mesma cor levam o alfa a 0.998 sem inventar um branco diferente
-   do das vizinhas. O filete a direita vai em box-shadow, e nao em border: com
-   border-collapse a borda e compartilhada e nao acompanha a celula fixa.
+   O fundo tem de ser OPACO: as celulas que rolam passam por baixo desta. O
+   filete a direita vai em box-shadow, e nao em border: com border-collapse a
+   borda e compartilhada e nao acompanha a celula fixa.
+
+   A camada `linear-gradient(--surface, --surface)` em cima do
+   `background-color: var(--surface)` PARECE redundante - opaco sobre opaco,
+   a mesma cor -, e nasceu de uma necessidade que ja nao existe (no tema
+   antigo a superficie tinha alfa 0.96). Nao e redundante: tirar a imagem de
+   fundo muda o antialiasing do texto da celula. Medido na rodada 27, no
+   cabecalho "Ano" da tela do IPCA a 1280 - 822 pixels diferentes, delta
+   maximo 5, todos dentro da palavra, com a captura do mesmo tamanho. Fica.
 */
 .tabela-caixa--fixa-primeira th:first-child,
 .tabela-caixa--fixa-primeira td:first-child {
   position: sticky;
   left: 0;
   z-index: 1;
-  background-color: var(--solido);
-  background-image: linear-gradient(var(--solido), var(--solido));
-  box-shadow: 1px 0 0 var(--linha);
+  background-color: var(--surface);
+  background-image: linear-gradient(var(--surface), var(--surface));
+  box-shadow: 1px 0 0 var(--line);
 }
 
 /* Cabecalho e rodape tem a lavagem cinza da secao 5.4; sobre fundo opaco ela
-   volta como camada, porque o `background` de la e atalho e zera a imagem. */
+   volta como camada, porque o `background` de la e atalho e zera a imagem.
+
+   O tom e um literal do tema antigo, e nao o --surface-alt das celulas
+   vizinhas: dao #F9F9FA e #FAFAFC, um a dois valores de diferenca. Alinhar
+   os dois muda pixel na tela do IPCA, que esta congelada nesta rodada - fica
+   para quando a refatoracao visual pendente terminar e a secao 1(b) sair. */
 .tabela-caixa--fixa-primeira thead th:first-child,
 .tabela-caixa--fixa-primeira tfoot td:first-child {
   background-image:
     linear-gradient(rgba(26, 27, 46, 0.025), rgba(26, 27, 46, 0.025)),
-    linear-gradient(var(--solido), var(--solido));
+    linear-gradient(var(--surface), var(--surface));
 }
 
 /* O hover da secao 5.4 tambem e atalho: repoe a cor da linha por cima do
    fundo opaco, senao a celula fixa fica translucida justo ao passar o mouse. */
 .tabela-caixa--fixa-primeira tbody tr:hover td:first-child {
-  background-color: var(--solido);
+  background-color: var(--surface);
   background-image:
-    linear-gradient(var(--cor-destaque-fantasma), var(--cor-destaque-fantasma)),
-    linear-gradient(var(--solido), var(--solido));
+    linear-gradient(var(--accent-ghost), var(--accent-ghost)),
+    linear-gradient(var(--surface), var(--surface));
 }
 
 /* --- 5.14.1 Detalhe da categoria (linha expansivel) ---------------------
@@ -3101,21 +3188,21 @@ body {
 }
 
 .expandir:focus-visible {
-  outline: 2px solid var(--cor-destaque);
+  outline: 2px solid var(--accent);
   outline-offset: 3px;
-  border-radius: var(--raio-p);
+  border-radius: var(--radius-control);
 }
 
 /* Seta deitada quando fechada, para baixo quando aberta. */
 .expandir__seta {
   flex: 0 0 auto;
-  color: var(--cor-texto-fraco);
+  color: var(--ink-4);
   transition: transform 0.15s ease, color 0.15s ease;
 }
 
 .expandir[aria-expanded="true"] .expandir__seta {
   transform: rotate(90deg);
-  color: var(--cor-destaque);
+  color: var(--accent);
 }
 
 /* A celula da linha aberta some da regra de borda de baixo: linha e detalhe
@@ -3124,23 +3211,37 @@ body {
   border-bottom: none;
 }
 
-.linha-detalhe > td {
-  padding: 0 var(--e-4) var(--e-4) var(--e-5);
-  background: rgba(26, 27, 46, 0.02);
+/* A faixa em volta do detalhe e a mesma lavagem cinza do cabecalho e do
+   rodape das tabelas (--surface-alt). Era um rgba escuro do tema roxo, que
+   dava dois valores de diferenca; aqui podia ser alinhado porque a Visao
+   Mensal e a unica tela com detalhe expansivel.
+
+   O `:first-child` nao esta selecionando nada (a celula e unica, com
+   colspan 3): esta pesando. Sem ele, `.tabela--painel td:first-child` da
+   5.13.2 pesa mais que este seletor e troca o recuo do aninhamento pelos
+   20px das pontas do cartao. Com ele os dois pesam igual e ganha quem vem
+   depois, que e esta secao. */
+.linha-detalhe > td:first-child {
+  padding: 0 16px 16px 24px;
+  background: var(--surface-alt);
 }
 
 /* O recuo a esquerda e o filete sao o que dizem "isto esta dentro daquilo". */
 .detalhe {
   overflow: hidden;
-  background: var(--solido);
-  border: 1px solid var(--linha);
-  border-left: 3px solid var(--cor-destaque-clara);
-  border-radius: var(--raio-m);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent-3);
+  border-radius: var(--radius-card);
 }
 
 /* Sem min-width: a tabela interna se ajusta a caixa em vez de rolar.
    Alinhamento dos numeros e visual do rodape vem da .tabela--resumo (5.13.2),
-   que ela tambem carrega. */
+   que ela tambem carrega.
+
+   Ela NAO carrega a .tabela--painel: as pontas dela nao sao pontas de
+   cartao. Mas esta dentro de uma, e os seletores de descendencia de la
+   alcancam estas celulas - ver o par de regras no fim deste bloco. */
 .tabela--detalhe {
   min-width: 0;
   font-size: 13.5px;
@@ -3149,7 +3250,7 @@ body {
 .tabela--detalhe .col-data {
   width: 1%;
   white-space: nowrap;
-  color: var(--cor-texto-suave);
+  color: var(--ink-3);
 }
 
 .tabela--detalhe .col-pessoa {
@@ -3159,22 +3260,47 @@ body {
 
 /* Linha de subtotal: e cabecalho de grupo, entao pesa mais que o lancamento e
    menos que o rodape. */
+/* O orcamento usa esta linha tambem (montagem e acompanhamento), e por isso
+   o fundo continua o rgba do tema roxo: troca-lo mudaria pixel numa tela que
+   esta congelada nesta rodada. Vai junto com a refatoracao visual pendente. */
 .linha-subgrupo td {
   font-weight: 600;
   background: rgba(91, 80, 224, 0.045);
-  border-bottom: 1px solid var(--linha);
+  border-bottom: 1px solid var(--line);
 }
 
 .linha-subgrupo__contagem {
-  margin-left: var(--e-2);
+  margin-left: 8px;
   font-size: 12px;
   font-weight: 400;
-  color: var(--cor-texto-fraco);
+  color: var(--ink-4);
 }
 
 /* No desktop o botao Editar mostra a palavra; o icone entra no celular. */
 .tabela--detalhe .icone {
   display: none;
+}
+
+/* --- o recuo que a tabela de fora emprestaria ---
+   A tabela por categoria e uma .tabela--painel, e os seletores dela sao de
+   descendencia: `.tabela--painel td:first-child { padding-left: 20px }`
+   alcanca a coluna Data desta tabela aninhada, que nao encosta em cartao
+   nenhum. Estas duas regras devolvem os 12px da .tabela (5.4). Vem DEPOIS da
+   5.13.2, entao ganham por ordem, com o mesmo peso.
+
+   O resto do que a tabela de fora empresta e desejado e fica: o rodape do
+   detalhe passou a ter o respiro e o peso do rodape das tabelas de painel, e
+   o filete entre a ultima linha e o total mudou de dono (deixou de ser o
+   `border-top` do rodape e virou o `border-bottom` da linha) sem sair do
+   lugar. */
+.tabela--detalhe th:first-child,
+.tabela--detalhe td:first-child {
+  padding-left: 12px;
+}
+
+.tabela--detalhe th:last-child,
+.tabela--detalhe td:last-child {
+  padding-right: 12px;
 }
 
 /* --- 5.15 Orcamento -----------------------------------------------------
@@ -3650,15 +3776,25 @@ body {
 
 /* ==========================================================================
    6. TELA DE LOGIN
-   Sem sidebar: card unico centrado. Aqui o vidro e a moldura, e os campos
-   por dentro sao solidos.
+   Refeita na rodada 27, e quase toda componente: o fundo --bg da secao 3, o
+   .card da 5.1, os campos da macro `campo` (5.3), o .btn--primario da 5.2 e
+   o aviso da 5.6. Sobram o centramento e a largura do cartao.
+
+   Sem sidebar e sem barra superior: esta tela nao usa o layout_app.html. E
+   sem vidro - o cartao era a moldura translucida do tema antigo, e o unico
+   backdrop-filter que sobrou no sistema e o das duas barras superiores.
+
+   380px de largura maxima: cabe o rotulo mais longo ("Senha") com folga, o
+   botao de bloco nao fica largo demais para um alvo de clique e a caixa nao
+   passa da metade de um monitor de 13 polegadas. No celular a largura e a da
+   pagina menos os 16px de cada lado do .login-tela.
    ========================================================================== */
 
 .login-tela {
   display: grid;
   place-items: center;
   min-height: 100vh;
-  padding: var(--e-4);
+  padding: 16px;
 }
 
 .login-caixa {
@@ -3666,34 +3802,23 @@ body {
   max-width: 380px;
 }
 
-.login-marca {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  margin-bottom: var(--e-5);
+.login-caixa .card {
+  padding: 24px;
 }
 
-/* A marca da tela de entrada e a mesma da sidebar, um degrau maior. */
-.login-marca .marca__quadrado {
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
-}
-
-.login-marca .marca__nome {
+/* O nome do sistema, dentro do cartao. Nao usa a marca da sidebar: ali o
+   quadrado do acento identifica o app numa coluna cheia de outras coisas, e
+   aqui nao ha o que confundir - a tela inteira e um cartao so. */
+.login-titulo {
+  margin-bottom: 20px;
   font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.03em;
   color: var(--ink);
 }
 
-.login-caixa .card {
-  padding: var(--e-5);
-}
-
 .login-caixa .btn {
-  margin-top: var(--e-5);
+  margin-top: 24px;
 }
 
 /* ==========================================================================
@@ -4221,11 +4346,13 @@ body {
     flex: 1 1 auto;
   }
 
-  /* --- Visao anual no celular --- */
+  /* --- Os dois paineis no celular --- */
 
   /* Uma coluna: quatro numeros grandes lado a lado nao cabem em 390px sem
      rolagem horizontal. Vem depois da regra de 1099px da secao 5.13 e por
-     isso vence abaixo de 768px, onde as duas casam. */
+     isso vence abaixo de 768px, onde as duas casam. Vale tambem para a
+     .painel-grade--tres (o resumo das Analises e os seis cards da Mensal),
+     que e a mesma grade com outra contagem. */
   .painel-grade {
     grid-template-columns: 1fr;
   }
@@ -4302,8 +4429,10 @@ body {
      Os seletores sao de descendencia, entao alcancam tambem as celulas da
      tabela do detalhe, que e aninhada numa de painel. E de proposito: o
      respiro proprio dela vem depois, no fim desta secao, e vence por ordem.
-     O `letter-spacing` do cabecalho o detalhe redeclara com o mesmo valor (no
-     fim desta secao), para nao depender de estar aninhado aqui dentro. */
+     O `letter-spacing` de 0.03em o detalhe NAO redeclara: ele o recebe desta
+     mesma regra, porque a tabela do detalhe tambem carrega a classe
+     `.tabela--resumo` - a declaracao propria que existia aqui desde a rodada
+     15 repetia o mesmo valor e saiu na 27. */
   .tabela--resumo th,
   .tabela--resumo td {
     padding: var(--e-2) 5px;
@@ -4315,15 +4444,18 @@ body {
     letter-spacing: 0.03em;
   }
 
-  /* Os 20px das colunas das pontas (5.13.3) sao desenho de desktop e vencem a
+  /* Os 20px das colunas das pontas (5.13.2) sao desenho de desktop e vencem a
      regra generica acima por especificidade; em 390px eles comeriam um decimo
-     da tela de cada lado. */
-  .tabela--anual th,
-  .tabela--anual td,
-  .tabela--anual th:first-child,
-  .tabela--anual td:first-child,
-  .tabela--anual th:last-child,
-  .tabela--anual td:last-child {
+     da tela de cada lado. Desde a rodada 27 a regra vale tambem para as tres
+     tabelas da Visao Mensal, que adotaram a .tabela--painel - e o padding que
+     elas passam a ter aqui e o mesmo 8px/5px que ja tinham pela
+     .tabela--resumo. */
+  .tabela--painel th,
+  .tabela--painel td,
+  .tabela--painel th:first-child,
+  .tabela--painel td:first-child,
+  .tabela--painel th:last-child,
+  .tabela--painel td:last-child {
     padding: var(--e-2) 5px;
   }
 
@@ -4413,7 +4545,7 @@ body {
     margin-top: 2px;
     font-size: 11.5px;
     font-weight: 400;
-    color: var(--cor-texto-fraco);
+    color: var(--ink-4);
   }
 
   .tabela--detalhe th,
@@ -4422,13 +4554,17 @@ body {
     font-size: 12.5px;
   }
 
-  /* O cabecalho do detalhe usa o mesmo espacejamento das tabelas de painel, de
-     proposito: as duas sao a mesma familia de tabela e o olho compara melhor
-     cabecalhos iguais. Ate a rodada 15 o valor chegava por heranca, porque o
-     seletor da 5.14 e de descendencia e o detalhe e aninhado numa tabela de
-     painel; declarado aqui, para de depender de onde a tabela esta. */
-  .tabela--detalhe th {
-    letter-spacing: 0.03em;
+  /* O par de guarda da 5.14.1 (o recuo de 12px das pontas) pesa mais que a
+     regra acima e passaria por cima dela aqui; em 390px o respiro do detalhe
+     e 8px como o das outras colunas. */
+  .tabela--detalhe th:first-child,
+  .tabela--detalhe td:first-child {
+    padding-left: var(--e-2);
+  }
+
+  .tabela--detalhe th:last-child,
+  .tabela--detalhe td:last-child {
+    padding-right: var(--e-2);
   }
 
   /* Um icone no lugar da palavra: em 390px "Editar" comeria a coluna do
@@ -4447,9 +4583,10 @@ body {
   }
 
   /* Menos recuo: em 390px o de 24px + 16px comeria a largura util da tabela
-     interna. O filete continua dizendo que ha aninhamento. */
-  .linha-detalhe > td {
-    padding: 0 var(--e-2) var(--e-3) var(--e-3);
+     interna. O filete continua dizendo que ha aninhamento. O `:first-child`
+     e o mesmo peso da 5.14.1, pelo mesmo motivo. */
+  .linha-detalhe > td:first-child {
+    padding: 0 8px 12px 12px;
   }
 
   /* O subtotal ocupa tres colunas no desktop; no celular a do meio sumiu e

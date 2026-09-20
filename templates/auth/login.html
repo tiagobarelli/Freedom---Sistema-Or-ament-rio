@@ -3,19 +3,18 @@
 
 {% block title %}Entrar - Freedom{% endblock %}
 
-{# Sem sidebar: nao ha usuario nem para onde navegar antes do login. #}
+{# Sem sidebar: nao ha usuario nem para onde navegar antes do login. Por isso
+   esta tela estende o base.html, e nao o layout_app.html. #}
 {% block corpo %}
 <div class="login-tela">
   <div class="login-caixa">
 
-    {# A mesma marca da sidebar e da barra de celular: quadrado do acento mais
-       o nome. Aqui ela e escrita a mao, e nao pela macro do layout_app.html,
-       porque esta tela nao usa aquele layout - ela nao tem sidebar. #}
-    <p class="login-marca">
-      <span class="marca__quadrado" aria-hidden="true"></span>
-      <span class="marca__nome">Freedom</span>
-    </p>
-
+    {#
+      A mensagem unica de "login ou senha invalidos" chega por `flash` e sai
+      no mesmo aviso que a aplicacao usa em toda tela (o `.flash` da secao 5.6
+      do CSS). Fica FORA do cartao, acima dele: dentro, ela empurraria os
+      campos para baixo a cada tentativa.
+    #}
     {% with mensagens = get_flashed_messages(with_categories=true) %}
       {% if mensagens %}
         <div class="flash-lista">
@@ -27,11 +26,16 @@
     {% endwith %}
 
     <div class="card">
+      {# O nome do sistema e o titulo da pagina: nao ha barra superior aqui
+         para carrega-lo. #}
+      <h1 class="login-titulo">Freedom</h1>
       <form method="post" novalidate>
         {{ form.hidden_tag() }}
         {{ m.campo(form.login, extra={"autofocus": true, "autocomplete": "username"}) }}
         {{ m.campo(form.senha, extra={"autocomplete": "current-password"}) }}
-        <button type="submit" class="btn btn--primario btn--bloco">Entrar</button>
+        <button type="submit" class="btn btn--primario btn--bloco">
+          {{ m.icone("log-in", tamanho=14, tracado=2.25) }}Entrar
+        </button>
       </form>
     </div>
 

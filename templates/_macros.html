@@ -558,9 +558,11 @@
    requisicao externa, e um sprite externo seria mais um arquivo para duas
    duzias de caminhos.
 
-   16x16 e stroke-width 1.75, como no desenho; `plus` e a excecao (14x14,
-   2.25), porque vai dentro do botao primario e precisa pesar como o texto ao
-   lado. `currentColor` deixa a cor com o CSS - o icone acende junto com o
+   16x16 e stroke-width 1.75, como no desenho; `plus` e `log-in` sao a
+   excecao (14x14, 2.25), porque vao dentro do botao primario e precisam
+   pesar como o texto ao lado. O `log-in` entrou na rodada 27, com a tela de
+   entrada refeita: e o espelho do `log-out` da sidebar, do mesmo desenho do
+   Lucide. `currentColor` deixa a cor com o CSS - o icone acende junto com o
    item de menu ativo sem regra propria. `aria-hidden` porque todo icone daqui
    acompanha um rotulo: visivel, ou dentro de um `.so-leitor` quando o
    controle mostra so o icone (o botao de sair e o olho da Visao Anual).
@@ -636,6 +638,9 @@
   "log-out":
     '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>'
     '<polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>',
+  "log-in":
+    '<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>'
+    '<polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/>',
   "chevron-down":
     '<path d="m6 9 6 6 6-6"/>',
   "chevron-right":

@@ -22,6 +22,11 @@
   diferentes; `expansivel` e a unica diferenca de marcacao. So a de categoria
   expande: o detalhe por pessoa nao existe (rodada 13).
 
+  O cartao e o `.card--tabela` dos paineis (5.1): cabecalho proprio e tabela
+  colada nas bordas, como as duas da Visao Anual. A tabela e a
+  `.tabela--painel` da 5.13.2, que e o que as duas telas de painel tem de
+  tipografia em comum desde a rodada 27.
+
   A linha inteira e clicavel, mas quem carrega o papel de botao e o <button>
   dentro da primeira celula - assim a <tr> continua sendo uma linha de tabela
   para o leitor de tela, o Tab para nela sozinho e Enter/Espaco disparam o
@@ -31,10 +36,12 @@
 #}
 {% macro tabela_participacao(titulo, rotulo_coluna, campo, tabela,
                              expansivel=false) %}
-  <section class="card">
-    <h2 class="card__titulo">{{ titulo }}</h2>
+  <section class="card card--tabela">
+    <div class="card__cabecalho">
+      <h2 class="card__titulo">{{ titulo }}</h2>
+    </div>
     <div class="tabela-caixa">
-      <table class="tabela tabela--resumo tabela--resumo--estreita"
+      <table class="tabela tabela--resumo tabela--painel"
              {% if expansivel %}id="tabela-categorias"{% endif %}>
         <thead>
           <tr>
@@ -90,20 +97,29 @@
 {% block title %}Visão Mensal - Freedom{% endblock %}
 {% block titulo_pagina %}Visão Mensal{% endblock %}
 {% block subtitulo_pagina %}
-  <p class="pagina-subtitulo">Onde o dinheiro foi em {{ periodo }}, por categoria e por pessoa.</p>
+  <p class="pagina-subtitulo">{{ periodo }}</p>
 {% endblock %}
+{#
+  O mesmo botao da Visao Anual, com o mesmo icone e o mesmo destino. Sem o
+  olho: ele e so de la, por decisao do dono.
+#}
 {% block acoes_pagina %}
   <a class="btn btn--primario" href="{{ url_for('lancamentos.despesas_tela') }}">
-    Lançar despesa
+    {{ m.icone("plus", tamanho=14, tracado=2.25) }}Lançar despesa
   </a>
 {% endblock %}
 
 {% block content %}
   {#
-    Mesma barra de filtros da Visao Anual (`.filtro-barra`), sem modificador:
-    o que tres campos pedem nao atrapalha o de um so.
-    GET com recarga da pagina inteira, sem HTMX: trocar de mes troca a tela
-    toda, entao nao ha fragmento a trocar.
+    A barra de filtros fica FORA do `.painel`: ela ja tem margem propria, e
+    dentro do flex ganharia as duas coisas. E a mesma decisao de
+    `main/_analise.html`.
+
+    Mesma `.filtro-barra` da consulta e das analises, sem modificador: o que
+    tres campos pedem nao atrapalha o de um so. GET com recarga da pagina
+    inteira, sem HTMX e sem botao "Ver": trocar de mes troca a tela toda,
+    entao nao ha fragmento a trocar - e a excecao deliberada dos seletores de
+    painel.
   #}
   <form class="filtro-barra" method="get"
         action="{{ url_for('main.mensal') }}">
@@ -142,27 +158,39 @@
   </form>
 
   {#
-    Seis cards na grade de quatro da Visao Anual: 4 + 2 no desktop, 2 + 2 + 2
-    no tablet, um por linha no celular. Card de dinheiro traz `valor` (Decimal,
-    formatado aqui pela macro `reais`); a taxa traz `texto` ja pronto.
+    O vao entre os blocos e o gap do `.painel` (secao 4), como na Visao Anual
+    e nas duas Analises - e nao margem em cada bloco: quem conhece a distancia
+    entre eles e o arranjo da pagina. Ate a rodada 27 esse papel era da
+    `.painel-tabelas`, que so esta tela usava.
   #}
-  <div class="painel-grade">
-    {% for c in cards %}
-      <article class="card painel-card">
-        <p class="painel-card__rotulo">{{ c.rotulo }}</p>
-        <p class="painel-card__valor{{ ' painel-card__valor--negativo' if c.negativo }}">
-          {%- if c.valor is not none %}{{ m.reais(c.valor) }}{% else %}{{ c.texto }}{% endif -%}
-        </p>
-      </article>
-    {% endfor %}
-  </div>
+  <div class="painel">
 
-  {#
-    As tres tabelas. Tudo ja vem somado de servico_mensal.py - totais,
-    percentuais e cada celula da matriz. Aqui nao se soma nada: o Jinja so
-    escolhe o formato (macro `reais`, filtro `numero`) e o que atenuar.
-  #}
-  <div class="painel-tabelas">
+    {#
+      Os seis cards, no mesmo cartao `kpi` da Visao Anual e do resumo das
+      analises, numa grade de tres (3 + 3 no desktop; a grade cuida das
+      quebras de 1100px e 768px). Card de dinheiro traz `valor` (Decimal,
+      formatado aqui pela macro `reais`); a taxa traz `texto` ja pronto. A
+      classe do valor vem do servidor: vermelho e decisao da aplicacao, e em
+      Jinja nao se decide cor.
+
+      Sem a marca `.sensivel`: o olho e so da Visao Anual.
+    #}
+    <div class="painel-grade painel-grade--tres">
+      {% for c in cards %}
+        <article class="card kpi">
+          <p class="kpi__rotulo">{{ c.rotulo }}</p>
+          <p class="kpi__valor {{ c.classe or '' }}">
+            {%- if c.valor is not none %}{{ m.reais(c.valor) }}{% else %}{{ c.texto }}{% endif -%}
+          </p>
+        </article>
+      {% endfor %}
+    </div>
+
+    {#
+      As tres tabelas. Tudo ja vem somado de servico_mensal.py - totais,
+      percentuais e cada celula da matriz. Aqui nao se soma nada: o Jinja so
+      escolhe o formato (macro `reais`, filtro `numero`) e o que atenuar.
+    #}
     {% if tem_despesa %}
       {{ tabela_participacao("Despesas por categoria", "Categoria",
                              "categoria", tabelas.categorias,
@@ -170,8 +198,10 @@
       {{ tabela_participacao("Total por pessoa", "Pessoa",
                              "pessoa", tabelas.pessoas) }}
 
-      <section class="card">
-        <h2 class="card__titulo">Pessoa &times; Categoria</h2>
+      <section class="card card--tabela">
+        <div class="card__cabecalho">
+          <h2 class="card__titulo">Pessoa &times; Categoria</h2>
+        </div>
         {#
           Excecao deliberada ao padrao da app: esta tabela rola na horizontal
           por dentro da caixa em qualquer largura em que nao caiba, porque o
@@ -180,7 +210,7 @@
           primeira coluna fica fixa para a categoria nao sumir ao rolar.
         #}
         <div class="tabela-caixa tabela-caixa--fixa-primeira">
-          <table class="tabela tabela--resumo tabela--matriz">
+          <table class="tabela tabela--resumo tabela--painel tabela--matriz">
             <thead>
               <tr>
                 <th>Categoria</th>

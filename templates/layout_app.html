@@ -326,7 +326,8 @@
   {#
     Script das secoes recolhiveis. Fica AQUI, colado na sidebar, e nao no fim
     do corpo: ele roda enquanto o navegador ainda esta lendo a pagina, antes
-    de pintar, e assim uma secao que o usuario fechou nao pisca aberta.
+    de pintar, e assim uma secao que o usuario fechou nao pisca aberta - e o
+    grupo do item aceso nao pisca fechado.
   #}
   <script>
     (function () {
@@ -376,9 +377,28 @@
         if (lista) lista.hidden = !aberto;
       }
 
+      // O grupo que contem a tela em que se esta. Quem marca o item aceso e o
+      // Jinja, pelo caminho mais especifico que casa com a URL (la em cima);
+      // aqui so se pergunta em qual lista ele caiu. `querySelector` acha o
+      // item mesmo com a lista `hidden`.
+      function temAtivo(botao) {
+        var lista = document.getElementById(botao.getAttribute('aria-controls'));
+        return !!(lista && lista.querySelector('.nav-item--ativo'));
+      }
+
       function repor() {
         botoes.forEach(function (botao) {
           if (!desktop.matches || !memoria) {
+            aplicar(botao, true);
+            return;
+          }
+          // Um grupo recolhido escondia o item aceso, e quem abre o sistema
+          // numa tela de Cadastros via um menu que nao dizia onde ele estava.
+          // O grupo do item ativo abre, venha o que vier do localStorage - e
+          // NAO grava: a preferencia continua sendo a do usuario, esta
+          // abertura e exibicao. Fechar a mao grava fechado, como antes; ir
+          // para outra tela do mesmo grupo abre de novo.
+          if (temAtivo(botao)) {
             aplicar(botao, true);
             return;
           }

@@ -29,7 +29,7 @@ idêntico ao card Despesas.
 from datetime import date
 
 from freedom.db import query_all, query_one
-from freedom.main.servico import ZERO, card, percentual
+from freedom.main.servico import VALOR_NEGATIVO, ZERO, card, percentual
 from freedom.util import chave_alfabetica, fracao
 
 # Ordem das categorias na tabela 1 e nas linhas da matriz. A tabela por pessoa
@@ -224,6 +224,13 @@ def _cards(receitas, despesas):
     Mês sem lançamento nenhum não é caso de erro: os quatro cards de dinheiro
     mostram R$ 0,00 e a taxa mostra travessão, porque sem receita não há conta
     a fazer.
+
+    Desde a rodada 27 o que sai daqui é o NOME DA CLASSE do valor, e não o
+    booleano `negativo` que o template traduzia: os cards do mês passaram a
+    ser os mesmos `kpi` da Visão Anual, e é a Anual que já emitia a classe.
+    Um formato só para os dois painéis, e a cor continua decidida em Python.
+    O acento do saldo positivo é da Anual e só dela — aqui, positivo é tinta
+    normal, como sempre foi nesta tela.
     """
     receita = receitas
     despesa = despesas["total"]
@@ -231,12 +238,13 @@ def _cards(receitas, despesas):
     return [
         card("Receitas", valor=receita),
         card("Despesas", valor=despesa),
-        card("Saldo", valor=saldo, negativo=saldo < 0),
+        card("Saldo", valor=saldo,
+             classe=VALOR_NEGATIVO if saldo < 0 else None),
         # O vermelho acompanha o percentual, não o saldo: com receita zero o
         # card mostra travessão, e travessão vermelho não quer dizer nada.
         card("Taxa de Poupança",
              texto=percentual(saldo, receita),
-             negativo=saldo < 0 and receita > 0),
+             classe=VALOR_NEGATIVO if saldo < 0 and receita > 0 else None),
         card("Essenciais", valor=despesas["essencial"]),
         card("Não Essenciais", valor=despesas["nao_essencial"]),
     ]

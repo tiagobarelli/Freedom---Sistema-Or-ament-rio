@@ -2791,6 +2791,23 @@ body {
   color: var(--ink-4);
 }
 
+/* --- marca de periodo incompleto ---
+   Ao lado do rotulo da linha, discreta: o periodo daquela linha ainda vai
+   crescer, e quem le a coluna precisa saber disso sem ler a nota de rodape.
+
+   Nasceu como `.analise-parcial` na 5.18 (rodada 24), no bucket recortado das
+   Analises, e perdeu o nome de tela na 29, quando a Independencia financeira
+   passou a marcar com ela o ANO CORRENTE da tabela ano a ano - o mesmo aviso,
+   sobre outro tipo de periodo. E a regra do projeto: componente que uma
+   segunda tela adota sai da secao da primeira. Renomear nao mexe em pixel, e
+   o SHA das duas Analises prova. */
+.marca-parcial {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-4);
+}
+
 /* --- 5.13.3 Visao Anual ------------------------------------------------
    O que a rodada 27 deixou de exclusivo desta tela: o cartao dos nove
    indicadores, o resumo do ano e o visual das duas tabelas dela. Os quatro
@@ -3592,10 +3609,10 @@ body {
    da analise por prioridade, .nota-rodape no rodape do cartao das duas).
 
    Sobra o que nenhuma tela tinha: uma caixa de marcar dentro da barra de
-   filtros (todos os outros filtros sao select) e a marca de periodo parcial
-   na tabela. As duas classes nasceram na rodada 24 e a rodada 26 nao precisou
-   de mais nenhuma: a analise por prioridade tem o mesmo desenho, com outro
-   recorte. A linha esmaecida do grafico NAO esta aqui: e cor e tracejado
+   filtros - todos os outros filtros sao select. Era o que sobrava, mais a
+   marca de periodo parcial; ela virou `.marca-parcial` na 5.13.2 na rodada
+   29, quando a Independencia financeira passou a marcar com ela o ano
+   corrente. A linha esmaecida do grafico NAO esta aqui: e cor e tracejado
    passados ao Chart.js, e canvas nao le folha de estilo.
 */
 
@@ -3613,15 +3630,6 @@ body {
   font-size: 13px;
 }
 
-/* Marca discreta ao lado do rotulo do ponto: o trimestre recortado pelo
-   periodo e o bucket que contem o mes em curso ainda vao crescer, e quem le a
-   coluna precisa saber disso sem ler a nota. */
-.analise-parcial {
-  margin-left: 6px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--ink-4);
-}
 
 
 /* --- 5.19 Backup --------------------------------------------------------
@@ -3731,6 +3739,73 @@ body {
 .edicao-linha__leitura {
   font-weight: 600;
   color: var(--ink);
+}
+
+
+/* --- 5.21 Independencia financeira --------------------------------------
+   A tela e quase toda componente existente: a `.filtro-barra` da 5.13 com os
+   `.filtro-campo` da 5.10 (aqui com `.entrada` de texto, e nao `.selecao`), a
+   `.painel-grade` e o `.kpi` da 5.13, o `.card--tabela` da 5.1 com a
+   `.tabela--painel` da 5.13.2, o `.card` e o `.grafico__area` da 5.13.1, as
+   duas notas da 5.1 (`.nota-topo` acima do painel, `.nota-rodape` fechando o
+   cartao da tabela), o `.marca-parcial` da 5.13.2 na marca do ano em curso e
+   o `.negativo` da 8 em toda celula que pode ficar vermelha.
+
+   Sobram tres coisas que nenhuma tela tinha: dois controles lado a lado
+   dentro de um `.filtro-campo--acao` (que e coluna, e empilharia o botao e o
+   link), a tabela de referencia recolhida dentro do cartao do grafico e o
+   respiro da nota que fecha esse cartao.
+
+   A largura minima da tabela de oito colunas NAO esta aqui: ela so importa no
+   celular, e por isso mora na secao 7 - onde tambem precisa vir depois da
+   regra que solta o minimo das tabelas de painel.
+
+   O <summary> tem um primo em 5.9 (`.mais-opcoes__resumo`, o "mais opcoes" do
+   lancamento). Nao e o mesmo componente: la ele revela CAMPOS de um
+   formulario e abre um bloco em coluna; aqui revela uma tabela de consulta
+   dentro de um cartao de grafico. Se um terceiro aparecer, e hora de promover
+   um dos dois.
+*/
+
+/* Botao e link na mesma linha. O `.filtro-campo--acao` que os hospeda e
+   `flex-direction: column` como todo `.filtro-campo`, entao sem esta caixa
+   intermediaria o "Voltar aos vigentes" cairia embaixo do "Simular". */
+.independencia-acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.independencia-referencia {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+}
+
+/* Marcador nativo mantido de proposito: e um <details> de consulta, aberto
+   uma vez a cada tantas visitas, e o triangulo do navegador ja diz o que faz
+   sem mais nenhuma linha de CSS. */
+.independencia-referencia > summary {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--accent-texto);
+  cursor: pointer;
+}
+
+/* Duas colunas de numero curto. O `max-width` aqui NAO e o "encurtar a linha
+   de leitura" que o projeto recusa em texto de cartao: nao ha frase nenhuma,
+   e uma tabela de "40% -> 23,5 anos" esticada por 1.208px poria os dois
+   numeros em pontas opostas da tela. */
+.independencia-referencia .tabela--referencia {
+  max-width: 320px;
+  margin-top: 10px;
+}
+
+/* A nota que fecha o cartao do grafico. Nao e `.nota-rodape`: aquela repoe o
+   recuo lateral que o `.card--tabela` zera, e este cartao tem o padding do
+   `.card` normal - so falta o respiro depois da tabela recolhida. */
+.independencia-nota {
+  margin-top: 14px;
 }
 
 
@@ -4589,6 +4664,23 @@ body {
 
   /* Os quatro cards do acompanhamento seguem a grade dos paineis: uma coluna
      abaixo de 768px, que ja vem de .painel-grade. Nada proprio a fazer. */
+
+  /* --- Independencia financeira no celular ---
+     Os tres campos e o botao ja empilham pela `.filtro-barra` e pela regra
+     que da largura total a `.entrada` dentro de um `.filtro-campo`; os cards
+     ja viram uma coluna pela `.painel-grade`. Falta uma coisa: a tabela.
+
+     Oito colunas nao cabem em 390px de jeito nenhum, entao ela ROLA POR
+     DENTRO da `.tabela-caixa`, como as duas do Orcamento - e a pagina nao
+     rola de lado. Isto e a reposicao do `min-width` que a `.tabela--painel`
+     larga, e precisa estar AQUI, depois da regra logo acima que zera o minimo
+     das tabelas de painel: as duas pesam duas classes, e a que vem depois
+     vence. Declarar na secao 5.21 nao bastaria.
+
+     A de referencia, de duas colunas, cabe e continua sem minimo. */
+  .tabela--resumo.tabela--independencia {
+    min-width: 620px;
+  }
 
   /* --- Autocomplete no celular --- */
 

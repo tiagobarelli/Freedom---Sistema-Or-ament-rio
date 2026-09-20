@@ -167,6 +167,16 @@ freedom/
                                      caminho da URL à tela; consultar() é a
                                      consulta única; montar_pontos, montar,
                                      _resumo e para_grafico são puras
+                   independencia.py  a rota GET "/independencia" (rodada 29),
+                                     só ela: lê a query string e chama o
+                                     serviço
+                   servico_independencia.py o modelo do Mr. Money Mustache.
+                                     anos_ate_if, curva, resolver_premissas,
+                                     janela_fechada, montar, _eixo e
+                                     para_grafico são puras; consultar() faz
+                                     as duas consultas de dinheiro e
+                                     vigentes(), a das configurações — é a
+                                     PRIMEIRA leitura de TSR, R e S
   cadastros/       /cadastros — um módulo por entidade + servico.py
                    (alternar_ativo, traduzir_unique, contagem).
                    resumos_anuais.py é o de fora da série: chave é o ano, não
@@ -198,11 +208,13 @@ templates/         base.html (o `htmx-config` que libera 409/502/503),
                    main/_analise.html é o corpo que as duas Análises estendem;
                    analise.html e analise_prioridade.html só preenchem título,
                    primeiro campo do filtro, convite e (só a segunda) o aviso
-                   fixo
+                   fixo. main/independencia.html tem corpo próprio e NÃO
+                   estende _analise.html
 static/css/app.css seções numeradas 1–8 (ver seção 7 deste arquivo)
 static/js/         htmx.min.js, chart.umd.js; graficos.js (o que as telas
                    com gráfico fazem igual: cor por variável CSS, moeda,
-                   eixo, base de opções, linha) + visao_anual.js e analise.js
+                   eixo, base de opções, linha) + visao_anual.js, analise.js
+                   e independencia.js
 db/init/01_schema.sql
 docs/              Freedom - Estrutura do Banco de Dados.md   (fonte da verdade)
                    Freedom - Histórico e Estado do Projeto.md (decisões e lições)
@@ -450,7 +462,8 @@ Dentro de 5: 5.1 Card, 5.2 Botão, 5.3 Formulário, 5.4 Tabela, 5.5 Badge,
 5.12 Parâmetros, 5.13 Painéis (5.13.1 Gráficos, 5.13.2 Tabelas, 5.13.3 Visão
 Anual), 5.14 Visão Mensal (5.14.1 Detalhe), 5.15 Orçamento (5.15.1 faixas),
 5.16 Valores sensíveis, 5.17 IPCA, 5.18 Análises, 5.19 Backup,
-5.20 Edição em linha. 5.7 é lacuna (modal removido na 17) e fica lacuna:
+5.20 Edição em linha, 5.21 Independência financeira. 5.7 é lacuna (modal
+removido na 17) e fica lacuna:
 componente novo entra no fim.
 ```
 

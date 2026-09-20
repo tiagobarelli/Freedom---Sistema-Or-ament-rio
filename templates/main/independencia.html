@@ -1,0 +1,259 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{#
+  Independencia financeira: em quantos anos a casa deixa de depender do
+  salario, no modelo do Mr. Money Mustache.
+
+  Tudo por GET, recarga da pagina inteira, sem HTMX - a URL e o estado, como
+  nas duas Analises. NAO estende `main/_analise.html`: o corpo daqui e outro
+  (quatro cards, tabela ano a ano e a curva), e herdar de la para sobrescrever
+  tudo seria heranca sem nada em comum.
+
+  Sem olho: so a Visao Anual tem.
+
+  Nada e decidido neste arquivo. Texto, classe, travessao, sinal e a marca do
+  ano parcial vem prontos de `servico_independencia.py`; o template escolhe o
+  formato (macro `reais`) e emite o nome de classe que recebeu.
+#}
+
+{% block title %}Independência financeira - Freedom{% endblock %}
+{% block titulo_pagina %}Independência financeira{% endblock %}
+
+{% block subtitulo_pagina %}
+  <p class="pagina-subtitulo">{{ subtitulo }}</p>
+{% endblock %}
+
+{% block content %}
+
+{#
+  A barra de filtros da secao 5.13, a mesma da Visao Mensal, do Orcamento e
+  das Analises - aqui com tres campos de texto em vez de selects. O valor
+  entra com virgula e aceita o sinal de porcentagem, como em Parametros, e
+  volta preenchido com o que foi de fato usado.
+
+  `action` e a propria rota: o formulario so troca a query string da tela em
+  que ja se esta. Nada disto grava coisa alguma - a simulacao e a URL.
+#}
+<form class="filtro-barra" method="get"
+      action="{{ url_for('main.independencia') }}">
+
+  {% for nome, _chave, rotulo, _simbolo in parametros %}
+    <label class="filtro-campo">
+      <span class="filtro-campo__rotulo">{{ rotulo }}</span>
+      <input class="entrada" type="text" name="{{ nome }}"
+             value="{{ premissas.campos[nome] }}" inputmode="decimal"
+             autocomplete="off" placeholder="4,00%">
+    </label>
+  {% endfor %}
+
+  <div class="filtro-campo filtro-campo--acao">
+    <span class="independencia-acoes">
+      <button type="submit" class="btn btn--primario">
+        {{ m.icone("chart-line", tamanho=14, tracado=2.25) }}Simular
+      </button>
+      {#
+        Sem query string nenhuma: e a propria definicao de "os vigentes".
+        Continua sendo um link, e nao um botao de limpar campo por JavaScript -
+        o estado e a URL, e voltar ao vigente e ir a outra URL.
+      #}
+      <a class="btn btn--discreto"
+         href="{{ url_for('main.independencia') }}">Voltar aos vigentes</a>
+    </span>
+  </div>
+</form>
+
+{#
+  As duas notas do topo, quando ha. Ficam num `.nota-topo` so, e nao em dois:
+  o vao ate o conteudo e um, mesmo com dois paragrafos - a mesma razao pela
+  qual o `.nota-rodape` das Analises embrulha as duas notas dele.
+#}
+{% if nota_simulacao or nota_faltando %}
+  <div class="nota-topo">
+    {% if nota_simulacao %}
+      <p class="pagina-subtitulo">{{ nota_simulacao }}
+        <a href="{{ url_for('configuracoes.configuracoes_tela') }}">Alterar em Parâmetros</a></p>
+    {% endif %}
+    {% if nota_faltando %}
+      <p class="pagina-subtitulo">{{ nota_faltando }}
+        <a href="{{ url_for('configuracoes.configuracoes_tela') }}">Cadastrar em Parâmetros</a></p>
+    {% endif %}
+  </div>
+{% endif %}
+
+{# `.painel` da secao 4: o vao entre os blocos mora nele, e nao em margem de
+   cada bloco. A barra de filtros e as notas ficam de fora - as duas ja tem
+   margem propria. #}
+<div class="painel">
+
+  {#
+    Os quatro cards, montados pelo helper `card` de `main/servico.py` - o
+    mesmo da Visao Anual, da Mensal, das Analises e do acompanhamento do
+    Orcamento. Aparecem sempre, inclusive com o acervo vazio: os dois do meio
+    nao dependem de lancamento nenhum, so das premissas.
+
+    Sem a marca `.sensivel`: o olho e so da Visao Anual.
+  #}
+  <div class="painel-grade">
+    {% for c in cards %}
+      <article class="card kpi">
+        <p class="kpi__rotulo">{{ c.rotulo }}</p>
+        <p class="kpi__valor {{ c.classe or '' }}">
+          {%- if c.valor is not none %}{{ m.reais(c.valor) }}{% else %}{{ c.texto }}{% endif -%}
+        </p>
+        {% if c.apoio %}
+          <p class="kpi__apoio"><span class="{{ c.apoio_classe or '' }}">{{ c.apoio }}</span></p>
+        {% endif %}
+        {# Terceira linha, no mesmo tom da segunda: o periodo de onde o numero
+           saiu. Nao usa `.kpi__nota`, que e a nota PESADA do acompanhamento do
+           orcamento (600, na cor da faixa) - aqui e apoio, nao alerta. #}
+        {% if c.nota %}
+          <p class="kpi__apoio {{ c.nota.classe or '' }}">{{ c.nota.texto }}</p>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </div>
+
+  {% if vazio %}
+    {{ m.vazio("Nenhum lançamento no acervo",
+               "A tabela ano a ano e a curva aparecem quando houver receita ou despesa lançada.") }}
+  {% else %}
+
+    {#
+      Tabela ano a ano, em ordem crescente. Uma linha por ano com receita OU
+      despesa, e o rodape com o acumulado - que vem da MESMA consulta, e por
+      isso bate com o card da taxa de poupanca acumulada por construcao.
+
+      Nao ha coluna "Meta": a meta e uma so e esta no formulario e nos cards.
+      Repeti-la em quatro linhas iguais seria ruido.
+    #}
+    <section class="card card--tabela">
+      <div class="tabela-caixa">
+        <table class="tabela tabela--resumo tabela--painel tabela--independencia">
+          <caption class="so-leitor">
+            Receitas, despesas e taxa de poupança por ano, com os anos até a
+            independência financeira sob as premissas em uso
+          </caption>
+          <thead>
+            <tr>
+              <th>Ano</th>
+              <th class="col-num">Receitas</th>
+              <th class="col-num">Despesas</th>
+              <th class="col-num">Poupado</th>
+              <th class="col-num">Taxa de poupança</th>
+              <th class="col-num">Desvio vs meta (p.p.)</th>
+              <th class="col-num">Anos até a IF</th>
+              <th class="col-num">Δ anos vs meta</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for l in linhas %}
+              <tr>
+                <th scope="row" class="tabela__principal">
+                  {{ l.rotulo }}
+                  {#
+                    Marca do ano em curso. Ele ENTRA no acumulado: numerador e
+                    denominador cobrem o mesmo periodo, entao a taxa dele e
+                    legitima. Nada aqui e anualizado.
+                  #}
+                  {% if l.marca %}<span class="marca-parcial">{{ l.marca }}</span>{% endif %}
+                </th>
+                <td class="col-num">{{ m.reais(l.receitas) }}</td>
+                <td class="col-num">{{ m.reais(l.despesas) }}</td>
+                {#
+                  A cor vive no <span>, e nunca na celula: e a regra de
+                  formatacao do projeto, e e o que impede o travessao de sair
+                  vermelho junto.
+                #}
+                <td class="col-num"><span class="{{ 'negativo' if l.poupado_negativo }}">{{ m.reais(l.poupado) }}</span></td>
+                <td class="col-num"><span class="{{ 'negativo' if l.taxa_negativa }}">{{ l.taxa }}</span></td>
+                <td class="col-num"><span class="{{ 'negativo' if l.desvio_negativo }}">{{ l.desvio }}</span></td>
+                <td class="col-num">{{ l.anos }}</td>
+                {# Aqui a cor segue o SIGNIFICADO, e nao o sinal: mais anos que
+                   a meta e o resultado ruim. Quem decide isso e o servico. #}
+                <td class="col-num"><span class="{{ 'negativo' if l.delta_negativo }}">{{ l.delta }}</span></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td class="tabela__principal">{{ rodape.rotulo }}</td>
+              <td class="col-num">{{ m.reais(rodape.receitas) }}</td>
+              <td class="col-num">{{ m.reais(rodape.despesas) }}</td>
+              <td class="col-num"><span class="{{ 'negativo' if rodape.poupado_negativo }}">{{ m.reais(rodape.poupado) }}</span></td>
+              <td class="col-num"><span class="{{ 'negativo' if rodape.taxa_negativa }}">{{ rodape.taxa }}</span></td>
+              <td class="col-num"><span class="{{ 'negativo' if rodape.desvio_negativo }}">{{ rodape.desvio }}</span></td>
+              <td class="col-num">{{ rodape.anos }}</td>
+              <td class="col-num"><span class="{{ 'negativo' if rodape.delta_negativo }}">{{ rodape.delta }}</span></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <div class="nota-rodape">
+        <p class="card__nota">
+          Acumulado = Σ poupado ÷ Σ receitas (média ponderada pela renda). A
+          taxa de poupança não se soma de um ano para outro; o que se acumula
+          é patrimônio.
+        </p>
+      </div>
+    </section>
+
+    {#
+      A curva do modelo. Sem `r` ou sem `TSR` nao ha curva, e o cartao inteiro
+      nao aparece - quem explica o que falta e a nota do topo.
+    #}
+    {% if grafico %}
+      <section class="card">
+        <p class="card__titulo">Anos até a independência por taxa de poupança</p>
+        <script type="application/json" id="dados-independencia">{{ grafico | tojson }}</script>
+        <div class="grafico__area">
+          <canvas id="grafico-independencia"></canvas>
+        </div>
+
+        {#
+          Fechado por padrao: a curva ja responde a pergunta, e a tabela e para
+          quem quer o numero exato de um degrau. Mesmos `r` e `TSR` do grafico,
+          pela mesma funcao - as duas nao tem como discordar.
+        #}
+        <details class="independencia-referencia">
+          <summary>Tabela de referência</summary>
+          <table class="tabela tabela--resumo tabela--painel tabela--referencia">
+            <thead>
+              <tr>
+                <th>Taxa de poupança</th>
+                <th class="col-num">Anos até a IF</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in referencia %}
+                <tr>
+                  <th scope="row" class="tabela__principal">{{ p.taxa }}</th>
+                  <td class="col-num">{{ p.anos }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </details>
+
+        <p class="card__nota independencia-nota">
+          O modelo parte de patrimônio zero e mantém renda e gastos constantes
+          em termos reais; r já é líquido de inflação. Patrimônio
+          já acumulado encurta o prazo e entrará quando a página de Patrimônio
+          existir.
+        </p>
+      </section>
+    {% endif %}
+
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {% if grafico %}
+    <script src="{{ url_for('static', filename='js/chart.umd.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/graficos.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/independencia.js') }}" defer></script>
+  {% endif %}
+{% endblock %}

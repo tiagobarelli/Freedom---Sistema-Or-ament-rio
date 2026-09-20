@@ -23,11 +23,19 @@ NUMERO = "numero"
 
 # Chaves conhecidas. Acrescentar uma aqui só muda rótulo, texto de ajuda e
 # como o número é lido e exibido — nunca o schema.
+# `recusa_zero` é a mensagem de erro de campo quando a chave não admite zero.
+# A regra mora AQUI, e não num `if` do formulário, pelo mesmo motivo do
+# formato: o que cada chave significa é conhecimento do catálogo, e o
+# formulário só aplica o que ele diz. Chave sem a entrada aceita zero — é o
+# caso de `R` (carteira sem juro real é cenário legítimo) e de toda chave
+# livre, que nem passa pelo catálogo.
 CATALOGO = {
     "TSR": {
         "rotulo": "Taxa segura de retirada (anual)",
         "descricao": "Quanto dá para retirar do patrimônio por ano sem consumi-lo.",
         "formato": PERCENTUAL,
+        "recusa_zero": "A taxa segura de retirada não pode ser zero: o "
+                       "patrimônio necessário seria infinito.",
     },
     "R": {
         "rotulo": "Retorno real anual esperado da carteira",
@@ -38,6 +46,8 @@ CATALOGO = {
         "rotulo": "Meta de taxa de poupança",
         "descricao": "Quanto da receita se pretende poupar por mês.",
         "formato": PERCENTUAL,
+        "recusa_zero": "A meta de poupança não pode ser zero: quem não poupa "
+                       "não chega à independência.",
     },
 }
 
@@ -54,6 +64,16 @@ def normalizar_chave(texto):
 def catalogo(chave):
     """A entrada do catálogo, ou None se a chave for livre."""
     return CATALOGO.get(normalizar_chave(chave))
+
+
+def mensagem_de_zero(chave):
+    """A mensagem de recusa do zero desta chave, ou None se ela o aceita.
+
+    Quem decide é o CATALOGO; o formulário só pergunta. Chave livre não tem
+    entrada e aceita zero, como sempre aceitou.
+    """
+    info = catalogo(chave)
+    return info.get("recusa_zero") if info else None
 
 
 def formato_da_chave(chave):

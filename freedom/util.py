@@ -252,6 +252,46 @@ def converter_valor(texto):
     return valor.quantize(Decimal("0.01"))
 
 
+def caixa_marcada(texto):
+    """A caixa de marcar de um filtro GET. Só `1` liga; o resto é não.
+
+    Caixa desmarcada não manda nada no formulário, então "ausente" e
+    "qualquer outra coisa" são a mesma resposta — e nenhuma delas é erro, como
+    em todo filtro deste projeto.
+
+    Nasceu como `correcao_pedida` em `main/servico_analise.py` (rodada 24) e
+    subiu na 31, quando a evolução do patrimônio virou a segunda tela com uma
+    caixa de "corrigir pelo IPCA" na barra de filtros.
+    """
+    return texto == "1"
+
+
+def com_sinal(texto, valor):
+    """Põe o '+' na frente do texto de um número positivo.
+
+    Recebe o texto JÁ FORMATADO, e não o número, porque serve a unidades
+    diferentes e o formatador de cada uma é outro: pontos percentuais em uma
+    casa (o desvio e o Δ anos da Independência) e reais (a variação do
+    patrimônio, onde o sinal vem na frente do R$ justamente porque a coluna é
+    uma variação, e não uma quantia).
+
+    O '-' NÃO é posto aqui: ele já vem de `formatar_numero`, e escrever o
+    sinal negativo à mão criaria uma segunda grafia do menos no sistema.
+
+    `valor` nulo devolve o texto como veio — é por onde passa o travessão de
+    "não há número", que não leva sinal nenhum. Zero também não leva: zero não
+    tem lado, e "+0,0" numa coluna de desvio é ruído. (A função da
+    Independência assinava o zero e a do Patrimônio não; ao virarem uma,
+    valeu a do Patrimônio. Nenhuma das duas telas tem um zero nessas colunas
+    com o acervo de hoje, e o SHA das capturas prova que nada mudou.)
+
+    Nasceu duas vezes — privada em `main/servico_independencia.py` (rodada 29)
+    e em `lancamentos/servico_patrimonio.py` (rodada 30) — e virou uma só na
+    31, que é a regra do projeto: helper duplicado é contradição.
+    """
+    return "+" + texto if valor is not None and valor > 0 else texto
+
+
 def parece_zero(texto):
     """'0', '0,00', 'R$ 0', '0.000' -> True. Negativo NÃO passa: vira erro.
 

@@ -21,6 +21,7 @@ from freedom.configuracoes.servico import (
     catalogo,
     formatar,
     formato_da_chave,
+    mensagem_de_zero,
     normalizar_chave,
     secoes,
     sugestoes_de_chave,
@@ -34,8 +35,14 @@ MENSAGEM_DUPLICADA = "Já existe um valor para esta chave nesta data."
 
 
 def _preparar(form, chave):
-    """Ata o formulário à chave: é ela que decide como o valor é lido."""
+    """Ata o formulário à chave: é ela que decide como o valor é lido.
+
+    Duas coisas vêm da chave, e as duas do catálogo: o formato (percentual ou
+    número puro) e se o zero é aceito. Um choke point só para as duas — é por
+    aqui que passam o formulário de vigência nova e o da edição.
+    """
     form.formato = formato_da_chave(chave)
+    form.recusa_zero = mensagem_de_zero(chave)
     if isinstance(form, ConfiguracaoForm):
         form.sugestoes = sugestoes_de_chave()
     return form

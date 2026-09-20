@@ -794,6 +794,18 @@ body {
   color: var(--ink-3);
 }
 
+/* A nota que FECHA um cartao normal, em vez de acompanhar o titulo. Nao e a
+   `.nota-rodape` de baixo: aquela repoe o recuo lateral que o `.card--tabela`
+   zera, e aqui o cartao ja tem o padding do `.card` - so falta o respiro
+   depois do que veio antes.
+
+   Nasceu como `.independencia-nota` na 5.21 (rodada 29, a nota da curva) e
+   perdeu o nome de tela na 31, quando o cartao da evolucao do patrimonio
+   passou a fechar do mesmo jeito. */
+.card__nota--fim {
+  margin-top: 14px;
+}
+
 /* A mesma nota, mas fechando o cartao por baixo em vez de acompanhar o
    titulo: o .card--tabela zera o padding para a tabela ir de ponta a ponta,
    entao o recuo lateral dela e o do .card. Nasceu como `.ipca-nota` na
@@ -2144,6 +2156,30 @@ body {
   padding-bottom: 2px;
 }
 
+/* --- o campo que e uma caixa de marcar ---
+   O campo alinha pela base como os demais, mas o que ele tem dentro e uma
+   LINHA - marcador e rotulo lado a lado -, e nao um rotulo em cima de um
+   controle.
+
+   Nasceu na 5.18 com a Analise por subcategoria (rodada 24), onde era o unico
+   filtro que nao era `<select>`. Subiu para ca na 31, quando a evolucao do
+   patrimonio virou a terceira tela com a caixa "Corrigir pelo IPCA" - e o
+   nome `.analise-caixa` virou `.filtro-caixa`, porque ja nao fala de uma tela
+   so. E a regra do projeto: componente que uma segunda tela adota sai da
+   secao da primeira e perde o nome que falava dela. Renomear nao mexe em
+   pixel, e o SHA das duas Analises prova. */
+.filtro-campo--caixa {
+  justify-content: flex-end;
+  padding-bottom: 8px;
+}
+
+.filtro-caixa {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
 /* --- a) faixa de totais: card de moldura --- */
 
 /* Cartao padrao (a classe .card entra no template). O backdrop-filter saiu na
@@ -2434,6 +2470,28 @@ body {
   padding-top: 6px;
   padding-bottom: 6px;
   font-size: 13px;
+}
+
+/* Rotulo de uma fileira de cards. Nasceu na rodada 31, quando a Independencia
+   financeira passou a ter DUAS fileiras de quatro - o alvo e o ponto de
+   partida - e oito cartoes seguidos deixaram de dizer onde um assunto acaba e
+   o outro comeca.
+
+   Mora aqui, junto da `.painel-grade` que ele rotula, e nao na secao da tela:
+   e componente de painel, e a proxima tela com duas fileiras usa o mesmo.
+   Nao ha o que promover da Visao Anual - la os quatro KPIs e os nove
+   indicadores se separam pela FORMA (grade de cartoes contra cartao unico),
+   sem rotulo nenhum, e continua assim.
+
+   Mesmo versalete dos rotulos de filtro e de card: ele nomeia o grupo sem
+   competir com os numeros, que sao o que se le. */
+.painel-titulo {
+  margin-bottom: 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
 
 .painel-grade {
@@ -3621,27 +3679,17 @@ body {
    .tabela--resumo da 5.13.2 e as duas notas da 5.1 (.nota-topo no aviso fixo
    da analise por prioridade, .nota-rodape no rodape do cartao das duas).
 
-   Sobra o que nenhuma tela tinha: uma caixa de marcar dentro da barra de
-   filtros - todos os outros filtros sao select. Era o que sobrava, mais a
-   marca de periodo parcial; ela virou `.marca-parcial` na 5.13.2 na rodada
-   29, quando a Independencia financeira passou a marcar com ela o ano
-   corrente. A linha esmaecida do grafico NAO esta aqui: e cor e tracejado
-   passados ao Chart.js, e canvas nao le folha de estilo.
+   Nao sobra NADA proprio desde a rodada 31: as duas classes que moraram aqui
+   foram adotadas por outras telas e subiram, como manda a regra do projeto -
+   a marca de periodo parcial virou `.marca-parcial` na 5.13.2 (rodada 29,
+   quando a Independencia passou a marcar o ano corrente) e a caixa de marcar
+   do filtro virou `.filtro-caixa` na 5.10 (rodada 31, com a evolucao do
+   patrimonio). A linha esmaecida do grafico nunca esteve aqui: e cor e
+   tracejado passados ao Chart.js, e canvas nao le folha de estilo.
+
+   A secao fica como este comentario, sem regra nenhuma - e o mapa de onde
+   procurar o que as duas telas usam.
 */
-
-/* O campo da caixa alinha pela base como os demais, mas o que ele tem dentro
-   e uma linha - marcador e rotulo lado a lado, e nao rotulo em cima. */
-.filtro-campo--caixa {
-  justify-content: flex-end;
-  padding-bottom: 8px;
-}
-
-.analise-caixa {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-}
 
 
 
@@ -3814,12 +3862,6 @@ body {
   margin-top: 10px;
 }
 
-/* A nota que fecha o cartao do grafico. Nao e `.nota-rodape`: aquela repoe o
-   recuo lateral que o `.card--tabela` zera, e este cartao tem o padding do
-   `.card` normal - so falta o respiro depois da tabela recolhida. */
-.independencia-nota {
-  margin-top: 14px;
-}
 
 
 /* --- 5.22 Patrimonio: a grade da foto -----------------------------------
@@ -3891,6 +3933,16 @@ body {
   font-size: 11px;
   font-weight: 400;
   color: var(--ink-4);
+}
+
+/* O grafico da evolucao e mais alto que os 230px dos outros. Duas razoes, e
+   as duas so existem nesta tela: ele tem uma marca POR FOTO (44 em setembro
+   de 2026, e o acervo vai para tras ate 2012, onde passa de 160), e com a
+   correcao ligada ele ganha uma legenda de duas series. Com a altura padrao
+   sobravam 154px de desenho para 1.054 de largura - uma faixa de 7 para 1, em
+   que a linha inteira cabia entre duas marcacoes do eixo. */
+.grafico__area--evolucao {
+  height: 300px;
 }
 
 /* A coluna do campo nao encolhe: e nela que se digita. */
@@ -4537,6 +4589,14 @@ body {
   .grafico__area {
     height: 260px;
     padding: var(--e-2);
+  }
+
+  /* ...menos o da evolucao do patrimonio, que precisa da altura pela mesma
+     razao do desktop (uma marca por foto, mais a legenda da correcao). A
+     regra acima tem o mesmo peso e vem antes, entao esta vence por ordem -
+     sem ela, a altura da 5.22 seria desfeita no celular. */
+  .grafico__area--evolucao {
+    height: 300px;
   }
 
   /* --- Tabelas dos paineis no celular ---

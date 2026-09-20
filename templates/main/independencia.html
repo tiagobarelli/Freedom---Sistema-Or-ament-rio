@@ -64,11 +64,16 @@
 </form>
 
 {#
-  As duas notas do topo, quando ha. Ficam num `.nota-topo` so, e nao em dois:
-  o vao ate o conteudo e um, mesmo com dois paragrafos - a mesma razao pela
+  As notas do topo, quando ha. Ficam num `.nota-topo` so, e nao em quatro: o
+  vao ate o conteudo e um, mesmo com varios paragrafos - a mesma razao pela
   qual o `.nota-rodape` das Analises embrulha as duas notas dele.
+
+  Sao quatro fatos independentes e podem aparecer juntos: simulacao, chave sem
+  vigencia, chave vigente com numero fora da faixa e falta de foto de
+  patrimonio. O texto de cada uma vem pronto do servico; aqui so se escolhe o
+  link que a acompanha.
 #}
-{% if nota_simulacao or nota_faltando %}
+{% if nota_simulacao or nota_faltando or nota_fora or nota_sem_foto %}
   <div class="nota-topo">
     {% if nota_simulacao %}
       <p class="pagina-subtitulo">{{ nota_simulacao }}
@@ -77,6 +82,18 @@
     {% if nota_faltando %}
       <p class="pagina-subtitulo">{{ nota_faltando }}
         <a href="{{ url_for('configuracoes.configuracoes_tela') }}">Cadastrar em Parâmetros</a></p>
+    {% endif %}
+    {#
+      Cadastrado, porem inutilizavel. E aviso diferente do de cima, e o link
+      tambem: la se vai CRIAR a vigencia, aqui se vai CORRIGIR a que existe.
+    #}
+    {% if nota_fora %}
+      <p class="pagina-subtitulo">{{ nota_fora }}
+        <a href="{{ url_for('configuracoes.configuracoes_tela') }}">Corrigir em Parâmetros</a></p>
+    {% endif %}
+    {% if nota_sem_foto %}
+      <p class="pagina-subtitulo">{{ nota_sem_foto }}
+        <a href="{{ url_for('lancamentos.patrimonio_tela') }}">Lançar foto em Patrimônio</a></p>
     {% endif %}
   </div>
 {% endif %}
@@ -87,32 +104,50 @@
 <div class="painel">
 
   {#
-    Os quatro cards, montados pelo helper `card` de `main/servico.py` - o
+    Uma fileira de cards, montados pelo helper `card` de `main/servico.py` - o
     mesmo da Visao Anual, da Mensal, das Analises e do acompanhamento do
-    Orcamento. Aparecem sempre, inclusive com o acervo vazio: os dois do meio
-    nao dependem de lancamento nenhum, so das premissas.
+    Orcamento. Macro, e nao duas copias: as duas fileiras desta tela desenham
+    o mesmo cartao, e a segunda so chegou na rodada 31.
 
     Sem a marca `.sensivel`: o olho e so da Visao Anual.
   #}
-  <div class="painel-grade">
-    {% for c in cards %}
-      <article class="card kpi">
-        <p class="kpi__rotulo">{{ c.rotulo }}</p>
-        <p class="kpi__valor {{ c.classe or '' }}">
-          {%- if c.valor is not none %}{{ m.reais(c.valor) }}{% else %}{{ c.texto }}{% endif -%}
-        </p>
-        {% if c.apoio %}
-          <p class="kpi__apoio"><span class="{{ c.apoio_classe or '' }}">{{ c.apoio }}</span></p>
-        {% endif %}
-        {# Terceira linha, no mesmo tom da segunda: o periodo de onde o numero
-           saiu. Nao usa `.kpi__nota`, que e a nota PESADA do acompanhamento do
-           orcamento (600, na cor da faixa) - aqui e apoio, nao alerta. #}
-        {% if c.nota %}
-          <p class="kpi__apoio {{ c.nota.classe or '' }}">{{ c.nota.texto }}</p>
-        {% endif %}
-      </article>
-    {% endfor %}
-  </div>
+  {% macro fileira(titulo, lista) %}
+    <div>
+      <h2 class="painel-titulo">{{ titulo }}</h2>
+      <div class="painel-grade">
+        {% for c in lista %}
+          <article class="card kpi">
+            <p class="kpi__rotulo">{{ c.rotulo }}</p>
+            <p class="kpi__valor {{ c.classe or '' }}">
+              {%- if c.valor is not none %}{{ m.reais(c.valor) }}{% else %}{{ c.texto }}{% endif -%}
+            </p>
+            {% if c.apoio %}
+              <p class="kpi__apoio"><span class="{{ c.apoio_classe or '' }}">{{ c.apoio }}</span></p>
+            {% endif %}
+            {# Terceira linha, no mesmo tom da segunda: o periodo de onde o
+               numero saiu. Nao usa `.kpi__nota`, que e a nota PESADA do
+               acompanhamento do orcamento (600, na cor da faixa) - aqui e
+               apoio, nao alerta. #}
+            {% if c.nota %}
+              <p class="kpi__apoio {{ c.nota.classe or '' }}">{{ c.nota.texto }}</p>
+            {% endif %}
+          </article>
+        {% endfor %}
+      </div>
+    </div>
+  {% endmacro %}
+
+  {#
+    Duas fileiras, duas perguntas: para onde se vai (o alvo, que sai das
+    premissas e do gasto dos 12 meses fechados) e de onde se parte (o
+    patrimonio ja lancado, e quanto falta a partir dele). Oito cartoes
+    seguidos sem rotulo nao diriam onde um assunto acaba e o outro comeca.
+
+    A de partida aparece SEMPRE, inclusive sem foto nenhuma - ai com
+    travessao nos quatro, e a nota do topo explicando por que.
+  #}
+  {{ fileira("Alvo", cards) }}
+  {{ fileira("Ponto de partida", cards_partida) }}
 
   {% if vazio %}
     {{ m.vazio("Nenhum lançamento no acervo",
@@ -236,11 +271,10 @@
           </table>
         </details>
 
-        <p class="card__nota independencia-nota">
+        <p class="card__nota card__nota--fim">
           O modelo parte de patrimônio zero e mantém renda e gastos constantes
-          em termos reais; r já é líquido de inflação. Patrimônio
-          já acumulado encurta o prazo e entrará quando a página de Patrimônio
-          existir.
+          em termos reais; r já é líquido de inflação. A curva e a tabela
+          partem de patrimônio zero; "Anos restantes" parte da última foto.
         </p>
       </section>
     {% endif %}

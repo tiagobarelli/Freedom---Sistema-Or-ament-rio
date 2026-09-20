@@ -37,8 +37,9 @@ from statistics import mean, median
 from freedom import ipca
 from freedom.db import query_all, query_one
 from freedom.main.servico import card
-from freedom.util import (MESES_CURTOS, chave_alfabetica, formatar_valor,
-                          intervalo_de_meses, nome_do_periodo, somar_meses)
+from freedom.util import (MESES_CURTOS, caixa_marcada, chave_alfabetica,
+                          formatar_valor, intervalo_de_meses, nome_do_periodo,
+                          somar_meses)
 
 CENTAVO = Decimal("0.01")
 
@@ -93,11 +94,6 @@ def periodo_valido(texto):
 
 def agrupamento_valido(texto):
     return texto if texto in AGRUPAMENTOS else MES
-
-
-def correcao_pedida(texto):
-    """A caixa marcada. Só `1` liga; qualquer outra coisa é não."""
-    return texto == "1"
 
 
 def mes_de_texto(texto):
@@ -640,7 +636,7 @@ def painel(args, recorte, hoje):
     de, ate = args.get("de", ""), args.get("ate", "")
     # A correção só é oferecida com IPCA carregado; sem base não há a que
     # corrigir, e a caixa vem desabilitada no formulário.
-    corrigir = correcao_pedida(args.get("ipca")) and base is not None
+    corrigir = caixa_marcada(args.get("ipca")) and base is not None
 
     primeiro, ultimo, erro = resolver_periodo(periodo, de, ate, acervo,
                                               mes_corrente)

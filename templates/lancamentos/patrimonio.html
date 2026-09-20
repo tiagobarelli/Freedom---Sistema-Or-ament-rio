@@ -33,3 +33,15 @@
   {% include "lancamentos/_patrimonio_resumo.html" %}
 </div>
 {% endblock %}
+
+{#
+  O Chart.js entra SEMPRE que a tela carrega, e nao so quando ha grafico: uma
+  foto gravada pode fazer o cartao aparecer sem recarregar a pagina, e o
+  script precisa estar la para desenha-lo. Sao dois arquivos de 200 KB numa
+  tela que se abre uma vez por mes.
+#}
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/chart.umd.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/graficos.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/patrimonio.js') }}" defer></script>
+{% endblock %}

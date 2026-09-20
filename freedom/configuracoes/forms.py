@@ -40,17 +40,30 @@ class VigenciaForm(FlaskForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.valor_decimal = None
-        # A rota troca isto antes de validar; número puro é o padrão seguro.
+        # A rota troca os dois antes de validar; número puro que aceita zero é
+        # o padrão seguro, que é o que vale para chave livre.
         self.formato = NUMERO
+        self.recusa_zero = None
 
     def validate_valor(self, field):
-        """Texto -> Decimal. Erro vira mensagem de campo, nunca 500."""
+        """Texto -> Decimal. Erro vira mensagem de campo, nunca 500.
+
+        `converter_numero` já recusa negativo e texto. O zero é o que depende
+        da chave: 0 % de retorno real é um cenário; 0 % de taxa segura de
+        retirada é divisão por zero na página de Independência, e 0 % de meta
+        de poupança é um prazo infinito. Qual chave o recusa, e com que texto,
+        está no CATALOGO — aqui só se pergunta.
+        """
         try:
             self.valor_decimal = converter_numero(
                 field.data, percentual=self.formato == PERCENTUAL
             )
         except ValorInvalido as exc:
             raise ValidationError(str(exc)) from None
+
+        if self.recusa_zero and self.valor_decimal == 0:
+            self.valor_decimal = None
+            raise ValidationError(self.recusa_zero)
 
 
 class ConfiguracaoForm(VigenciaForm):

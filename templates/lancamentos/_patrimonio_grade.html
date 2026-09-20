@@ -30,10 +30,20 @@
       </a>
     </div>
   {% else %}
-    <form hx-post="{{ url_for('lancamentos.patrimonio_gravar') }}"
+    <form method="post" action="{{ url_for('lancamentos.patrimonio_gravar') }}"
+          hx-post="{{ url_for('lancamentos.patrimonio_gravar') }}"
           hx-include="#filtro-patrimonio"
           hx-target="#grade-foto"
           hx-swap="outerHTML">
+      {#
+        Token CSRF em campo oculto, mesmo com o `hx-headers` do <body>: sem
+        ele, um POST sem JavaScript morreria em 400 - e 400 nao e uma
+        resposta. Com o campo, a rota devolve um redirect para a tela, como o
+        botao do IPCA faz desde a rodada 23. O `method`/`action` acima existem
+        pela mesma razao: sem JavaScript o formulario precisa saber para onde
+        ir sozinho.
+      #}
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="tabela-caixa">
         <table class="tabela tabela--resumo tabela--painel tabela--foto">
           <caption class="so-leitor">

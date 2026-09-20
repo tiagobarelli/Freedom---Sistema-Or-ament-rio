@@ -44,11 +44,12 @@ from freedom.configuracoes.servico import (PERCENTUAL, formatar,
                                            valores_vigentes)
 from freedom.db import query_all, query_one
 from freedom.main.servico import SEM_VALOR, card
-from freedom.util import (MESES, ValorInvalido, converter_numero,
-                          data_por_extenso, formatar_numero,
-                          formatar_valor, fracao, intervalo_de_meses,
-                          nome_do_periodo, somar_meses)
+from freedom.util import (MESES, ValorInvalido, com_sinal, converter_numero,
+                          data_por_extenso, formatar_numero, formatar_valor,
+                          fracao, intervalo_de_meses, nome_do_periodo,
+                          somar_meses)
 
+ZERO = Decimal("0.00")
 CENTAVO = Decimal("0.01")
 DECIMO = Decimal("0.1")
 CEM = Decimal(100)
@@ -113,6 +114,54 @@ def anos_ate_if(s, r, tsr):
     return (1 + r * (1 - s) / (s * tsr)).ln() / (1 + r).ln()
 
 
+def anos_restantes(p0, g, a, r, tsr):
+    """Anos que faltam a partir de um patrimônio que já existe. Pura.
+
+        n = ln( (G/TSR + A/r) / (P0 + A/r) ) / ln(1 + r)
+
+    É a mesma matemática de `anos_ate_if`, com duas diferenças: o ponto de
+    partida não é zero (`P0`) e o aporte (`A`) e o gasto (`G`) entram em reais
+    em vez de fração da renda — aqui já se sabe quanto a casa ganha e gasta,
+    então não há por que normalizar.
+
+    **As duas são a mesma fórmula**, e isso é verificável: com `P0 = 0`,
+    `G = (1 − s)·R` e `A = s·R`, o `R` se cancela e sobra
+    `ln(1 + r(1−s)/(s·TSR)) / ln(1+r)` — exatamente `anos_ate_if(s, r, TSR)`,
+    para qualquer `R`. É o invariante que a validação desta rodada roda de
+    5 % a 95 %.
+
+    As bordas, todas com resposta e nenhuma com exceção:
+
+    - qualquer entrada ausente -> `None`;
+    - `A <= 0` -> `None`. Quem não guarda nada não chega, e o logaritmo de um
+      quociente maior que 1 dividido por zero não é um prazo;
+    - `TSR <= 0` -> `None`, como em `anos_ate_if`: sem retirada não há alvo;
+    - `P0 >= G/TSR` -> `0`. O alvo já foi alcançado, e um número negativo de
+      anos diria "você se aposentou há três anos", que não é a pergunta;
+    - `r == 0` -> o limite `(G/TSR − P0) / A`: sem juro real, o que falta se
+      junta guardando a sobra.
+    """
+    if p0 is None or g is None or a is None or r is None or tsr is None:
+        return None
+    if r < 0 or tsr <= 0 or a <= 0:
+        return None
+
+    alvo = g / tsr
+    if p0 >= alvo:
+        return Decimal(0)
+    if r == 0:
+        return (alvo - p0) / a
+
+    # `A/r` é o valor presente do fluxo de aportes perpétuo; somá-lo dos dois
+    # lados é o que transforma a progressão em razão pura, e é de onde sai o
+    # logaritmo. Com A > 0 e r > 0 o denominador é sempre positivo, e o
+    # quociente é maior que 1 porque p0 < alvo — o `ln` não recebe zero nem
+    # negativo por este caminho.
+    aporte_capitalizado = a / r
+    return (((alvo + aporte_capitalizado) / (p0 + aporte_capitalizado)).ln()
+            / (1 + r).ln())
+
+
 def curva(r, tsr, passo=PASSO_CURVA):
     """Os pontos de `n(s)` de 5 % a 95 %, de `passo` em `passo`. Pura.
 
@@ -137,15 +186,19 @@ def curva(r, tsr, passo=PASSO_CURVA):
 # 2. As premissas: vigentes ou simuladas (leitura da URL, pura)
 # --------------------------------------------------------------------------
 
-Premissas = namedtuple("Premissas",
-                       "r tsr s campos vigentes simulando faltando")
+Premissas = namedtuple(
+    "Premissas", "r tsr s campos vigentes simulando faltando fora_da_faixa")
 Premissas.__doc__ = """Os três números que a tela inteira usa, e como chegaram.
 
 - `r`, `tsr`, `s`: fração ou `None` (chave sem vigência e sem valor na URL);
 - `campos`: o que volta para cada campo do formulário, já formatado;
 - `vigentes`: o texto de cada vigente, para a nota da simulação;
 - `simulando`: ao menos um dos usados difere do vigente;
-- `faltando`: os rótulos dos parâmetros que não têm valor nenhum."""
+- `faltando`: os rótulos dos parâmetros que não têm valor NENHUM;
+- `fora_da_faixa`: (símbolo, texto) dos que TÊM vigência, mas com um número
+  que a página não pode usar. São coisas diferentes e por isso são duas
+  listas: "nunca foi cadastrado" e "está cadastrado como zero" pedem ações
+  diferentes de quem lê."""
 
 
 def _aceitavel(nome, valor):
@@ -187,14 +240,18 @@ def resolver_premissas(args, vigentes):
     reduzido ao número. Chave sem vigência entra como ausente, e a tela
     continua de pé com travessão no que dependia dela.
     """
-    usados, campos, textos, faltando, simulando = {}, {}, {}, [], False
+    usados, campos, textos, faltando, fora, simulando = {}, {}, {}, [], [], False
 
     for nome, chave, rotulo, simbolo in PARAMETROS:
         vigente = vigentes.get(chave)
         # Vigente fora da faixa (uma TSR gravada como zero, por exemplo) não é
         # premissa: `tb_configuracoes` não tem CHECK de sinal, e quem sabe o
-        # que cada chave significa é a aplicação.
-        if vigente is not None and not _aceitavel(nome, vigente):
+        # que cada chave significa é a aplicação. Desde a rodada 31 Parâmetros
+        # recusa o zero em TSR e S, mas uma linha antiga pode tê-lo — e o
+        # histórico de vigências não se reescreve.
+        descartado = vigente is not None and not _aceitavel(nome, vigente)
+        if descartado:
+            fora.append((simbolo, formatar(vigente, PERCENTUAL)))
             vigente = None
 
         valor = _digitado(args, nome)
@@ -203,7 +260,9 @@ def resolver_premissas(args, vigentes):
         elif valor != vigente:
             simulando = True
 
-        if valor is None:
+        # "Descartei o que estava lá" e "não havia nada" são avisos
+        # diferentes, e o parâmetro entra em uma lista só.
+        if valor is None and not descartado:
             faltando.append(rotulo)
 
         usados[nome] = valor
@@ -218,7 +277,7 @@ def resolver_premissas(args, vigentes):
 
     return Premissas(r=usados["r"], tsr=usados["tsr"], s=usados["s"],
                      campos=campos, vigentes=textos, simulando=simulando,
-                     faltando=tuple(faltando))
+                     faltando=tuple(faltando), fora_da_faixa=tuple(fora))
 
 
 def _texto_do_parametro(premissas, nome):
@@ -230,11 +289,18 @@ def _texto_do_parametro(premissas, nome):
 # 3. Consultas
 # --------------------------------------------------------------------------
 
-Leitura = namedtuple("Leitura", "por_ano total doze_meses")
-Leitura.__doc__ = """O que o banco trouxe: as linhas por ano, o acumulado e a
-soma dos últimos 12 meses fechados. O acumulado é linha da MESMA consulta das
-por ano, e não uma soma em Python — é dele que saem o rodapé da tabela e o card
-da taxa acumulada, que por isso mostram o mesmo número por construção."""
+Leitura = namedtuple("Leitura", "por_ano total doze foto")
+Leitura.__doc__ = """O que o banco trouxe.
+
+- `por_ano` e `total`: as linhas da tabela e o acumulado, da MESMA consulta —
+  é dele que saem o rodapé e o card da taxa acumulada, que por isso mostram o
+  mesmo número por construção;
+- `doze`: despesas E receitas dos 12 meses fechados, também na mesma
+  varredura. A despesa é a base do número de independência (rodada 29); as
+  duas juntas são o gasto e o aporte dos "Anos restantes" (rodada 31);
+- `foto`: a última foto de patrimônio, ou `None`. Vem de `ultima_foto()`, de
+  `lancamentos/servico_patrimonio.py` — quem é dono do conceito de foto é
+  aquela tela, e esta o importa."""
 
 # Uma varredura das duas views: uma linha por ano, mais a do acumulado.
 #
@@ -268,12 +334,23 @@ _SQL_ANOS = """
      ORDER BY 1 NULLS LAST
 """
 
-# Os 12 meses fechados. Filtro por INTERVALO de `data`, nunca por `ano_mes`: é
-# o que faz `ix_despesas_data` ser usado (EXPLAIN conferido nesta rodada).
+# Os 12 meses fechados, agora com os DOIS lados. Filtro por INTERVALO de
+# `data`, nunca por `ano_mes`: é o que faz `ix_despesas_data` e
+# `ix_receitas_data` serem usados — e por isso o intervalo vai dentro de cada
+# ramo do UNION, e não por fora, onde o planejador teria de empurrá-lo.
+#
+# Até a rodada 30 esta consulta só somava despesa, porque só o número de
+# independência dependia dela. O aporte dos "Anos restantes" é
+# `receitas − despesas` do MESMO período, e pedi-lo numa segunda consulta
+# seria varrer duas vezes a mesma janela.
 _SQL_DOZE_MESES = """
-    SELECT COALESCE(SUM(valor), 0) AS total
-      FROM vw_despesas
-     WHERE data >= %(inicio)s AND data < %(fim)s
+    SELECT COALESCE(SUM(valor) FILTER (WHERE tipo = 'd'), 0) AS despesas,
+           COALESCE(SUM(valor) FILTER (WHERE tipo = 'r'), 0) AS receitas
+      FROM (SELECT valor, 'd' AS tipo FROM vw_despesas
+             WHERE data >= %(inicio)s AND data < %(fim)s
+            UNION ALL
+            SELECT valor, 'r' AS tipo FROM vw_receitas
+             WHERE data >= %(inicio)s AND data < %(fim)s) t
 """
 
 
@@ -292,15 +369,27 @@ def janela_fechada(hoje):
     return somar_meses(fim, -MESES_FECHADOS), fim
 
 
+ZERO_DOZE = {"despesas": Decimal(0), "receitas": Decimal(0)}
+
+
 def consultar(hoje):
-    """As duas consultas de dinheiro. A das configurações é `vigentes`."""
+    """As três consultas de dado. A das configurações é `vigentes`."""
+    # Importado AQUI, e não no topo: `servico_patrimonio` importa o helper
+    # `card` de `main/servico.py`, e carregar `freedom.main` executa o
+    # `__init__` do blueprint, que importa esta rota de volta. O ciclo só
+    # aparece quando alguém importa o serviço de patrimônio PRIMEIRO — o que
+    # a validação faz, e o servidor não fazia. Adiar o import até a chamada
+    # desfaz o nó sem mover ninguém de lugar.
+    from freedom.lancamentos.servico_patrimonio import ultima_foto
+
     linhas = query_all(_SQL_ANOS)
     inicio, fim = janela_fechada(hoje)
     doze = query_one(_SQL_DOZE_MESES, {"inicio": inicio, "fim": fim})
     return Leitura(
         por_ano=[l for l in linhas if l["ano"] is not None],
         total=next((l for l in linhas if l["ano"] is None), None),
-        doze_meses=doze["total"] if doze else Decimal(0),
+        doze=doze or dict(ZERO_DOZE),
+        foto=ultima_foto(),
     )
 
 
@@ -338,19 +427,17 @@ def _uma_casa(valor):
     return SEM_VALOR if valor is None else formatar_numero(_decimo(valor), 1)
 
 
-def _com_sinal(valor):
-    """'+17,7', '-23,0' — ou travessão.
+def _uma_casa_com_sinal(valor):
+    """'+17,7', '-23,0' — ou travessão. Uma casa, sinal sempre explícito.
 
     Uma coluna de desvio sem o "+" obriga quem lê a lembrar de que lado está o
-    zero. O sinal negativo é o mesmo que `formatar_numero` já produz no resto
-    do sistema (o hífen), e não o traço matemático: duas grafias do menos na
-    mesma tabela — uma no dinheiro, outra no desvio — é o tipo de detalhe que
-    só aparece depois de impresso.
+    zero. Quem põe o sinal é `com_sinal` de `util.py`, a mesma que a variação
+    do patrimônio usa; aqui fica só o formato desta tela — uma casa decimal e
+    o travessão de "não há número".
     """
     if valor is None:
         return SEM_VALOR
-    texto = formatar_numero(valor, 1)
-    return texto if valor < 0 else "+" + texto
+    return com_sinal(formatar_numero(valor, 1), valor)
 
 
 def _linha(receitas, despesas, premissas, anos_meta, rotulo, marca=None):
@@ -409,10 +496,10 @@ def _linha(receitas, despesas, premissas, anos_meta, rotulo, marca=None):
         "poupado_negativo": poupado < 0,
         "taxa": _uma_casa(taxa) + ("%" if taxa is not None else ""),
         "taxa_negativa": taxa is not None and taxa < 0,
-        "desvio": _com_sinal(desvio),
+        "desvio": _uma_casa_com_sinal(desvio),
         "desvio_negativo": desvio is not None and desvio < 0,
         "anos": _uma_casa(anos),
-        "delta": _com_sinal(delta),
+        "delta": _uma_casa_com_sinal(delta),
         "delta_negativo": delta is not None and delta > 0,
         "taxa_valor": taxa,
         "anos_valor": anos,
@@ -438,6 +525,23 @@ def _marca_parcial(linha, hoje):
     return f"parcial · até {MESES[linha['ultima'].month - 1]}"
 
 
+def base_dos_doze(leitura, hoje):
+    """(cobre, despesas, receitas) dos 12 meses fechados. Pura.
+
+    `cobre` é False quando o acervo de despesas começa DEPOIS do início da
+    janela: a soma existe, mas não é de doze meses, e um número de
+    independência calculado sobre oito meses de gasto seria um terço menor do
+    que a verdade sem nada na tela dizendo isso. Os dois cards que dependem
+    dessa base — "Número de independência" e "Anos restantes" — mostram
+    travessão juntos, porque é a MESMA base.
+    """
+    inicio, _fim = janela_fechada(hoje)
+    primeira = leitura.total["primeira_despesa"] if leitura.total else None
+    cobre = (primeira is not None
+             and date(primeira.year, primeira.month, 1) <= inicio)
+    return cobre, leitura.doze["despesas"], leitura.doze["receitas"]
+
+
 def _card_numero(leitura, premissas, hoje):
     """O número de independência: o gasto de 12 meses fechados × (1/TSR).
 
@@ -449,18 +553,17 @@ def _card_numero(leitura, premissas, hoje):
     """
     inicio, fim = janela_fechada(hoje)
     primeira = leitura.total["primeira_despesa"] if leitura.total else None
-    cobre = (primeira is not None
-             and date(primeira.year, primeira.month, 1) <= inicio)
+    cobre, despesas, _receitas = base_dos_doze(leitura, hoje)
 
     if cobre:
         nota = (f"despesas de {intervalo_de_meses(inicio, somar_meses(fim, -1))}"
-                f": R$ {formatar_valor(_centavos(leitura.doze_meses))}")
+                f": R$ {formatar_valor(_centavos(despesas))}")
     elif primeira is not None:
         nota = f"acervo começa em {nome_do_periodo(primeira)}"
     else:
         nota = "nenhuma despesa lançada"
 
-    valor = (_centavos(leitura.doze_meses / premissas.tsr)
+    valor = (_centavos(despesas / premissas.tsr)
              if cobre and premissas.tsr is not None else None)
 
     return card("Número de independência", valor=valor,
@@ -498,6 +601,95 @@ def _card_acumulada(leitura, rodape, hoje):
                 apoio=apoio, apoio_classe=apoio_classe, nota=nota)
 
 
+def _cards_partida(leitura, premissas, hoje, alvo):
+    """A segunda fileira: de onde a casa parte, e quanto falta. Pura.
+
+    `alvo` é o MESMO `Decimal` que o card "Número de independência" imprime —
+    não é recalculado aqui. É o que faz "Alcançado" e "Falta" fecharem quando
+    alguém os confere contra o card de cima com uma calculadora.
+
+    Sem foto de patrimônio os quatro mostram travessão, e quem explica é a
+    nota do topo: quatro cartões de "—" sem motivo seriam um defeito à vista.
+    """
+    foto = leitura.foto
+    p0 = foto["total"] if foto else None
+    cobre, despesas, receitas = base_dos_doze(leitura, hoje)
+
+    # --- 1. o patrimônio ---
+    nota_foto = None
+    if foto and foto["faltando"]:
+        # A foto pode estar incompleta, e o total só conta o que foi lançado
+        # (decisão da rodada 30): o card avisa em vez de somar o último valor
+        # conhecido de quem ficou de fora.
+        quantos = foto["faltando"]
+        nota_foto = {"texto": "foto incompleta: "
+                              + ("falta 1 ativo" if quantos == 1
+                                 else f"faltam {quantos} ativos"),
+                     "classe": None}
+    patrimonio = card("Patrimônio na última foto", valor=p0,
+                      texto=SEM_VALOR if p0 is None else None,
+                      apoio=data_por_extenso(foto["data"]) if foto else None,
+                      nota=nota_foto)
+
+    # --- 2. alcançado ---
+    parcela = fracao(p0, alvo) if p0 is not None and alvo is not None else None
+    alcancado = card(
+        "Alcançado",
+        texto=(_uma_casa(parcela) + "%") if parcela is not None else SEM_VALOR,
+        apoio=(f"do alvo de R$ {formatar_valor(alvo)}"
+               if alvo is not None else None))
+
+    # --- 3. falta ---
+    if p0 is None or alvo is None:
+        falta = card("Falta", texto=SEM_VALOR)
+    elif p0 >= alvo:
+        # Zero, e não um número negativo: "falta -R$ 200.000" não é uma falta.
+        falta = card("Falta", valor=ZERO, apoio="alvo alcançado")
+    else:
+        falta = card("Falta", valor=_centavos(alvo - p0))
+
+    return [patrimonio, alcancado, falta,
+            _card_restantes(premissas, p0, cobre, despesas, receitas)]
+
+
+def _card_restantes(premissas, p0, cobre, despesas, receitas):
+    """Quantos anos faltam com o aporte dos 12 meses fechados. Puro.
+
+    O gasto é o MESMO dos 12 meses fechados que alimenta o número de
+    independência, e o aporte é `receitas − despesas` do mesmo período: os
+    dois saem da mesma janela, senão o prazo compararia um ano com outro.
+
+    A variante "na meta" do apoio troca as duas pontas pela meta de poupança
+    (`A = s·R₁₂`, `G = (1 − s)·R₁₂`) e muda o alvo junto — é outro cenário, e
+    por isso é apoio e não o número do card.
+    """
+    aporte = receitas - despesas
+    valido = cobre and receitas > 0
+
+    anos = (anos_restantes(p0, despesas, aporte, premissas.r, premissas.tsr)
+            if valido and p0 is not None else None)
+
+    apoio = None
+    if valido and p0 is not None and premissas.s is not None:
+        na_meta = anos_restantes(p0, (1 - premissas.s) * receitas,
+                                 premissas.s * receitas,
+                                 premissas.r, premissas.tsr)
+        if na_meta is not None:
+            apoio = (f"na meta ({_texto_do_parametro(premissas, 's')}): "
+                     f"{_uma_casa(na_meta)} anos")
+
+    if not valido:
+        nota = "sem receita nos 12 meses fechados" if cobre else None
+    elif aporte <= 0:
+        nota = "sem aporte nos 12 meses"
+    else:
+        nota = ("12 meses fechados: poupança de "
+                f"{_uma_casa(fracao(aporte, receitas))}%")
+
+    return card("Anos restantes", texto=_uma_casa(anos), apoio=apoio,
+                nota={"texto": nota, "classe": None} if nota else None)
+
+
 def _cards(leitura, rodape, premissas, anos_meta, hoje):
     """Os quatro cards, pelo helper `card` da Visão Anual. Puro.
 
@@ -520,12 +712,13 @@ def _cards(leitura, rodape, premissas, anos_meta, hoje):
     ]
 
 
-def _notas(premissas):
-    """As duas notas do topo. Puras.
+def _notas(premissas, foto):
+    """As notas do topo. Puras.
 
-    Podem aparecer juntas — simular um valor e não ter vigência de outro são
-    coisas independentes —, e por isso são dois textos, e não um com duas
-    caras.
+    Podem aparecer juntas — simular um valor, não ter vigência de outro, ter
+    um terceiro gravado fora da faixa e ainda não haver foto de patrimônio são
+    quatro fatos independentes —, e por isso são quatro textos, e não um com
+    quatro caras.
     """
     simulacao = None
     if premissas.simulando:
@@ -545,7 +738,23 @@ def _notas(premissas):
                     f"O que depende {'desse parâmetro' if um else 'desses parâmetros'}"
                     " aparece com travessão até ser cadastrado.")
 
-    return simulacao, faltando
+    # Cadastrado, porém inutilizável: dizer "não tem valor vigente" mandaria
+    # cadastrar o que já está lá. O texto nomeia o número que foi ignorado,
+    # que é o que se vai procurar em Parâmetros.
+    fora = None
+    if premissas.fora_da_faixa:
+        um = len(premissas.fora_da_faixa) == 1
+        quais = ", ".join(f"{simbolo} vigente é {texto}"
+                          for simbolo, texto in premissas.fora_da_faixa)
+        fora = (f"{quais}, fora da faixa; a página ignorou "
+                f"{'o valor' if um else 'os valores'}.")
+
+    sem_foto = None
+    if foto is None:
+        sem_foto = ("Sem foto de patrimônio. O ponto de partida aparece "
+                    "assim que a primeira foto for lançada.")
+
+    return simulacao, faltando, fora, sem_foto
 
 
 def _subtitulo(premissas, hoje):
@@ -576,7 +785,11 @@ def montar(leitura, premissas, hoje):
                     total["despesas"] if total else Decimal(0),
                     premissas, anos_meta, "Acumulado")
 
-    simulacao, faltando = _notas(premissas)
+    simulacao, faltando, fora, sem_foto = _notas(premissas, leitura.foto)
+
+    # Os quatro de cima primeiro: o alvo sai do primeiro deles, e é ele que a
+    # segunda fileira divide e subtrai. Uma origem, dois usos.
+    cards = _cards(leitura, rodape, premissas, anos_meta, hoje)
 
     return {
         "premissas": premissas,
@@ -586,7 +799,11 @@ def montar(leitura, premissas, hoje):
         "subtitulo": _subtitulo(premissas, hoje),
         "nota_simulacao": simulacao,
         "nota_faltando": faltando,
-        "cards": _cards(leitura, rodape, premissas, anos_meta, hoje),
+        "nota_fora": fora,
+        "nota_sem_foto": sem_foto,
+        "cards": cards,
+        "cards_partida": _cards_partida(leitura, premissas, hoje,
+                                        cards[0]["valor"]),
         "linhas": linhas,
         "rodape": rodape,
         "vazio": not linhas,

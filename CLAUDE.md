@@ -19,13 +19,18 @@ e mostra painéis anual e mensal, além de um orçamento por subcategoria. O obj
 de longo prazo inclui deflação por IPCA, patrimônio e metas de independência
 financeira. A série do IPCA está no banco desde a rodada 21, tem tela própria
 desde a 22 e **já corrige valor** na Análise por subcategoria (rodada 24).
-Patrimônio e metas continuam sem nada implementado. A refatoração visual está
-**concluída** (rodadas 17, 18, 27 e 28): não existe tema antigo no repositório.
+Patrimônio e metas **existem desde as rodadas 29 e 30**: `/independencia`
+calcula quanto falta para a independência financeira a partir de TSR, S e R, e
+`/lancamentos/patrimonio` guarda uma foto mensal dos ativos, com evolução,
+tendência e projeção de cinco anos. A refatoração visual está **concluída**
+(rodadas 17, 18, 27 e 28): não existe tema antigo no repositório.
 
 **Há dado real em produção** (mais de 3.500 despesas e quase 400 receitas, de
-2023 a 2026). O acervo cresce para trás: 2023 e 2024 entraram por carga a partir
-de CSV exportado do Moneystats, e o dono pretende chegar a 2012. Ver a seção 8
-antes de escrever qualquer coisa no banco.
+2023 a 2026, e **161 fotos de patrimônio, de abril de 2013 a agosto de 2026**).
+O acervo cresce para trás: 2023 e 2024 entraram por carga a partir de CSV
+exportado do Moneystats, a série de patrimônio inteira veio de outro CSV do
+dono, e ele pretende chegar a 2012. Ver a seção 8 antes de escrever qualquer
+coisa no banco.
 
 ## 2. Rodar
 
@@ -98,7 +103,7 @@ relatório ou documento.** Referencie sempre pelo nome da variável.
 | Auth | Flask-Login; hash com `werkzeug.security` (scrypt) |
 | Formulários | Flask-WTF (CSRF em todo POST) |
 | Interatividade | HTMX 2.0.4 (arquivo local) + JS vanilla pontual |
-| Gráficos | Chart.js 4.5.1, UMD **local**, nas três telas que desenham (Visão Anual e as duas Análises). Núcleo, sem plugins. O comum a elas mora em `static/js/graficos.js`; `analise.js` serve às duas Análises sem ramificar por página |
+| Gráficos | Chart.js 4.5.1, UMD **local**, nas cinco telas que desenham: Visão Anual, as duas Análises, Independência e Patrimônio — esta com **dois** canvas (evolução e tendência) e por isso a única que precisa destruir instância antes de redesenhar. Núcleo, sem plugins. O comum a todas mora em `static/js/graficos.js`; `analise.js` serve às duas Análises sem ramificar por página |
 | CSS | Um arquivo escrito à mão (`static/css/app.css`), tokens em `:root`, uma camada só. **Sem Tailwind, sem React, sem biblioteca de ícones** |
 | Ícones | Lucide (ISC), **SVG inline** pela macro `icone` em `templates/_macros.html` |
 | Dinheiro | `Decimal` em todo cálculo; `float` só na serialização final para JSON de gráfico |
@@ -131,6 +136,12 @@ freedom/
                    converter_numero(percentual=), formatar_valor,
                    formatar_numero, escapar_like; MESES e MESES_CURTOS;
                    nome_do_periodo(ano, mês) ou (date) -> "agosto de 2026";
+                   data_por_extenso(date) -> "31 de agosto de 2026";
+                   com_sinal(texto, valor) põe o "+" do positivo no texto já
+                   formatado (desvio da Independência e variação do
+                   Patrimônio); caixa_marcada(texto) lê a caixa de um filtro
+                   GET; parece_zero(texto) para o zero que é entrada legítima
+                   (orçamento e foto de patrimônio);
                    nome_do_mes(mês) -> "Janeiro";
                    intervalo_de_meses(a, b); somar_meses(mês, passos);
                    so_fragmento; dobrar (NFD — nunca `locale`),
@@ -171,12 +182,19 @@ freedom/
                                      só ela: lê a query string e chama o
                                      serviço
                    servico_independencia.py o modelo do Mr. Money Mustache.
-                                     anos_ate_if, curva, resolver_premissas,
-                                     janela_fechada, montar, _eixo e
+                                     anos_ate_if (de patrimônio zero),
+                                     anos_restantes (da última foto, rodada
+                                     31 — as duas são a MESMA fórmula, e o
+                                     invariante prova), curva,
+                                     resolver_premissas, janela_fechada,
+                                     base_dos_doze, montar, _eixo e
                                      para_grafico são puras; consultar() faz
-                                     as duas consultas de dinheiro e
+                                     as duas consultas de dinheiro mais a
+                                     `ultima_foto()` que importa de
+                                     `lancamentos/servico_patrimonio.py`, e
                                      vigentes(), a das configurações — é a
-                                     PRIMEIRA leitura de TSR, R e S
+                                     PRIMEIRA leitura de TSR, R e S. Quatro
+                                     consultas
   cadastros/       /cadastros — um módulo por entidade + servico.py
                    (alternar_ativo, traduzir_unique, contagem).
                    ativos.py é o cadastro dos ativos de patrimônio (rodada
@@ -194,17 +212,28 @@ freedom/
                    patrimonio.py       a foto mensal dos ativos (rodada 30):
                                        GET da tela, POST que grava a foto e
                                        POST que exclui a foto de uma data
-                   servico_patrimonio.py o serviço dela. Puras: data_padrao,
-                                       data_valida, erro_da_data, ler_valores,
+                   servico_patrimonio.py o serviço dela. Puras: fim_do_mes,
+                                       data_padrao, salto_de_mes (as duas
+                                       setas de mês da barra),
+                                       ajuste_exponencial e montar_tendencia
+                                       (a curva de tendência e os cinco anos
+                                       de projeção), data_valida,
+                                       erro_da_data, ler_valores,
                                        montar_grade, montar_cards,
-                                       montar_alocacao, montar_historico e os
-                                       textos. gravar_foto acerta a data numa
-                                       transação só (upsert com
-                                       `RETURNING (xmax = 0)` mais o DELETE
-                                       dos vazios); três consultas por
+                                       montar_alocacao, montar_historico,
+                                       para_grafico e os textos. gravar_foto
+                                       acerta a data numa transação só (upsert
+                                       com `RETURNING (xmax = 0)` mais o
+                                       DELETE dos vazios); `ultima_foto()` é a
+                                       leitura que a Independência importa
+                                       (rodada 31), e o histórico traz o total
+                                       corrigido pelo IPCA na mesma varredura
+                                       do `LAG`; quatro consultas por
                                        carregamento
   configuracoes/   /configuracoes — um módulo por assunto:
-                   rotas.py  parâmetros com vigência (CATALOGO em Python).
+                   rotas.py  parâmetros com vigência (CATALOGO em Python:
+                             formato e, desde a rodada 31, se a chave recusa
+                             zero — TSR e S recusam, R aceita).
                              Chama-se "Parâmetros" na tela desde a rodada 25;
                              o endpoint e a URL não mudaram
                    backup.py a página de backup (rodada 25): gerar_dump() roda
@@ -220,7 +249,7 @@ templates/         base.html (o `htmx-config` que libera 409/502/503),
                    blueprint. orcamento/ tem dez arquivos; configuracoes/ tem
                    configuracoes.html, _lista.html, _formulario.html e
                    _linha_edicao.html.
-                   lancamentos/ tem os quatro da foto de patrimônio
+                   lancamentos/ tem os cinco da foto de patrimônio
                    (patrimonio.html mais _patrimonio_barra, _grade, _resumo e
                    _resposta).
                    main/_analise.html é o corpo que as duas Análises estendem;
@@ -231,8 +260,10 @@ templates/         base.html (o `htmx-config` que libera 409/502/503),
 static/css/app.css seções numeradas 1–8 (ver seção 7 deste arquivo)
 static/js/         htmx.min.js, chart.umd.js; graficos.js (o que as telas
                    com gráfico fazem igual: cor por variável CSS, moeda,
-                   eixo, base de opções, linha) + visao_anual.js, analise.js
-                   e independencia.js
+                   eixo, base de opções, linha) + visao_anual.js, analise.js,
+                   independencia.js e patrimonio.js — este último redesenha
+                   depois do swap do HTMX (`htmx:afterSettle` filtrado pelo id
+                   do cartão), destruindo a instância anterior
 db/init/01_schema.sql
 docs/              Freedom - Estrutura do Banco de Dados.md   (fonte da verdade)
                    Freedom - Histórico e Estado do Projeto.md (decisões e lições)
@@ -388,6 +419,43 @@ Regras que se aplicam a todo código novo:
   não aparece — é o que acontece com agrupamento anual numa janela de 12
   meses, onde os dois anos estão recortados. Com a correção ligada o resumo é
   dos valores reais; sem ela, dos nominais. Nunca dos dois.
+- **Independência financeira** (`/independencia`, rodada 29): a **única** tela
+  que lê TSR, S e R de `tb_configuracoes`. Modelo do Mr. Money Mustache —
+  `n = ln(1 + r·(1−s)/(s·TSR)) / ln(1+r)` —, e a **simulação entra pela
+  querystring** (`?s=&r=&tsr=`), sem gravar nada: o vigente continua sendo o do
+  banco e a tela diz quando está simulando. Premissa ausente ou impossível
+  (`s ≤ 0`, `TSR ≤ 0`, `r < 0`) vira travessão, **nunca um padrão inventado**.
+  Desde a rodada 31 há uma segunda fileira de cards, **Ponto de partida**, que
+  conta os anos restantes a partir da última foto de patrimônio em vez de zero:
+  `n = ln((G/TSR + A/r)/(P₀ + A/r)) / ln(1+r)`. As duas são a MESMA fórmula (a
+  primeira é a segunda com `P₀ = 0`), e o invariante prova. A taxa de poupança
+  realizada e o gasto anual saem dos **últimos 12 meses fechados** — o mês em
+  curso entraria pela metade e puxaria a meta para baixo. Sem foto de
+  patrimônio, a segunda fileira não aparece.
+- **Ativos e foto de patrimônio** (rodada 30): `tb_ativos` é cadastro comum
+  (Cadastros › Ativos; `classe` é texto livre pela macro `combobox`, e inativo
+  aqui lê-se "posição encerrada"). A **foto** é mensal e mora em
+  `/lancamentos/patrimonio`: uma data, sempre **fim de mês**, e o valor de cada
+  ativo naquela data. A grade **é** o editor — gravar é um POST só que faz
+  upsert do que foi preenchido e **DELETE do que foi esvaziado**, numa
+  transação. Campo vazio quer dizer "não havia esse ativo nessa data", e daí
+  decorre que **gravar uma grade inteiramente vazia apaga a foto daquela
+  data**: é o contrato, não um defeito. **Zero é valor legítimo** (posição
+  zerada), como no orçamento. Data futura o servidor recusa, com texto no
+  campo. Trocar de mês é por **link** (as setas ao lado da data), nunca pelo
+  campo — ver a armadilha do `<input type="date">` na seção HTMX.
+- **Tendência e projeção** (rodada 31 e ajustes posteriores): abaixo da
+  evolução, um segundo gráfico com a série observada e a curva **exponencial
+  ajustada**, esticada por **cinco anos** (`MESES_PROJETADOS = 60`). Pede pelo
+  menos **seis** fotos; foto zerada fica de fora do ajuste (não há `ln(0)`) e o
+  rodapé diz quantas. O eixo é uma grade **mensal contínua**: mês sem foto é
+  buraco na série observada e a curva não ganha degrau falso. Ali o buraco se
+  liga (`spanGaps`) — "não medi" não é "valia zero", ao contrário das
+  Análises, onde o zero é resposta e a linha tem de encostar no eixo. Com a
+  caixa do IPCA ligada, o ajuste é sobre a série corrigida e a projeção sai em
+  poder de compra do mês base, que é o que se compara com o número de
+  independência. **Não há outra projeção**: nem aporte previsto, nem meta, nem
+  cenário. A curva diz só o que a série vem fazendo.
 - **Backup** (`/configuracoes/backup`, rodada 25): a página **só exporta**.
   Não há restauração pela interface — a tela mostra o comando do `psql` e
   quem o roda é o dono —, não há histórico de backup (nem tabela, nem log,
@@ -460,6 +528,17 @@ Regras que se aplicam a todo código novo:
 - `HX-Retarget` quando o alvo natural do disparador não é onde a resposta cai.
 - Rota só de fragmento: sem `HX-Request` → redirect para a página-mãe com os
   mesmos parâmetros, **antes** de qualquer 404. Regra de estado recusada → **409**.
+- **`<input type="date">` trava a tela inteira numa combinação impossível.**
+  Quem está em 31/01 e mexe só no segmento do mês para 02 põe o campo em
+  31/02: o Chrome zera o controle (`value` vazio, `validity.badInput`), o
+  formulário passa a falhar na validação do HTML e **nenhum botão responde
+  mais, sem mensagem** — o `hx-post` inclusive, porque o HTMX valida o que o
+  `hx-include` traz e aborta (`htmx:validation:halted`). O campo **não se
+  recupera editando**: só recarregando. `novalidate` destrava o submit comum,
+  mas **não** o HTMX. Onde a data é sempre fim de mês, a saída é navegar por
+  **link** (as setas de mês da foto de patrimônio): link não passa por
+  validação de formulário, e por isso é também a saída quando o campo já
+  travou.
 - **HTMX troca DOM, não dispara download.** Uma resposta com
   `Content-Disposition` chegando por `hx-post` é engolida pelo swap e o
   arquivo nunca aparece. Quem baixa arquivo é `<form method="post">` comum,
@@ -469,7 +548,7 @@ Regras que se aplicam a todo código novo:
   página de Backup. Por ser POST comum, a falha também segue o caminho
   comum — `flash` mais redirect, e não fragmento com status de erro.
 
-### CSS (`static/css/app.css`, ~4.670 linhas, seções numeradas)
+### CSS (`static/css/app.css`, ~4.950 linhas, seções numeradas)
 
 ```
 1 Variáveis   2 Reset   3 Fundo   4 Layout   5 Componentes   6 Login
@@ -481,7 +560,9 @@ Dentro de 5: 5.1 Card, 5.2 Botão, 5.3 Formulário, 5.4 Tabela, 5.5 Badge,
 Anual), 5.14 Visão Mensal (5.14.1 Detalhe), 5.15 Orçamento (5.15.1 faixas),
 5.16 Valores sensíveis, 5.17 IPCA, 5.18 Análises, 5.19 Backup,
 5.20 Edição em linha, 5.21 Independência financeira, 5.22 Patrimônio.
-5.7 é lacuna (modal removido na 17) e fica lacuna:
+5.7 é lacuna (modal removido na 17) e fica lacuna; 5.18 virou só comentário
+na rodada 31, quando as duas classes dela foram adotadas por outras telas e
+subiram (`.marca-parcial` para 5.13.2, `.filtro-caixa` para 5.10):
 componente novo entra no fim.
 ```
 
@@ -570,6 +651,26 @@ componente novo entra no fim.
 - Chart.js: contêiner com **altura fixa** e `maintainAspectRatio: false`; eixo sem
   centavos, tooltip com centavos; **cores lidas de variáveis CSS por
   `getComputedStyle`** — nenhum hexadecimal no JS.
+- O rótulo do eixo Y tem **três faixas** (`naEscala` do `graficos.js`): reais
+  cheios, `mil` e `mi`. A **unidade** de milhão sai do MAIOR valor do eixo, e
+  não do passo — com marcações de 400 em 400 mil o passo não chega ao milhão,
+  mas os rótulos sim, e saía "R$ 1200 mil". As **casas decimais** saem do
+  passo, e são iguais no eixo inteiro: é o que impede duas marcações vizinhas
+  de virarem o mesmo texto. Abaixo de um milhão nada mudou, e o SHA da Visão
+  Anual e das Análises prova.
+- **Linha de tendência**: `ajuste_exponencial` faz mínimos quadrados sobre
+  `ln(y)` em `Decimal`, que é o mesmo cálculo da "linha de tendência
+  exponencial" do Excel. O **R², porém, não segue a reta do logaritmo**: o
+  Excel mostra o quadrado da correlação entre observado e ajustado, de volta
+  na escala original, e é isso que a tela exibe. Não é detalhe — na série do
+  dono a mesma curva dá 0,833 pela primeira definição e 0,956 pela segunda, e
+  é a segunda que está na planilha dele (0,954 até julho de 2026, conferido
+  contra o CSV). O eixo da tendência é uma grade MENSAL contínua (e não uma
+  marca por foto), senão um mês sem foto daria um degrau falso na curva.
+- **Eixo X de uma série que cresce sem teto** (uma marca por foto, na evolução
+  do patrimônio) precisa de `maxRotation: 0` e `maxTicksLimit`: sem isso o
+  Chart.js gira as datas a 50° e elas comem mais altura que o desenho (154 px
+  de plotagem em 230). A data exata de cada ponto fica no tooltip.
 
 ### Ocultar valores — o olho (rodada 19)
 
@@ -757,6 +858,20 @@ O que se espera de uma validação:
 - Ramo sem dado real exercitado por função pura.
 - O relatório termina com a lista de **"pontos que precisei interpretar"**.
 
+- **Validação nunca aponta escrita para registro do dono.** Na rodada 31 um
+  teste de CSRF mandou um POST de foto **sem nenhum campo `valor_*`** para a
+  data que tinha a foto real — e, pelo contrato da grade, apagou-a. Foi
+  restaurada na hora e relatada, mas o que evita isso não é cuidado: é
+  escolher, antes de escrever o teste, uma data (ou uma chave) **que não
+  existe**, e afirmar no fim que o registro real continua lá. Vale para todo
+  POST que uma tela interpreta como "o estado desta chave agora é este".
+- **Número que veio de planilha do dono se confere contra a planilha**, não
+  contra a definição de livro: o R² da linha de tendência exponencial do Excel
+  é o quadrado da correlação entre observado e ajustado, e não o `1 − SSE/SST`
+  da reta do logaritmo. A diferença na série real é de 0,833 para 0,956. Onde
+  a tela existe para espelhar uma planilha, quem decide a definição é a
+  planilha.
+
 Dois detalhes de instrumento:
 
 - O botão de sair da sidebar é o **primeiro** `button[type=submit]` do DOM. Um
@@ -816,15 +931,29 @@ decisões, lições aprendidas). Resumo:
   compartilhados. Rodada 28: **parte II** — Orçamento (modo e período em
   `.segmentado`, `card()` estendido, faixa do 409 corrigida) e Parâmetros,
   componente `.edicao-linha`, **seção 1(b) apagada**, `card--solido` fora,
-  `--ink-ghost` nos últimos literais roxos.
+  `--ink-ghost` nos últimos literais roxos. Rodada 29: **Independência
+  financeira** em `/independencia` — a primeira leitura de TSR, S e R, quatro
+  cards, tabela ano a ano, curva do patrimônio e simulação por querystring.
+  Rodada 30: **patrimônio** — cadastro de ativos e a foto mensal em
+  `/lancamentos/patrimonio`, com cards, alocação por classe, histórico e
+  gráfico de evolução. Rodada 31: **anos restantes** na Independência (a
+  mesma fórmula partindo da última foto), **correção do patrimônio pelo
+  IPCA** e quatro limpezas (CSRF em campo oculto, `com_sinal` promovido,
+  nota de vigência fora da faixa, Parâmetros recusando zero em TSR e S).
+  Depois da 31, a pedido do dono: **setas de mês** na foto (o
+  `<input type="date">` travava a tela inteira numa data impossível), **eixo
+  Y em milhões** no `graficos.js`, **gráfico de tendência** com projeção de
+  cinco anos e a **carga da série de patrimônio** por CSV (161 fotos, de
+  abril de 2013 a agosto de 2026).
 - **Não há refatoração visual pendente.** O tema antigo não existe no
   repositório; comentário que diga o contrário é velho.
-- **Depois**, na ordem sugerida pelo histórico: **metas de independência** (TSR/S/R já estão em `tb_configuracoes`, nada os
-  lê); **patrimônio** (`tb_ativos` e `tb_patrimonio_snapshots` existem e estão
-  vazias); **deploy** com gunicorn no docker-compose (`--timeout` compatível
-  com os 20 s do botão do IPCA), `TZ=America/Sao_Paulo`, Tailscale e segundo
-  usuário. O item que abria esta lista — a tela de despesas mensais somadas
-  por `integra_ipca` — **saiu**: a rodada 26 deu à flag o uso que faltava.
+- **Depois**: sobrou o **deploy** — gunicorn no docker-compose (`--timeout`
+  compatível com os 20 s do botão do IPCA), `TZ=America/Sao_Paulo`, Tailscale
+  e segundo usuário. Os dois itens que vinham antes dele saíram da lista
+  porque foram feitos: metas de independência na rodada 29 e patrimônio na
+  30 — `tb_ativos` e `tb_patrimonio_snapshots` não estão mais vazias. O item
+  que abria a lista original — a tela de despesas mensais somadas por
+  `integra_ipca` — saiu na 26, quando a flag ganhou o uso que faltava.
   Backlog de deflação: ticket médio deflacionado na análise e série real do
   ano na Visão Anual.
 
@@ -852,6 +981,16 @@ fazem parte da aplicação.
   na tela que os totais dela não batem com os das outras.
 - Não implemente **restauração** de backup pela interface, nem parcial nem
   "só dados", nem histórico de backups, nem agendamento do dump.
+- Não aponte POST de validação para data que já tem foto de patrimônio: grade
+  vazia **apaga** a foto daquela data, e isso é o contrato.
+- Não preencha a foto de patrimônio sozinho — nem por cotação, nem por
+  interpolação entre dois meses. O valor é digitado por quem olhou o extrato.
+- **Não troque o R² da tendência pela definição da escala do logaritmo.** Ele é
+  o do Excel (quadrado da correlação entre observado e ajustado) porque a tela
+  existe para espelhar a planilha do dono; "corrigir por rigor" faz o número
+  deixar de bater com o que ele confere.
+- Não acrescente cenário, aporte previsto ou meta à curva de tendência: ela
+  diz o que a série vem fazendo, e mais nada.
 - Não classifique subcategoria (coluna, flag ou heurística de "contínua" ou
   "esporádica"): quem escolhe a granularidade é quem olha, pelo agrupamento.
 - Não agende a chamada ao SIDRA (cron, thread, Agendador de Tarefas dentro do

@@ -32,6 +32,67 @@
       {% endfor %}
     </div>
 
+    {#
+      Evolucao no tempo. So com DUAS ou mais fotos: um ponto solto nao e uma
+      linha, e o historico logo abaixo ja mostra o numero.
+
+      O `id` do cartao e o gatilho do redesenho: depois de um swap fora de
+      banda o canvas e OUTRO elemento, e o `patrimonio.js` destroi a instancia
+      anterior antes de criar a nova - senao o Chart.js acumula instancias
+      penduradas em canvas que ja sairam do DOM.
+    #}
+    {% if grafico %}
+      <section class="card" id="card-evolucao">
+        {#
+          Titulo e subtitulo soltos no cartao, e nao num `.card__cabecalho`:
+          aquele e o cabecalho do `.card--tabela`, que zera o proprio padding
+          e ganha um filete embaixo. Este cartao e um `.card` normal, como o da
+          curva da Independencia - o mesmo arranjo dela.
+        #}
+        <h2 class="card__titulo">Evolução do patrimônio</h2>
+        {% if subtitulo_grafico %}
+          <p class="card__nota">{{ subtitulo_grafico }}</p>
+        {% endif %}
+        <script type="application/json" id="dados-patrimonio">{{ grafico | tojson }}</script>
+        <div class="grafico__area grafico__area--evolucao">
+          <canvas id="grafico-patrimonio"></canvas>
+        </div>
+        {#
+          Linha, coluna, subtitulo e nota ligam e desligam JUNTOS, pela mesma
+          marca: a nota explica a serie corrigida, e com a caixa desligada
+          estaria explicando uma linha que ninguem ve.
+        #}
+        {% if corrigir %}
+          <p class="card__nota card__nota--fim">{{ nota_corrigido }}</p>
+        {% endif %}
+      </section>
+    {% endif %}
+
+    {#
+      Tendencia e projecao. Vem LOGO ABAIXO da evolucao, e nao dentro dela:
+      sao duas perguntas - "o que aconteceu" e "para onde isso aponta" -, e a
+      segunda tem um pontilhado que nao pode passar por cima da primeira.
+
+      So aparece com meia duzia de fotos: com menos, a curva passa quase
+      exatamente pelos pontos e o R² sai perto de 1 sem significar nada.
+    #}
+    {% if tendencia %}
+      <section class="card" id="card-tendencia">
+        <h2 class="card__titulo">
+          Tendência e projeção de {{ tendencia.anos }} anos
+        </h2>
+        <p class="card__nota">{{ tendencia.subtitulo }}</p>
+        <script type="application/json" id="dados-tendencia">{{ tendencia | tojson }}</script>
+        <div class="grafico__area grafico__area--evolucao">
+          <canvas id="grafico-tendencia"></canvas>
+        </div>
+        <div class="card__nota card__nota--fim">
+          <p>{{ nota_tendencia }}</p>
+          {% if nota_fotos_fora %}<p>{{ nota_fotos_fora }}</p>{% endif %}
+        </div>
+      </section>
+    {% endif %}
+
     {% if alocacao %}
       <section class="card card--tabela">
         <div class="card__cabecalho">
@@ -87,6 +148,9 @@
               <th>Data</th>
               <th class="col-num">Ativos</th>
               <th class="col-num">Total</th>
+              {% if corrigir %}
+                <th class="col-num col-total">{{ rotulo_corrigido }}</th>
+              {% endif %}
               <th class="col-num">Δ vs anterior</th>
               <th class="tabela__acoes"><span class="so-leitor">Ações</span></th>
             </tr>
@@ -97,6 +161,9 @@
                 <th scope="row" class="tabela__principal">{{ f.data_texto }}</th>
                 <td class="col-num">{{ f.ativos }}</td>
                 <td class="col-num">{{ m.reais(f.total) }}</td>
+                {% if corrigir %}
+                  <td class="col-num col-total">{{ m.reais(f.corrigido) }}</td>
+                {% endif %}
                 {# A cor vive no <span>, nunca na celula: e o que impede o
                    travessao da primeira foto de sair vermelho. #}
                 <td class="col-num"><span class="{{ 'negativo' if f.delta_negativo }}">{{ f.delta }}</span></td>
@@ -107,14 +174,20 @@
                     {#
                       Confirmacao em dois passos pelo `hx-confirm`, o mesmo
                       mecanismo do Excluir do resumo anual. Apaga a foto
-                      INTEIRA da data; a data da grade viaja em `?data=` para
-                      a resposta remontar a tela que esta aberta.
+                      INTEIRA da data.
+
+                      O estado da tela viaja na URL do POST: a data da GRADE em
+                      `?data=` e a caixa do IPCA em `?ipca=`. Sem a segunda, a
+                      resposta voltaria com a correcao desligada e o grafico
+                      seria redesenhado sem a linha corrigida que estava la -
+                      o botao nao pode desligar uma caixa que ninguem tocou.
                     #}
                     <button type="button"
                             class="btn btn--secundario btn--perigo btn--pequeno"
                             hx-post="{{ url_for('lancamentos.patrimonio_excluir',
                                                 data_foto=f.data.isoformat(),
-                                                data=data_texto) }}"
+                                                data=data_texto,
+                                                ipca='1' if corrigir else none) }}"
                             hx-confirm="Excluir a foto de {{ f.data_extenso }}? Todos os valores dessa data serão apagados. Isso não pode ser desfeito."
                             hx-target="#grade-foto"
                             hx-swap="outerHTML">Excluir foto</button>

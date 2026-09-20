@@ -20,11 +20,22 @@ regiões de uma vez, e devolver só uma deixaria um total velho na tela.
 
 from datetime import date
 
-from flask import abort, render_template, request
+from flask import abort, redirect, render_template, request, url_for
 from flask_login import login_required
 
+from freedom import ipca
 from freedom.lancamentos import bp
 from freedom.lancamentos import servico_patrimonio as servico
+from freedom.util import caixa_marcada, so_fragmento
+
+
+def _corrigir(campos):
+    """A caixa "Corrigir pelo IPCA" marcada E haver IPCA carregado.
+
+    A segunda metade é da rota, e não do template: sem série carregada não há
+    a que corrigir, e deixar a decisão para o Jinja seria decidir estado lá.
+    """
+    return caixa_marcada(campos.get("ipca")) and ipca.base_de_correcao() is not None
 
 
 @bp.route("/patrimonio")
@@ -32,8 +43,10 @@ from freedom.lancamentos import servico_patrimonio as servico
 def patrimonio_tela():
     hoje = date.today()
     data_foto = servico.data_valida(request.args.get("data"), hoje)
-    return render_template("lancamentos/patrimonio.html",
-                           **servico.painel(data_foto))
+    return render_template(
+        "lancamentos/patrimonio.html",
+        **servico.painel(data_foto, hoje,
+                         corrigir=_corrigir(request.args)))
 
 
 @bp.route("/patrimonio", methods=["POST"])
@@ -48,8 +61,19 @@ def patrimonio_gravar():
     """
     hoje = date.today()
     bruto = request.form.get("data")
-    erro_data = servico.erro_da_data(bruto, hoje)
     data_foto = servico.data_valida(bruto, hoje)
+    corrigir = _corrigir(request.form)
+
+    # Sem HTMX não há onde encaixar o fragmento, então a gravação nem começa e
+    # a pessoa volta para a tela — a mesma regra do botão do IPCA (rodada 23).
+    # O caminho existe porque o formulário leva o token CSRF num campo oculto:
+    # sem ele, um POST sem JavaScript morreria em 400, que não é uma resposta.
+    if not so_fragmento():
+        return redirect(url_for("lancamentos.patrimonio_tela",
+                                data=data_foto.isoformat(),
+                                ipca="1" if corrigir else None))
+
+    erro_data = servico.erro_da_data(bruto, hoje)
 
     # Só os ativos EM CARTEIRA são lidos, e são eles que delimitam o que a
     # gravação pode tocar: linha de posição encerrada não entra no upsert nem
@@ -63,7 +87,8 @@ def patrimonio_gravar():
         # fragmento; a recusa aparece no campo.
         return render_template(
             "lancamentos/_patrimonio_resposta.html",
-            **servico.painel(data_foto, digitado=digitado, erros=erros,
+            **servico.painel(data_foto, hoje, corrigir=corrigir,
+                             digitado=digitado, erros=erros,
                              erro_data=erro_data))
 
     vazios = [a["id"] for a in ativos if a["id"] not in valores]
@@ -71,7 +96,7 @@ def patrimonio_gravar():
 
     return render_template(
         "lancamentos/_patrimonio_resposta.html",
-        **servico.painel(data_foto,
+        **servico.painel(data_foto, hoje, corrigir=corrigir,
                          aviso=servico.texto_do_aviso(data_foto, contagens)))
 
 
@@ -92,8 +117,9 @@ def patrimonio_excluir(data_foto):
     if not quantas:
         abort(404)
 
-    grade = servico.data_valida(request.args.get("data"), date.today())
+    hoje = date.today()
+    grade = servico.data_valida(request.args.get("data"), hoje)
     return render_template(
         "lancamentos/_patrimonio_resposta.html",
-        **servico.painel(grade,
+        **servico.painel(grade, hoje, corrigir=_corrigir(request.args),
                          aviso=servico.texto_da_exclusao(alvo, quantas)))

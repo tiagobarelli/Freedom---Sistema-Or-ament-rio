@@ -21,11 +21,74 @@
 <form class="filtro-barra" id="filtro-patrimonio" method="get"
       action="{{ url_for('lancamentos.patrimonio_tela') }}"
       {% if oob %}hx-swap-oob="true"{% endif %}>
-  <label class="filtro-campo">
-    <span class="filtro-campo__rotulo">Data da foto</span>
-    <input class="entrada{{ ' entrada--erro' if erro_data }}" type="date"
-           name="data" value="{{ data_texto }}">
+  {#
+    A data, entre duas setas de MES. As setas existem porque o
+    `<input type="date">` tem uma armadilha que trava a tela inteira: quem
+    esta em 31/01 e mexe so no segmento do mes para 02 poe o campo em 31/02,
+    que nao existe - o Chrome zera o controle (`badInput`), o formulario passa
+    a falhar na validacao do HTML e NENHUM dos dois botoes responde mais, sem
+    mensagem nenhuma. O "Gravar foto" inclusive, porque o HTMX valida o que o
+    `hx-include` traz e aborta a requisicao (`htmx:validation:halted`). E o
+    campo nao se recupera editando: so recarregando a pagina.
+
+    Pela seta, a data impossivel nunca chega a existir - cada clique vai
+    direto ao FIM do mes vizinho, que e a data que interessa numa foto mensal.
+    O campo continua la para um salto grande.
+
+    Sao LINKS, e nao botoes: o estado e a URL, e trocar de mes e ir a outra
+    URL - navegavel por teclado, abrivel em outra aba, sem uma linha de
+    JavaScript. A do mes seguinte vira `<span>` quando nao ha mes fechado a
+    frente: `<a>` nao tem `disabled`, e um link sem `href` nao e clicavel nem
+    focavel. Quem decide isso e o servico.
+  #}
+  <div class="filtro-campo">
+    <label class="filtro-campo__rotulo" for="data-foto">Data da foto</label>
+    <span class="filtro-mes">
+      <a class="btn btn--secundario btn--icone"
+         href="{{ url_for('lancamentos.patrimonio_tela',
+                          data=mes_anterior.isoformat(),
+                          ipca='1' if corrigir else none) }}"
+         aria-label="Mês anterior" title="Mês anterior">
+        {{ m.icone("chevron-left", tamanho=14, tracado=2) }}
+      </a>
+
+      <input class="entrada{{ ' entrada--erro' if erro_data }}" type="date"
+             id="data-foto" name="data" value="{{ data_texto }}">
+
+      {% if mes_seguinte %}
+        <a class="btn btn--secundario btn--icone"
+           href="{{ url_for('lancamentos.patrimonio_tela',
+                            data=mes_seguinte.isoformat(),
+                            ipca='1' if corrigir else none) }}"
+           aria-label="Mês seguinte" title="Mês seguinte">
+          {{ m.icone("chevron-right", tamanho=14, tracado=2) }}
+        </a>
+      {% else %}
+        <span class="btn btn--secundario btn--icone" aria-disabled="true"
+              title="O mês seguinte ainda não acabou">
+          {{ m.icone("chevron-right", tamanho=14, tracado=2) }}
+        </span>
+      {% endif %}
+    </span>
     {% if erro_data %}<p class="campo__erro">{{ erro_data }}</p>{% endif %}
+  </div>
+
+  {#
+    A caixa vai no MESMO formulario GET da data: o botao "Abrir" submete os
+    dois, e o estado inteiro da tela cabe numa URL (`?data=...&ipca=1`).
+
+    Sem serie do IPCA carregada nao ha a que corrigir: a caixa vem
+    desabilitada e a dica diz onde resolver isso - igual as duas Analises.
+  #}
+  <label class="filtro-campo filtro-campo--caixa">
+    <span class="filtro-caixa">
+      <input type="checkbox" name="ipca" value="1"
+             {{ 'checked' if corrigir }} {{ 'disabled' if not tem_ipca }}>
+      Corrigir pelo IPCA
+    </span>
+    {% if not tem_ipca %}
+      <span class="filtro-campo__rotulo">Carregue o IPCA em Cadastros › IPCA</span>
+    {% endif %}
   </label>
 
   <div class="filtro-campo filtro-campo--acao">

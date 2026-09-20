@@ -39,11 +39,43 @@ var Graficos = (function () {
   // subcategoria, rodada 24, onde um mes de combustivel e R$ 1.300).
   // A decisao olha o eixo inteiro, e nao a marcacao atual: o eixo sai numa
   // unidade so.
+  //
+  // O MILHAO entrou depois, com a evolucao do patrimonio: ali o eixo chega a
+  // R$ 3.000.000 e "mil" escrevia "R$ 3000 mil", que ninguem le - foi por isso
+  // que o dono leu "300 mil" no proprio grafico. Esta faixa e escolhida pelo
+  // MAIOR valor do eixo, e nao pelo passo: com marcacoes de 400 em 400 mil o
+  // passo nao chega ao milhao, mas os rotulos, sim ("R$ 1200 mil"). As casas
+  // decimais e que saem do passo, e e o que impede duas marcacoes vizinhas de
+  // virarem o mesmo texto - a licao da rodada 24, aplicada onde ela vale.
+  //
+  // Abaixo de um milhao nada mudou: as duas faixas de baixo sao as mesmas, e
+  // por isso a Visao Anual e as duas Analises saem com o pixel de sempre.
+  var MILHAO = 1000000;
+
+  function _casasDoPasso(passo, divisor) {
+    var casas = 0;
+    while (casas < 2 && ((passo / divisor) * Math.pow(10, casas)) % 1 !== 0) {
+      casas++;
+    }
+    return casas;
+  }
+
   function naEscala(valor, _indice, marcas) {
     if (valor === 0) return '0';
     var passo = Infinity;
-    for (var i = 1; i < marcas.length; i++) {
-      passo = Math.min(passo, Math.abs(marcas[i].value - marcas[i - 1].value));
+    var maior = 0;
+    for (var i = 0; i < marcas.length; i++) {
+      maior = Math.max(maior, Math.abs(marcas[i].value));
+      if (i > 0) {
+        passo = Math.min(passo, Math.abs(marcas[i].value - marcas[i - 1].value));
+      }
+    }
+    if (maior >= MILHAO) {
+      var casas = _casasDoPasso(passo, MILHAO);
+      return (valor < 0 ? '-R$ ' : 'R$ ') +
+             (Math.abs(valor) / MILHAO).toLocaleString('pt-BR', {
+               minimumFractionDigits: casas, maximumFractionDigits: casas
+             }) + ' mi';
     }
     if (!(passo >= 1000)) return moedaCurta.format(valor);
     return (valor < 0 ? '-R$ ' : 'R$ ') +

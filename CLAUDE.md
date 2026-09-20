@@ -179,6 +179,9 @@ freedom/
                                      PRIMEIRA leitura de TSR, R e S
   cadastros/       /cadastros — um módulo por entidade + servico.py
                    (alternar_ativo, traduzir_unique, contagem).
+                   ativos.py é o cadastro dos ativos de patrimônio (rodada
+                   30): padrão dos outros, com `classe` em texto livre pela
+                   macro `combobox` — inativo aqui lê-se "posição encerrada".
                    resumos_anuais.py é o de fora da série: chave é o ano, não
                    há `ativo`, e a segunda ação é Excluir.
                    serie_ipca.py tem a tela do IPCA: GET /cadastros/ipca e
@@ -188,6 +191,18 @@ freedom/
                    parciais _cartao_ipca, _subtitulo_ipca (OOB) e _resposta_ipca
   lancamentos/     /lancamentos — despesas.py, consulta.py, receitas.py,
                    servico.py, servico_receitas.py, forms.py
+                   patrimonio.py       a foto mensal dos ativos (rodada 30):
+                                       GET da tela, POST que grava a foto e
+                                       POST que exclui a foto de uma data
+                   servico_patrimonio.py o serviço dela. Puras: data_padrao,
+                                       data_valida, erro_da_data, ler_valores,
+                                       montar_grade, montar_cards,
+                                       montar_alocacao, montar_historico e os
+                                       textos. gravar_foto acerta a data numa
+                                       transação só (upsert com
+                                       `RETURNING (xmax = 0)` mais o DELETE
+                                       dos vazios); três consultas por
+                                       carregamento
   configuracoes/   /configuracoes — um módulo por assunto:
                    rotas.py  parâmetros com vigência (CATALOGO em Python).
                              Chama-se "Parâmetros" na tela desde a rodada 25;
@@ -205,6 +220,9 @@ templates/         base.html (o `htmx-config` que libera 409/502/503),
                    blueprint. orcamento/ tem dez arquivos; configuracoes/ tem
                    configuracoes.html, _lista.html, _formulario.html e
                    _linha_edicao.html.
+                   lancamentos/ tem os quatro da foto de patrimônio
+                   (patrimonio.html mais _patrimonio_barra, _grade, _resumo e
+                   _resposta).
                    main/_analise.html é o corpo que as duas Análises estendem;
                    analise.html e analise_prioridade.html só preenchem título,
                    primeiro campo do filtro, convite e (só a segunda) o aviso
@@ -462,8 +480,8 @@ Dentro de 5: 5.1 Card, 5.2 Botão, 5.3 Formulário, 5.4 Tabela, 5.5 Badge,
 5.12 Parâmetros, 5.13 Painéis (5.13.1 Gráficos, 5.13.2 Tabelas, 5.13.3 Visão
 Anual), 5.14 Visão Mensal (5.14.1 Detalhe), 5.15 Orçamento (5.15.1 faixas),
 5.16 Valores sensíveis, 5.17 IPCA, 5.18 Análises, 5.19 Backup,
-5.20 Edição em linha, 5.21 Independência financeira. 5.7 é lacuna (modal
-removido na 17) e fica lacuna:
+5.20 Edição em linha, 5.21 Independência financeira, 5.22 Patrimônio.
+5.7 é lacuna (modal removido na 17) e fica lacuna:
 componente novo entra no fim.
 ```
 

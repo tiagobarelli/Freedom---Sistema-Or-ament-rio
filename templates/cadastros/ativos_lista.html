@@ -1,0 +1,27 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{% block title %}Ativos - Freedom{% endblock %}
+{% block titulo_pagina %}Ativos{% endblock %}
+{% block subtitulo_pagina %}
+  <p class="pagina-subtitulo">Onde o patrimônio está aplicado. A foto mensal é lançada em Patrimônio.</p>
+{% endblock %}
+{% block acoes_pagina %}
+  <a class="btn btn--primario" href="{{ url_for('cadastros.ativos_novo') }}">
+    {{ m.icone("plus", tamanho=14, tracado=2.25) }}Novo ativo
+  </a>
+{% endblock %}
+
+{% block content %}
+<div class="painel painel--estreito">
+
+  {{ m.filtros_cadastro(contagem, mostrar_inativos) }}
+
+  {% call m.lista_cadastro(linhas, ["Nome", "Classe", "Observação", "Situação"],
+                            "Nenhum ativo",
+                 "Cadastre onde o patrimônio está: títulos, fundos, imóveis, reserva.") %}
+    {% for item in linhas %}{% include "cadastros/_linha_ativo.html" %}{% endfor %}
+  {% endcall %}
+
+</div>
+{% endblock %}

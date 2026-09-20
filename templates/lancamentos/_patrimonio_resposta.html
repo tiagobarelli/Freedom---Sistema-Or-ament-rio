@@ -1,0 +1,22 @@
+{#
+  Resposta dos dois POSTs da tela (gravar foto e excluir foto), num response
+  so.
+
+  O alvo principal e a grade, entao a resposta comeca com a <section> dela e o
+  parser do navegador nao esta em contexto de tabela - por isso os dois swaps
+  out-of-band abaixo dispensam <template> (as tabelas vao DENTRO dos blocos,
+  nao soltas no primeiro nivel).
+
+  Duas regioes mudam de uma vez e as duas voltam juntas: a grade (valores ja
+  gravados, ou o que foi digitado mais os erros) e o bloco de cards, alocacao
+  e historico - que nao pode ficar com um total velho na tela.
+
+  A barra de filtros volta tambem, para levar (ou limpar) o erro do campo de
+  data, que mora fora do alvo principal.
+#}
+{% include "lancamentos/_patrimonio_grade.html" %}
+
+{% with oob = true %}
+  {% include "lancamentos/_patrimonio_barra.html" %}
+  {% include "lancamentos/_patrimonio_resumo.html" %}
+{% endwith %}

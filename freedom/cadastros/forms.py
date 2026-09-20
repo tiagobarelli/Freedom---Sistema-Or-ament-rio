@@ -140,6 +140,51 @@ class ResumoAnualForm(_Base):
         field.data = texto
 
 
+class AtivoForm(_Base):
+    """Um ativo de patrimônio (tb_ativos), da rodada 30.
+
+    `classe` é texto livre, e não select: o `.md` do banco decidiu a lista
+    aberta (`tb_ativos.classe` não tem CHECK), porque a taxonomia de onde o
+    dinheiro está é do dono e muda — "Tesouro IPCA+", "FII", "Imóvel". Quem
+    oferece o que já existe é a `combobox`, um `<input>` com `<datalist>`:
+    sugere sem impedir.
+
+    As pontas são aparadas na rota, como nos cadastros vizinhos, e o resto do
+    texto vai para o banco como foi digitado — caixa inclusive.
+    """
+
+    nome = StringField(
+        "Nome",
+        validators=[DataRequired(message="Informe o nome."), Length(max=120)],
+    )
+    classe = StringField(
+        "Classe",
+        validators=[DataRequired(message="Informe a classe."), Length(max=120)],
+    )
+    observacao = TextAreaField(
+        "Observação",
+        validators=[Optional(), Length(max=500)],
+    )
+
+    def validate_classe(self, field):
+        """Aparar aqui, e não só na rota, é o que faz "  " virar erro.
+
+        `DataRequired` aceita um campo só de espaços (ele testa o valor bruto),
+        e a classe entraria no banco em branco — `tb_ativos.classe` é
+        `NOT NULL` e `NOT NULL` em TEXT aceita `''`.
+        """
+        texto = (field.data or "").strip()
+        if not texto:
+            raise ValidationError("Informe a classe.")
+        field.data = texto
+
+    def validate_nome(self, field):
+        texto = (field.data or "").strip()
+        if not texto:
+            raise ValidationError("Informe o nome.")
+        field.data = texto
+
+
 class RefReceitaForm(_Base):
     categoria = StringField(
         "Categoria",

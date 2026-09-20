@@ -48,6 +48,21 @@ def nome_do_periodo(ano, mes=None):
     return f"{MESES[mes - 1]} de {ano}"
 
 
+def data_por_extenso(dia):
+    """date(2026, 8, 31) -> '31 de agosto de 2026'.
+
+    A irmã de dia cheio de `nome_do_periodo`, e escrita em cima dela para não
+    haver duas listas de meses nem duas grafias da mesma frase. Nasceu inline
+    no subtítulo da Independência financeira (rodada 29) e subiu na 30, quando
+    o aviso da foto de patrimônio virou o segundo a dizer uma data assim.
+
+    Sem zero à esquerda no dia, porque é texto corrido dentro de frase, e não
+    coluna de tabela: quem quer `31/08/2026` usa `strftime` no template, como
+    a lista de resumos anuais faz.
+    """
+    return f"{dia.day} de {nome_do_periodo(dia)}"
+
+
 def nome_do_mes(mes):
     """1 -> 'Janeiro'. Só o mês, com inicial maiúscula.
 
@@ -235,6 +250,28 @@ def converter_valor(texto):
         raise ValorInvalido("Valor alto demais.")
 
     return valor.quantize(Decimal("0.01"))
+
+
+def parece_zero(texto):
+    """'0', '0,00', 'R$ 0', '0.000' -> True. Negativo NÃO passa: vira erro.
+
+    `converter_valor` recusa zero, porque despesa de R$ 0,00 não existe. Mas
+    há duas telas em que o zero é entrada legítima, e nas duas ele é tratado
+    ANTES do parser, por aqui:
+
+    - a linha de orçamento zerada ("está no plano, não pretendo gastar nada
+      nela neste mês", rodada 15);
+    - a posição zerada na foto de patrimônio ("este ativo existe e hoje vale
+      zero", rodada 30) — que é coisa diferente de campo vazio, que ali quer
+      dizer "fora desta foto".
+
+    A assimetria com o lançamento é deliberada nos dois casos. Nasceu privada
+    em `orcamento/forms.py` e subiu para cá na rodada 30, quando a segunda
+    tela passou a precisar da mesma leitura.
+    """
+    limpo = (texto or "").replace("R$", "").replace(" ", "").replace("\xa0", "")
+    limpo = limpo.replace(".", "").replace(",", "")
+    return limpo.isdigit() and int(limpo) == 0
 
 
 def converter_numero(texto, percentual=False, casas=6):

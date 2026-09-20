@@ -1,0 +1,21 @@
+{% import "_macros.html" as m %}
+{#
+  Uma linha da lista de ativos. Mesma forma das outras cinco: nome, colunas
+  proprias, badge e as duas acoes.
+
+  A segunda acao e Desativar/Ativar, e nao Excluir: ativo e referencia, e as
+  fotos de patrimonio apontam para ele com FK ON DELETE RESTRICT. Aqui
+  "inativo" le-se "posicao encerrada".
+#}
+<tr id="linha-ativo-{{ item.id }}" class="{{ 'linha--inativa' if not item.ativo }}">
+  <td class="tabela__principal">{{ item.nome }}</td>
+  <td>{{ item.classe }}</td>
+  <td class="tabela__suave">{{ item.observacao or '—' }}</td>
+  <td>{{ m.badge_ativo(item.ativo) }}</td>
+  <td class="tabela__acoes">
+    {{ m.acoes_linha(
+         url_for('cadastros.ativos_editar', ativo_id=item.id),
+         url_for('cadastros.ativos_alternar', ativo_id=item.id),
+         item.ativo) }}
+  </td>
+</tr>

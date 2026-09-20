@@ -16,15 +16,19 @@ from flask_wtf import FlaskForm
 from wtforms import IntegerField, StringField
 from wtforms.validators import DataRequired, ValidationError
 
-from freedom.util import ValorInvalido, converter_valor
+from freedom.util import ValorInvalido, converter_valor, parece_zero
 
 
 class _ValorPlanejado(FlaskForm):
     """Base dos formulários que carregam um valor planejado.
 
     `converter_valor` recusa zero (regra do lançamento), então o zero é tratado
-    aqui antes de chamá-lo. O resultado fica em `valor_decimal`, no padrão dos
-    formulários de despesa e de configuração.
+    antes de chamá-lo, por `parece_zero`. O resultado fica em `valor_decimal`,
+    no padrão dos formulários de despesa e de configuração.
+
+    `parece_zero` morava aqui, privada, e subiu para `util.py` na rodada 30 —
+    a foto de patrimônio virou a segunda tela em que zero é entrada legítima,
+    e helper duplicado, neste projeto, é contradição.
     """
 
     valor = StringField(
@@ -40,19 +44,12 @@ class _ValorPlanejado(FlaskForm):
         texto = (field.data or "").strip()
         try:
             # Zero é planejamento legítimo; o parser de lançamento o recusa.
-            if _parece_zero(texto):
+            if parece_zero(texto):
                 self.valor_decimal = Decimal("0.00")
                 return
             self.valor_decimal = converter_valor(texto)
         except ValorInvalido as exc:
             raise ValidationError(str(exc)) from None
-
-
-def _parece_zero(texto):
-    """'0', '0,00', 'R$ 0' etc. Negativo NÃO passa por aqui: vira erro."""
-    limpo = texto.replace("R$", "").replace(" ", "").replace("\xa0", "")
-    limpo = limpo.replace(".", "").replace(",", "")
-    return limpo.isdigit() and int(limpo) == 0
 
 
 class LinhaForm(_ValorPlanejado):

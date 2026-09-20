@@ -2452,6 +2452,19 @@ body {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+/* Dois, dos cards da foto de patrimonio (rodada 30): patrimonio na ultima
+   foto e variacao vs a anterior. Mesma razao do modificador de cima - com
+   quatro colunas os dois cartoes ficariam com um quarto da largura cada e
+   meia linha vazia ao lado. Mora aqui, junto da grade, e nao na secao da
+   tela: e a mesma grade com outra contagem.
+
+   Vem ANTES da consulta abaixo, de proposito: la a regra da .painel-grade tem
+   a mesma forca e vence por vir depois, entao os dois viram um no celular,
+   como os tres e os quatro. */
+.painel-grade--dois {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 /* Entre 768px e ~1100px cabem duas colunas: com quatro, um valor como
    R$ 100.836,00 quebraria em duas linhas em quase todos os cards. */
 @media (max-width: 1099px) {
@@ -3809,6 +3822,97 @@ body {
 }
 
 
+/* --- 5.22 Patrimonio: a grade da foto -----------------------------------
+   A tela e quase toda componente existente: a `.filtro-barra` da 5.13 com o
+   `.filtro-campo` da 5.10, o `.painel` da 4 espacando os blocos, a
+   `.painel-grade--dois` e o `.kpi` da 5.13, o `.card--tabela` da 5.1 com a
+   `.tabela--painel` da 5.13.2, a `.pct-celula` e a `barra_pct` da 5.13.2 na
+   alocacao, o `.aviso-inline` da 5.9 na confirmacao, a `.nota-rodape` da 5.1,
+   a `.acoes-linha` da 5.4 no historico, o `.negativo` da 8 no delta e a
+   `.linha-secundaria` da 5.9 no celular.
+
+   Sobra o que nenhuma tela tinha: uma tabela cujo corpo E um formulario - um
+   campo de dinheiro por linha -, a data do ultimo valor colada ao numero, e a
+   barra de acoes de um cartao que nao tem padding proprio.
+
+   O que e so do celular (a grade em duas colunas) NAO esta aqui: mora na
+   secao 7, junto das outras tabelas que escondem coluna em 390px.
+
+   O cadastro de Ativos nao acrescenta nada: e a `lista_cadastro` das outras
+   seis entidades, com a `combobox` da 5.3 no campo de classe.
+*/
+
+/* Barra de acao do cartao da grade. Nao e o `.card__rodape` da 5.1: aquele
+   tem margem de dentro de um `.card` normal, e este cartao e `.card--tabela`,
+   que zera o padding para a tabela ir de ponta a ponta - o recuo lateral e o
+   mesmo da `.nota-rodape`, que fecha o cartao logo abaixo. */
+.grade-foto__acoes {
+  display: flex;
+  align-items: center;
+  gap: var(--e-3);
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  border-top: 1px solid var(--line-soft);
+}
+
+/* No estado vazio nao ha tabela em cima: o filete separaria o botao de nada,
+   e o `.vazio` que o precede e centrado. */
+.grade-foto__acoes--centro {
+  justify-content: center;
+  border-top: 0;
+  padding-top: 0;
+}
+
+/* O campo de dinheiro de cada linha. Mais baixo que o `.entrada` de
+   formulario (36px), pela mesma razao da edicao em linha da 5.20: dentro de
+   uma tabela o controle acompanha a altura da linha, e nao a do formulario.
+   Alinhado a direita porque a coluna e de numero e a virgula precisa cair
+   sempre no mesmo lugar. */
+.tabela--foto .entrada--valor {
+  display: inline-block;
+  width: 100%;
+  max-width: 150px;
+  height: var(--control-h-sm);
+  text-align: right;
+}
+
+/* A mensagem de erro da linha. O `.campo__erro` da 5.3 ja tem o tipo e a cor;
+   aqui so o alinhamento, que numa coluna de numero e a direita. */
+.tabela--foto .campo__erro {
+  text-align: right;
+}
+
+/* A data do ultimo valor, embaixo do numero. Fica junto e nao em coluna
+   propria: "R$ 1.000" sem data pode ser do mes passado ou de dois anos
+   atras, e uma quinta coluna so para isso apertaria o campo. */
+.foto-ultimo__data {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ink-4);
+}
+
+/* A coluna do campo nao encolhe: e nela que se digita. */
+.tabela--foto .col-valor {
+  width: 180px;
+}
+
+/* Nome de ativo QUEBRA. A celula e um `<th scope="row">` - a linha tem um
+   cabecalho, e ele e o ativo -, e `.tabela th` (5.4) traz `nowrap` do
+   cabecalho de coluna junto. Num nome como "Tesouro IPCA+ 2035" isso ja
+   aperta; com a linha de apoio do celular dentro da mesma celula (classe e
+   ultimo valor), a coluna media 375px dentro de uma caixa de 316 e empurrava
+   o campo de valor para fora da tela.
+
+   E a armadilha que o projeto ja conhece - `nowrap` herdado estica tabela no
+   celular -, e aqui ela e desfeita nas DUAS larguras: um nome longo nao pode
+   esticar a tabela no desktop tambem. */
+.tabela--foto .tabela__principal {
+  white-space: normal;
+}
+
+
 /* ==========================================================================
    6. TELA DE LOGIN
    Refeita na rodada 27, e quase toda componente: o fundo --bg da secao 3, o
@@ -4216,7 +4320,8 @@ body {
   .tabela--despesas .linha-secundaria,
   .tabela--receitas .linha-secundaria,
   .tabela--config .linha-secundaria,
-  .tabela--resumos .linha-secundaria {
+  .tabela--resumos .linha-secundaria,
+  .tabela--foto .linha-secundaria {
     display: block;
     margin-top: 2px;
     font-size: 12px;
@@ -4680,6 +4785,32 @@ body {
      A de referencia, de duas colunas, cabe e continua sem minimo. */
   .tabela--resumo.tabela--independencia {
     min-width: 620px;
+  }
+
+  /* --- Patrimonio no celular ---
+     A grade fica em DUAS colunas: o ativo (com classe e ultimo valor na linha
+     de apoio dentro da propria celula) e o campo de valor. A coluna principal
+     e larga - o nome do ativo -, entao o apoio vai DENTRO dela, e nao numa
+     `<tr>` a parte como na tabela mes a mes da Anual, onde a coluna principal
+     e o mes.
+
+     Sem rolagem lateral: duas colunas cabem em 380px, e por isso esta tabela
+     NAO repoe o `min-width` que a `.tabela--painel` larga - ao contrario das
+     do Orcamento e da Independencia, que tem oito colunas e rolam por dentro.
+
+     O historico e a alocacao seguem a `.tabela--painel` como estao: cinco e
+     tres colunas curtas cabem. */
+  .tabela--foto .col-classe,
+  .tabela--foto .col-ultimo {
+    display: none;
+  }
+
+  .tabela--foto .col-valor {
+    width: auto;
+  }
+
+  .tabela--foto .entrada--valor {
+    max-width: none;
   }
 
   /* --- Autocomplete no celular --- */

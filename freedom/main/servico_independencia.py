@@ -45,8 +45,9 @@ from freedom.configuracoes.servico import (PERCENTUAL, formatar,
 from freedom.db import query_all, query_one
 from freedom.main.servico import SEM_VALOR, card
 from freedom.util import (MESES, ValorInvalido, converter_numero,
-                          formatar_numero, formatar_valor, fracao,
-                          intervalo_de_meses, nome_do_periodo, somar_meses)
+                          data_por_extenso, formatar_numero,
+                          formatar_valor, fracao, intervalo_de_meses,
+                          nome_do_periodo, somar_meses)
 
 CENTAVO = Decimal("0.01")
 DECIMO = Decimal("0.1")
@@ -551,7 +552,7 @@ def _subtitulo(premissas, hoje):
     """"Simulação — nada é gravado", ou a data das premissas por extenso."""
     if premissas.simulando:
         return "Simulação — nada é gravado"
-    return f"Premissas vigentes em {hoje.day} de {nome_do_periodo(hoje)}"
+    return f"Premissas vigentes em {data_por_extenso(hoje)}"
 
 
 def montar(leitura, premissas, hoje):

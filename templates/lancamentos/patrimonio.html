@@ -1,0 +1,35 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{#
+  Patrimonio: a foto mensal dos ativos.
+
+  Tela unica, no molde de Receitas - a grade de uma data e o proprio editor, e
+  embaixo dela ficam os dois cards, a alocacao por classe e o historico de
+  fotos. A data e o estado e viaja na URL (`?data=`).
+
+  Sem olho, sem grafico e sem serie: a evolucao no tempo e a integracao com a
+  Independencia financeira sao outra rodada. Aqui se LANCA a foto e se le o
+  que ela diz.
+
+  Nada e decidido neste arquivo: texto, travessao, sinal, classe de cor e
+  contagem vem prontos de `servico_patrimonio.py`.
+#}
+
+{% block title %}Patrimônio - Freedom{% endblock %}
+{% block titulo_pagina %}Patrimônio{% endblock %}
+{% block subtitulo_pagina %}
+  <p class="pagina-subtitulo">A foto dos ativos numa data. Lançada à mão, mês a mês.</p>
+{% endblock %}
+
+{% block content %}
+
+{# A barra fica FORA do `.painel`: ela ja tem margem propria, e dentro do flex
+   ganharia as duas coisas. Mesmo arranjo das duas Analises. #}
+{% include "lancamentos/_patrimonio_barra.html" %}
+
+<div class="painel">
+  {% include "lancamentos/_patrimonio_grade.html" %}
+  {% include "lancamentos/_patrimonio_resumo.html" %}
+</div>
+{% endblock %}

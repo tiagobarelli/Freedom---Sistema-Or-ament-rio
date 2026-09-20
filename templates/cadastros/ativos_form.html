@@ -1,0 +1,25 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{% block title %}{{ 'Editar ativo' if registro else 'Novo ativo' }} - Freedom{% endblock %}
+{% block titulo_pagina %}{{ 'Editar ativo' if registro else 'Novo ativo' }}{% endblock %}
+
+{% block content %}
+  <div class="card formulario">
+    <form method="post" novalidate>
+      {{ form.hidden_tag() }}
+      {{ m.campo(form.nome, dica="Ex.: Tesouro IPCA+ 2035, Fundo X, Apartamento.",
+                 extra={"autofocus": true, "maxlength": 120}) }}
+      {#
+        Lista ABERTA: a `combobox` e um <input> com <datalist>, entao ela
+        sugere as classes que ja existem sem impedir uma nova. E o que o .md
+        do banco decidiu ao deixar `tb_ativos.classe` sem CHECK.
+      #}
+      {{ m.combobox(form.classe, classes,
+                    dica="Ex.: Renda fixa, Ações, Fundos imobiliários, Imóveis.",
+                    extra={"maxlength": 120, "autocomplete": "off"}) }}
+      {{ m.campo_area(form.observacao) }}
+      {{ m.acoes_formulario(url_for('cadastros.ativos_lista')) }}
+    </form>
+  </div>
+{% endblock %}

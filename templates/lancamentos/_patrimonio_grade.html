@@ -1,0 +1,106 @@
+{% import "_macros.html" as m %}
+{#
+  A grade da foto - que E o editor. Um ativo EM CARTEIRA por linha, na ordem
+  classe/nome; o campo de valor da direita e o que se grava.
+
+  Ela e o alvo principal do POST (`hx-target` nela mesma, `outerHTML`): a
+  resposta de sucesso e a de erro devolvem este mesmo fragmento, uma com os
+  valores ja gravados e outra com o que foi digitado mais os erros de linha.
+  Assim nao ha um segundo template de grade para manter.
+
+  `hx-include` leva junto a barra de filtros, que e quem tem o campo de DATA.
+  E por isso que a data pode ser recusada com erro no proprio campo: ela chega
+  ao servidor como a pessoa a digitou, e nao ja corrigida por um campo
+  escondido.
+
+  Campo VAZIO quer dizer "fora desta foto", e nunca zero. Zero e valor
+  legitimo - posicao zerada - e se escreve `0`.
+
+  Nada e decidido aqui: o texto do ultimo valor, o travessao, a sugestao do
+  campo, o aviso e as mensagens de erro vem prontos de
+  `servico_patrimonio.py`.
+#}
+<section class="card card--tabela" id="grade-foto">
+  {% if not tem_ativos %}
+    {{ m.vazio("Cadastre um ativo",
+               "A foto do patrimônio é a lista dos seus ativos com o valor de cada um na data.") }}
+    <div class="grade-foto__acoes grade-foto__acoes--centro">
+      <a class="btn btn--secundario" href="{{ url_for('cadastros.ativos_lista') }}">
+        {{ m.icone("coins", tamanho=14, tracado=2.25) }}Cadastrar ativo
+      </a>
+    </div>
+  {% else %}
+    <form hx-post="{{ url_for('lancamentos.patrimonio_gravar') }}"
+          hx-include="#filtro-patrimonio"
+          hx-target="#grade-foto"
+          hx-swap="outerHTML">
+      <div class="tabela-caixa">
+        <table class="tabela tabela--resumo tabela--painel tabela--foto">
+          <caption class="so-leitor">
+            Valor de cada ativo em carteira em {{ data_extenso }}
+          </caption>
+          <thead>
+            <tr>
+              <th>Ativo</th>
+              <th class="col-classe">Classe</th>
+              <th class="col-num col-ultimo">Último valor</th>
+              <th class="col-num col-valor">Valor na data</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for l in grade %}
+              <tr>
+                <th scope="row" class="tabela__principal">
+                  {{ l.nome }}
+                  {# So abaixo de 768px, onde as duas colunas do meio somem. #}
+                  <span class="linha-secundaria">
+                    {{ l.classe }} &middot; último {{ l.ultimo }}{% if l.ultimo_data %} em {{ l.ultimo_data }}{% endif %}
+                  </span>
+                </th>
+                <td class="col-classe">{{ l.classe }}</td>
+                <td class="col-num col-ultimo">
+                  {{ l.ultimo }}
+                  {% if l.ultimo_data %}
+                    <span class="foto-ultimo__data">em {{ l.ultimo_data }}</span>
+                  {% endif %}
+                </td>
+                <td class="col-num col-valor">
+                  <input class="entrada entrada--valor{{ ' entrada--erro' if l.erro }}"
+                         type="text" inputmode="decimal" autocomplete="off"
+                         name="{{ prefixo_campo }}{{ l.id }}"
+                         value="{{ l.campo }}"
+                         aria-label="Valor de {{ l.nome }} em {{ data_extenso }}">
+                  {% if l.erro %}<p class="campo__erro">{{ l.erro }}</p>{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {#
+        O aviso fica DENTRO do formulario, que ja e trocado inteiro a cada
+        resposta - um swap out-of-band proprio concorreria com este e a ordem
+        entre os dois nao e garantida. E a mesma razao do `_gravado` da
+        despesa.
+      #}
+      <div class="grade-foto__acoes">
+        <button type="submit" class="btn btn--primario btn--grande">
+          {{ m.icone("plus", tamanho=14, tracado=2.25) }}Gravar foto
+        </button>
+        <span class="htmx-indicator texto-fraco texto-p">gravando…</span>
+        {% if aviso %}
+          <span class="aviso-inline" role="status">{{ aviso }}</span>
+        {% endif %}
+      </div>
+    </form>
+
+    <div class="nota-rodape">
+      <p class="card__nota">
+        Campo vazio quer dizer que o ativo está fora desta foto; zero quer
+        dizer que a posição existe e vale nada. Ativo com posição encerrada
+        não aparece aqui, mas continua no total enquanto tiver valor lançado.
+      </p>
+    </div>
+  {% endif %}
+</section>

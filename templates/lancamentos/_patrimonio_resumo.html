@@ -1,0 +1,131 @@
+{% import "_macros.html" as m %}
+{#
+  Os tres blocos que falam da ULTIMA foto do acervo - e nao da data aberta na
+  grade: a pergunta deles e "quanto a casa tem", que nao muda por alguem estar
+  olhando um mes antigo.
+
+  Os tres vem juntos num bloco so porque as duas acoes da tela (gravar e
+  excluir foto) mexem nos tres de uma vez: um swap out-of-band, e nao tres.
+  O `.painel` de dentro repoe o vao entre eles - o de fora ve este bloco como
+  UM filho, e o gap dele nao alcancaria os netos.
+
+  Sem foto nenhuma no acervo os tres somem: nao ha total, nao ha alocacao e
+  nao ha historico a mostrar, e tres cartoes de travessao nao contam nada.
+
+  Sem a marca `.sensivel`: o olho e so da Visao Anual.
+#}
+<div id="resumo-patrimonio" class="painel" {% if oob %}hx-swap-oob="true"{% endif %}>
+  {% if cards %}
+
+    {# Dois cards: a grade de quatro colunas com dois filhos deixaria meia
+       linha vazia, entao a mesma grade entra com a contagem certa. #}
+    <div class="painel-grade painel-grade--dois">
+      {% for c in cards %}
+        <article class="card kpi">
+          <p class="kpi__rotulo">{{ c.rotulo }}</p>
+          <p class="kpi__valor {{ c.classe or '' }}">
+            {%- if c.valor is not none %}{{ m.reais(c.valor) }}{% else %}{{ c.texto }}{% endif -%}
+          </p>
+          {% if c.apoio %}<p class="kpi__apoio">{{ c.apoio }}</p>{% endif %}
+          {% if c.nota %}<p class="kpi__apoio">{{ c.nota.texto }}</p>{% endif %}
+        </article>
+      {% endfor %}
+    </div>
+
+    {% if alocacao %}
+      <section class="card card--tabela">
+        <div class="card__cabecalho">
+          <h2 class="card__titulo">Alocação por classe</h2>
+          <span class="card__nota">na foto de {{ cards[0].apoio }}</span>
+        </div>
+        <div class="tabela-caixa">
+          <table class="tabela tabela--resumo tabela--painel tabela--alocacao">
+            <thead>
+              <tr>
+                <th>Classe</th>
+                <th class="col-num">Valor</th>
+                <th class="col-pct">%</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in alocacao.classes %}
+                <tr>
+                  <th scope="row" class="tabela__principal">{{ c.classe }}</th>
+                  <td class="col-num">{{ m.reais(c.valor) }}</td>
+                  <td class="col-pct">
+                    <span class="pct-celula">
+                      {{ m.barra_pct(c.pct) }}
+                      <span class="pct-celula__numero">{{ c.pct | numero(1) }}%</span>
+                    </span>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td class="tabela__principal">Total</td>
+                <td class="col-num">{{ m.reais(alocacao.total) }}</td>
+                <td class="col-pct">
+                  <span class="pct-celula__numero">{{ alocacao.pct_total | numero(1) }}%</span>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
+    {% endif %}
+
+    <section class="card card--tabela">
+      <div class="card__cabecalho">
+        <h2 class="card__titulo">Fotos</h2>
+        <span class="card__nota">sem paginação: a foto é mensal</span>
+      </div>
+      <div class="tabela-caixa">
+        <table class="tabela tabela--resumo tabela--painel tabela--fotos">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th class="col-num">Ativos</th>
+              <th class="col-num">Total</th>
+              <th class="col-num">Δ vs anterior</th>
+              <th class="tabela__acoes"><span class="so-leitor">Ações</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for f in fotos %}
+              <tr>
+                <th scope="row" class="tabela__principal">{{ f.data_texto }}</th>
+                <td class="col-num">{{ f.ativos }}</td>
+                <td class="col-num">{{ m.reais(f.total) }}</td>
+                {# A cor vive no <span>, nunca na celula: e o que impede o
+                   travessao da primeira foto de sair vermelho. #}
+                <td class="col-num"><span class="{{ 'negativo' if f.delta_negativo }}">{{ f.delta }}</span></td>
+                <td class="tabela__acoes">
+                  <span class="acoes-linha">
+                    <a class="btn btn--discreto btn--pequeno"
+                       href="{{ url_for('lancamentos.patrimonio_tela', data=f.data.isoformat()) }}">Abrir</a>
+                    {#
+                      Confirmacao em dois passos pelo `hx-confirm`, o mesmo
+                      mecanismo do Excluir do resumo anual. Apaga a foto
+                      INTEIRA da data; a data da grade viaja em `?data=` para
+                      a resposta remontar a tela que esta aberta.
+                    #}
+                    <button type="button"
+                            class="btn btn--secundario btn--perigo btn--pequeno"
+                            hx-post="{{ url_for('lancamentos.patrimonio_excluir',
+                                                data_foto=f.data.isoformat(),
+                                                data=data_texto) }}"
+                            hx-confirm="Excluir a foto de {{ f.data_extenso }}? Todos os valores dessa data serão apagados. Isso não pode ser desfeito."
+                            hx-target="#grade-foto"
+                            hx-swap="outerHTML">Excluir foto</button>
+                  </span>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  {% endif %}
+</div>

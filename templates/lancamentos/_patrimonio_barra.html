@@ -1,0 +1,38 @@
+{% import "_macros.html" as m %}
+{#
+  A barra de filtros da tela: a data da foto e o botao que a abre.
+
+  O campo NAO submete sozinho ao mudar. Quem recarrega e o botao "Abrir", como
+  o "Ver" das Analises - e e isso que permite digitar uma data, clicar em
+  "Gravar foto" e receber a recusa NO CAMPO quando ela e futura. Com
+  auto-submit, a data futura seria corrigida em silencio pelo GET e nunca
+  chegaria ao POST.
+
+  SEM `max`, e de proposito. Um `max="hoje"` parece de graca, mas o HTMX
+  VALIDA os elementos que o `hx-include` traz e ABORTA a requisicao quando um
+  deles e invalido (`htmx:validation:halted`, medido nesta rodada): o clique
+  em "Gravar foto" nao fazia nada, sem POST e sem mensagem, e a recusa em
+  portugues que o servidor escreve nunca chegava a tela. Quem barra a data
+  futura e o servidor, com texto proprio - que e o que se ve no campo.
+
+  Ela e trocada FORA DE BANDA quando a gravacao e recusada: o erro da data
+  mora aqui, fora do alvo principal.
+#}
+<form class="filtro-barra" id="filtro-patrimonio" method="get"
+      action="{{ url_for('lancamentos.patrimonio_tela') }}"
+      {% if oob %}hx-swap-oob="true"{% endif %}>
+  <label class="filtro-campo">
+    <span class="filtro-campo__rotulo">Data da foto</span>
+    <input class="entrada{{ ' entrada--erro' if erro_data }}" type="date"
+           name="data" value="{{ data_texto }}">
+    {% if erro_data %}<p class="campo__erro">{{ erro_data }}</p>{% endif %}
+  </label>
+
+  <div class="filtro-campo filtro-campo--acao">
+    {# `calendar-days`, e nao o `wallet` do item de menu: o botao abre uma
+       DATA, e repetir o icone da tela dentro dela nao diz nada. #}
+    <button type="submit" class="btn btn--primario">
+      {{ m.icone("calendar-days", tamanho=14, tracado=2.25) }}Abrir
+    </button>
+  </div>
+</form>

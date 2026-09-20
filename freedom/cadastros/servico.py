@@ -1,7 +1,11 @@
-"""Peças compartilhadas pelas cinco telas de cadastro.
+"""Peças compartilhadas pelas telas de cadastro.
 
 Cada entidade tem seu módulo, mas alternar ativo/inativo, traduzir violação de
 UNIQUE e montar a lista são a mesma coisa em todas — ficam aqui.
+
+Eram cinco até a rodada 30, quando os ativos de patrimônio viraram a sexta.
+Entrar aqui é acrescentar três linhas de dicionário: a tabela, a mensagem do
+UNIQUE e o gênero do contador.
 """
 
 from psycopg import errors
@@ -39,6 +43,11 @@ _ENTIDADES = {
         "coluna_ativo": "ativo",
         "rotulo": "Fonte de receita",
     },
+    "ativos": {
+        "tabela": "tb_ativos",
+        "coluna_ativo": "ativo",
+        "rotulo": "Ativo",
+    },
 }
 
 # Constraint UNIQUE do banco -> (campo do formulário, mensagem para o usuário).
@@ -55,6 +64,10 @@ MENSAGENS_UNIQUE = {
     "uq_ref_receitas_categoria_subcategoria": (
         "subcategoria",
         "Já existe uma fonte de receita com essa categoria e subcategoria."),
+    # Nome automático do Postgres, de quando a tabela nasceu (rodada 1):
+    # tb_ativos.nome é UNIQUE sem constraint batizada no DDL.
+    "tb_ativos_nome_key": (
+        "nome", "Já existe um ativo com esse nome."),
 }
 
 
@@ -124,6 +137,10 @@ _GENERO = {
     "contas": ("ativas", "inativas"),
     "pessoas": ("ativas", "inativas"),
     "ref_receitas": ("ativas", "inativas"),
+    # O único masculino da lista: "22 ativos ativos" seria ridículo, e por isso
+    # a contagem dos ativos fala de POSIÇÃO — é o vocabulário da tela de
+    # patrimônio, onde inativo quer dizer "posição encerrada".
+    "ativos": ("em carteira", "encerrados"),
 }
 
 

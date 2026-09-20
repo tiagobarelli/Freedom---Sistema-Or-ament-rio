@@ -52,11 +52,12 @@
             planejado, faixas de cor do consumo e "fora do orcamento"
         5.16 Valores sensiveis (o olho da Visao Anual: as quatro marcas que
             somem com o numero, lidas do data-valores do <html>)
-        5.17 IPCA (o recuo da nota e da dica e os dois rotulos do botao de
-            atualizar; a tabela, a faixa e o alternador sao componentes de
-            5.13.2, 5.14, 5.6 e 5.2)
-        5.18 Analise por subcategoria (a caixa de marcar na barra de filtros e
-            a marca de periodo parcial; o resto e componente existente)
+        5.17 IPCA (so os dois rotulos do botao de atualizar; a tabela, a
+            faixa, o alternador e as duas notas sao componentes de 5.13.2,
+            5.14, 5.6, 5.2 e 5.1)
+        5.18 Analises por subcategoria e por prioridade (a caixa de marcar na
+            barra de filtros e a marca de periodo parcial; o resto e
+            componente existente)
         5.19 Backup (o comando de restauracao e a letra pequena da
             confirmacao; o resto e .card, .pilha, .card__rodape e .btn)
      6. Tela de login
@@ -800,10 +801,28 @@ body {
    entao o recuo lateral dela e o do .card. Nasceu como `.ipca-nota` na
    rodada 22 (nota do ano incompleto) e perdeu o nome de tela na 24, quando a
    analise por subcategoria passou a fechar o cartao com a nota do mes em
-   curso. */
+   curso. Desde a 26 pode embrulhar DUAS notas (o mes em curso e o que ficou
+   de fora), e por isso o recuo e dela, e nao de cada paragrafo. */
 .nota-rodape {
   margin: 0;
   padding: 0 20px 16px;
+}
+
+/* Um fio de respiro entre as duas notas, quando ha duas. Com uma so - o caso
+   de toda tela ate a rodada 25 - o seletor nao alcanca nada, e nada muda. */
+.nota-rodape .card__nota + .card__nota {
+  margin-top: 4px;
+}
+
+/* A irma de cima: nota que abre o conteudo em vez de fechar o cartao - fica
+   logo abaixo dos controles da tela, fora de qualquer cartao. Tipo e cor sao
+   os do .pagina-subtitulo, que ela acompanha no template; aqui so o respiro
+   ate o que vem depois. Nasceu como `.ipca-dica` na 5.17 (a dica de mes
+   provavel) e perdeu o nome de tela na rodada 26, quando a analise por
+   prioridade passou a abrir com o aviso da serie historica - mesmo caminho
+   de `.ipca-nota` -> `.nota-rodape`. */
+.nota-topo {
+  margin-bottom: var(--e-3);
 }
 
 .campo--em-linha {
@@ -2457,6 +2476,16 @@ body {
   gap: 14px;
 }
 
+/* Tres em vez de quatro: o resumo das duas analises (media, mediana e
+   total). Fica junto da grade que modifica, e nao na secao da tela, porque e
+   a mesma grade - muda so quantas colunas ela tem. Vem ANTES da consulta
+   abaixo de proposito: la a regra da .painel-grade tem a mesma forca e vence
+   por vir depois, entao os tres viram dois mais um no celular, como os
+   quatro da Anual. */
+.painel-grade--tres {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 /* Entre 768px e ~1100px cabem duas colunas: com quatro, um valor como
    R$ 100.836,00 quebraria em duas linhas em quase todos os cards. */
 @media (max-width: 1099px) {
@@ -3506,10 +3535,11 @@ body {
    coluna do ano fica fixa pelo .tabela-caixa--fixa-primeira da mesma 5.14; o
    alternador e o .segmentado da 5.2.
 
-   Sobra pouco, e nada disso existia: a nota do ano incompleto precisa do
-   recuo que o .card--tabela nao tem (ele zera o padding para a tabela ir de
-   ponta a ponta), a dica de mes provavel precisa de respiro, e o botao de
-   atualizar troca de rotulo enquanto a requisicao roda. As catorze colunas
+   Sobra pouco, e menos ainda desde a rodada 26: a nota do ano incompleto e
+   a .nota-rodape da 5.1 e a dica de mes provavel virou a .nota-topo da 5.1
+   quando a analise por prioridade passou a precisar do mesmo respiro. O que
+   restou aqui e o botao de atualizar, que troca de rotulo enquanto a
+   requisicao roda. As catorze colunas
    nao precisaram de nada - a 1440px a tabela mede 1019px naturais (modo
    indice, o mais largo) para 1152px disponiveis, e apertar o padding seria
    estreitar o que ja cabe.
@@ -3519,12 +3549,6 @@ body {
 */
 
 
-
-/* A dica de mes provavel fica entre a faixa e o cartao. Tipo e cor sao os do
-   .pagina-subtitulo, que ela acompanha no template; aqui so o respiro. */
-.ipca-dica {
-  margin-bottom: var(--e-3);
-}
 
 /* O botao "Atualizar do IBGE" enquanto a busca roda. O HTMX poe `htmx-request`
    no elemento que disparou (o <form>) e tira ao terminar, com sucesso ou com
@@ -3543,14 +3567,17 @@ body {
 }
 
 
-/* --- 5.18 Analise por subcategoria --------------------------------------
-   A tela inteira e componente existente: a .filtro-barra da 5.13 com os
+/* --- 5.18 Analises por subcategoria e por prioridade ---------------------
+   As duas telas sao componente existente: a .filtro-barra da 5.13 com os
    .filtro-campo da 5.10, o .card e o .grafico__area da 5.13.1, a
-   .tabela--resumo da 5.13.2 e a .nota-rodape da 5.1.
+   .tabela--resumo da 5.13.2 e as duas notas da 5.1 (.nota-topo no aviso fixo
+   da analise por prioridade, .nota-rodape no rodape do cartao das duas).
 
    Sobra o que nenhuma tela tinha: uma caixa de marcar dentro da barra de
    filtros (todos os outros filtros sao select) e a marca de periodo parcial
-   na tabela. A linha esmaecida do grafico NAO esta aqui: e cor e tracejado
+   na tabela. As duas classes nasceram na rodada 24 e a rodada 26 nao precisou
+   de mais nenhuma: a analise por prioridade tem o mesmo desenho, com outro
+   recorte. A linha esmaecida do grafico NAO esta aqui: e cor e tracejado
    passados ao Chart.js, e canvas nao le folha de estilo.
 */
 

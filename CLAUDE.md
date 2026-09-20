@@ -96,7 +96,7 @@ relatório ou documento.** Referencie sempre pelo nome da variável.
 | Auth | Flask-Login; hash com `werkzeug.security` (scrypt) |
 | Formulários | Flask-WTF (CSRF em todo POST) |
 | Interatividade | HTMX 2.0.4 (arquivo local) + JS vanilla pontual |
-| Gráficos | Chart.js 4.5.1, UMD **local**, nas duas telas que desenham (Visão Anual e Análise por subcategoria). Núcleo, sem plugins. O comum às duas mora em `static/js/graficos.js` |
+| Gráficos | Chart.js 4.5.1, UMD **local**, nas três telas que desenham (Visão Anual e as duas Análises). Núcleo, sem plugins. O comum a elas mora em `static/js/graficos.js`; `analise.js` serve às duas Análises sem ramificar por página |
 | CSS | Um arquivo escrito à mão (`static/css/app.css`), tokens em `:root`. **Sem Tailwind, sem React, sem biblioteca de ícones** |
 | Ícones | Lucide (ISC), **SVG inline** pela macro `icone` em `templates/_macros.html` |
 | Dinheiro | `Decimal` em todo cálculo; `float` só na serialização final para JSON de gráfico |
@@ -110,6 +110,11 @@ fonte web. A única chamada externa do sistema inteiro é a da API do SIDRA
 cron, thread nem tarefa do Windows dentro do app. Nenhuma tela pede nada a
 domínio externo: quem fala com o IBGE é o servidor, quando alguém manda. A tipografia é a fonte do sistema. Isso é verificável e é verificado: a
 validação de cada rodada confere que a aba Rede só tem `/static/...`.
+
+O sistema sai do próprio processo em **mais um** ponto, e ele não é rede: o
+`docker exec` que a página de Backup usa para rodar o `pg_dump` dentro do
+container (`subprocess.run` com lista de argumentos, `shell=False`, rodada
+25). Vale a mesma regra do SIDRA — **só por clique**, nunca por agendamento.
 
 ## 4. Mapa do código
 
@@ -142,14 +147,22 @@ freedom/
                    servico.py        Anual: painel_do_ano, _totais_do_ano
                                      (origem única dos totais), _tabela_mensal,
                                      _tabela_categorias, _graficos;
-                                     helpers card, percentual;
+                                     helpers card e percentual — `card` serve
+                                     também à Mensal e ao resumo das análises;
                                      anos_com_lancamento e resumo_do_ano, que o
                                      cadastro de resumos importa daqui
                    servico_mensal.py Mensal: painel_do_mes e as três tabelas
-                   analise.py        "/analise/subcategoria" (rodada 24), só
-                                     a rota; servico_analise.py tem a consulta
-                                     única por mês e as puras montar_pontos,
-                                     montar e para_grafico
+                   analise.py        as DUAS análises, só as rotas:
+                                     "/analise/subcategoria" (rodada 24) e
+                                     "/analise/prioridade" (rodada 26). Cada
+                                     uma lê da URL o que é dela, monta o
+                                     Recorte e entrega o resto a painel()
+                   servico_analise.py o serviço das duas. `Recorte` (nome,
+                                     condição SQL, params, so_integrantes) é a
+                                     única coisa que as separa; painel() é o
+                                     caminho da URL à tela; consultar() é a
+                                     consulta única; montar_pontos, montar,
+                                     _resumo e para_grafico são puras
   cadastros/       /cadastros — um módulo por entidade + servico.py
                    (alternar_ativo, traduzir_unique, contagem).
                    resumos_anuais.py é o de fora da série: chave é o ano, não
@@ -161,10 +174,20 @@ freedom/
                    parciais _cartao_ipca, _subtitulo_ipca (OOB) e _resposta_ipca
   lancamentos/     /lancamentos — despesas.py, consulta.py, receitas.py,
                    servico.py, servico_receitas.py, forms.py
-  configuracoes/   /configuracoes — parâmetros com vigência (CATALOGO em Python)
+  configuracoes/   /configuracoes — um módulo por assunto:
+                   rotas.py  parâmetros com vigência (CATALOGO em Python).
+                             Chama-se "Parâmetros" na tela desde a rodada 25;
+                             o endpoint e a URL não mudaram
+                   backup.py a página de backup (rodada 25): gerar_dump() roda
+                             pg_dump por docker exec, bufferiza e devolve os
+                             bytes mais o nome do arquivo
   orcamento/       /orcamento — servico.py (montagem) e acompanhamento.py (leitura)
 templates/         base.html (o `htmx-config` que libera 409/502/503),
-                   layout_app.html, _macros.html + uma pasta por blueprint
+                   layout_app.html, _macros.html + uma pasta por blueprint.
+                   main/_analise.html é o corpo que as duas Análises estendem;
+                   analise.html e analise_prioridade.html só preenchem título,
+                   primeiro campo do filtro, convite e (só a segunda) o aviso
+                   fixo
 static/css/app.css seções numeradas 1–8 (ver seção 7 deste arquivo)
 static/js/         htmx.min.js, chart.umd.js; graficos.js (o que as telas
                    com gráfico fazem igual: cor por variável CSS, moeda,
@@ -245,10 +268,15 @@ Regras que se aplicam a todo código novo:
   `tb_ipca`; mês posterior a ela usa fator 1. A deflação é por lançamento, em
   SQL, e a soma vem depois: deflacionar a soma do trimestre por um índice só
   daria outro número. Bucket que não cabe inteiro no período ou que contém o
-  mês em curso é **parcial**. **`integra_ipca` não é lida** — é de uma tela
-  futura, por decisão do dono.
-- **Tela do IPCA** (`/cadastros/ipca`, rodada 22): só leitura, no menu entre
-  "Resumos anuais" e "Configurações" (ícone Lucide `percent`), sem olho — o
+  mês em curso é **parcial**. Ela soma a subcategoria INTEIRA e **continua
+  sem ler `integra_ipca`**, de propósito: quem separa as duas coisas é a
+  Análise por prioridade. Desde a rodada 26 o corpo da tela (barra de
+  filtros do período para a direita, estados vazios, resumo, gráfico e
+  tabela) mora em `templates/main/_analise.html`, que as duas estendem.
+- **Tela do IPCA** (`/cadastros/ipca`, rodada 22): só leitura, no menu logo
+  abaixo de "Resumos anuais" (ícone Lucide `percent`) e, desde que
+  Configurações virou grupo próprio na rodada 25, o **último item de
+  Cadastros**; sem olho — o
   IPCA é número público do IBGE, não quanto a casa gastou. Matriz ano × 12
   meses, ano mais recente em cima, com a coluna **"No ano"** = índice do
   último mês carregado do ano ÷ índice de dezembro do ano anterior − 1, a
@@ -283,6 +311,54 @@ Regras que se aplicam a todo código novo:
   máximo um resumo por ano, e a edição não troca o ano. Só se oferece ano que a
   Visão Anual mostra e que ainda não tem resumo. Na Anual, **ano sem resumo não
   mostra card, aviso nem convite para escrever um**.
+- **Análise por prioridade** (`/analise/prioridade`, rodada 26): no grupo
+  Painel, logo abaixo da Análise por subcategoria (ícone `chart-column`), sem
+  olho. Divide com ela tudo menos o recorte — período, agrupamento, correção,
+  resumo, gráfico e tabela são o mesmo código. Uma **faixa** por vez, sem
+  mistura: Essencial, P1, P2, P3 ou P4. "Essencial" é a essencialidade
+  **efetiva** da view e **ignora a prioridade gravada** — o banco não impede
+  que uma despesa essencial carregue prioridade de um registro antigo, e isso
+  não a move de faixa. P1–P4 são `Não Essencial` com aquela prioridade, e
+  quem não tem prioridade **não cai em faixa nenhuma**: é desprezada, sem
+  sexta faixa e sem engordar a P4 (não precisa de cláusula — `prioridade = 4`
+  sobre NULL não é verdadeiro). Faixa ausente ou desconhecida é convite,
+  **nunca um padrão**: as cinco respondem perguntas diferentes.
+  É o **único lugar do sistema que lê `integra_ipca`**: só entra o que
+  integra a série histórica, inclusive com a correção desligada. Daí o aviso
+  fixo abaixo da barra de filtros, visível até no convite e no "nenhum
+  lançamento", e a nota de rodapé que diz quantos lançamentos e quanto
+  ficaram de fora **no período exibido** — um número do período inteiro, não
+  por ponto, e vindo da MESMA consulta, por `GROUPING SETS ((mês), ())`.
+  Quando TODAS as despesas de um período foram desprezadas, a tela desenha a
+  série em zero e explica na nota, em vez de dizer "nenhum lançamento" sobre
+  um mês em que se gastou.
+- **Resumo das análises** (média, mediana e total): três cards `kpi` antes do
+  gráfico, nas duas telas. Saem dos pontos já compostos — sem consulta nova,
+  e dos MESMOS números que a tabela imprime, para somar a coluna à mão dar o
+  total do card. **Só períodos completos**: parcial fica de fora, porque o
+  mês em curso arrasta a média sem que nada na tela explique por quê (nos 12
+  meses de "Essencial" tirava R$ 300). Com menos de **dois** completos o card
+  não aparece — é o que acontece com agrupamento anual numa janela de 12
+  meses, onde os dois anos estão recortados. Com a correção ligada o resumo é
+  dos valores reais; sem ela, dos nominais. Nunca dos dois.
+- **Backup** (`/configuracoes/backup`, rodada 25): a página **só exporta**.
+  Não há restauração pela interface — a tela mostra o comando do `psql` e
+  quem o roda é o dono —, não há histórico de backup (nem tabela, nem log,
+  nem "último backup em", que mentiria assim que o arquivo fosse apagado) e
+  não há agendamento: o dump sai por clique, e por mais nada. O `pg_dump`
+  roda DENTRO do container por `docker exec`, **sem senha** (lá a conexão é
+  por socket local e a imagem oficial do Postgres trata isso como `trust`);
+  usuário e banco saem do `DATABASE_URL` por `conninfo_to_dict`, e nenhuma
+  credencial vai para a linha de comando. O dump é **bufferizado inteiro** e
+  só vira resposta com `returncode == 0` e stdout não vazio: streamar daria
+  200 antes de saber o desfecho, e uma falha no meio deixaria um `.sql`
+  truncado com cara de backup. Nada em disco do servidor. Em qualquer falha,
+  **nenhum download**: `flash` de erro com as últimas linhas do stderr e
+  volta para a tela.
+  Foi ele que fez **Configurações virar grupo próprio** na sidebar (fechado
+  por padrão, como Cadastros), com "Parâmetros" e "Backup" — até a 24 era um
+  item só no fim de Cadastros. O rótulo da tela de parâmetros mudou; o
+  endpoint e a URL `/configuracoes`, não.
 
 ## 7. Convenções de código que o projeto exige
 
@@ -292,8 +368,11 @@ Regras que se aplicam a todo código novo:
   plural, contador — tudo vem pronto do Python. O template escolhe o formato
   (macro `reais`, filtro `numero`) e emite o nome da classe que recebeu.
 - **Agregados vêm de consulta própria**, nunca de soma em Python sobre a página.
-  Exceção prevista e única: composição em `Decimal` sobre conjunto **pequeno e
-  completo** cuja definição É "estas linhas" (ex.: `total_exibido` das 15 recentes).
+  A exceção prevista é composição em `Decimal` sobre conjunto **pequeno e
+  completo** cuja definição É "estas linhas", e ela tem exatamente dois usos:
+  o `total_exibido` das 15 recentes e a média, a mediana e o total do resumo
+  das análises, que saem dos pontos já compostos. Um terceiro uso é sinal de
+  que faltou uma consulta.
 - **Dois lugares que mostram o mesmo número leem da mesma origem.**
 - Formatação: `moeda`; percentual pelo filtro `numero` (vírgula, uma casa); sem
   denominador → travessão (`fracao` devolve `None`); **negativo em vermelho no
@@ -334,8 +413,16 @@ Regras que se aplicam a todo código novo:
 - `HX-Retarget` quando o alvo natural do disparador não é onde a resposta cai.
 - Rota só de fragmento: sem `HX-Request` → redirect para a página-mãe com os
   mesmos parâmetros, **antes** de qualquer 404. Regra de estado recusada → **409**.
+- **HTMX troca DOM, não dispara download.** Uma resposta com
+  `Content-Disposition` chegando por `hx-post` é engolida pelo swap e o
+  arquivo nunca aparece. Quem baixa arquivo é `<form method="post">` comum,
+  **sem nenhum atributo `hx-`**, e aí o token CSRF precisa ir num
+  `<input type="hidden">`: o `hx-headers` do `<body>` não vale para um POST
+  que o navegador faz sozinho. Único caso hoje: "Confirmar e baixar" da
+  página de Backup. Por ser POST comum, a falha também segue o caminho
+  comum — `flash` mais redirect, e não fragmento com status de erro.
 
-### CSS (`static/css/app.css`, ~4.480 linhas, seções numeradas)
+### CSS (`static/css/app.css`, ~4.565 linhas, seções numeradas)
 
 ```
 1 Variáveis   2 Reset   3 Fundo   4 Layout   5 Componentes   6 Login
@@ -355,13 +442,25 @@ Regras que se aplicam a todo código novo:
 - Utilitário nasce **global**, na seção 8. Classe utilitária criada dentro de um
   seletor de tela não funciona fora dela e o erro é silencioso.
 - Componente que uma segunda tela adota **sai da seção da primeira** e perde o
-  nome que falava daquela tela: o seletor segmentado era `.anos`, dentro do
-  bloco da Visão Anual, e virou `.segmentado` na seção 5.2 quando a tela do
-  IPCA passou a alternar variação e número-índice com o mesmo desenho; a nota
-  de rodapé do cartão de tabela era `.ipca-nota` e virou `.nota-rodape` na 5.1
-  quando a análise por subcategoria passou a fechar o cartão do mesmo jeito.
-  Copiar teria criado a segunda cópia; deixar o nome teria criado o comentário
-  que mente. Renomear não mexe em pixel, e o SHA prova.
+  nome que falava daquela tela. Já aconteceu três vezes: o seletor segmentado
+  era `.anos`, dentro do bloco da Visão Anual, e virou `.segmentado` na seção
+  5.2 quando a tela do IPCA passou a alternar variação e número-índice com o
+  mesmo desenho; a nota de rodapé do cartão de tabela era `.ipca-nota` e virou
+  `.nota-rodape` na 5.1 quando a análise por subcategoria passou a fechar o
+  cartão do mesmo jeito; e a dica de mês provável era `.ipca-dica` e virou
+  `.nota-topo` na 5.1, ao lado da irmã, quando a análise por prioridade
+  passou a abrir com um aviso no mesmo lugar. Copiar teria criado a segunda
+  cópia; deixar o nome teria criado o comentário que mente. Renomear não mexe
+  em pixel, e o SHA prova.
+- **O vão entre os blocos de uma tela é o `.painel` da seção 4**, e não
+  `margin-top` em cada bloco: quem conhece a distância é o arranjo da página.
+  As duas Análises passaram a usá-lo na rodada 26 — até ali os cartões se
+  tocavam (base do gráfico 628, topo da tabela 628) e ninguém tinha
+  reparado, porque o cabeçalho da tabela tem fundo próprio.
+- A `.painel-grade` é a grade de cards do projeto (4 colunas, 2 abaixo de
+  1100px, 1 abaixo de 768px). `.painel-grade--tres` é a mesma com três, do
+  resumo das análises; o modificador mora junto da grade, e não na seção da
+  tela, porque é a mesma grade com outra contagem.
 - **O mesmo vale para o JavaScript**: `graficos.js` nasceu na rodada 24 com o
   que a Visão Anual e a Análise repetiriam. Nenhum hexadecimal nele — cor
   continua saindo de variável CSS por `getComputedStyle`.
@@ -537,6 +636,16 @@ O que se espera de uma validação:
   anual — enquanto você trabalhava**, e aí a diferença é dado, não regressão.
   Compare também as dimensões: mesma largura e altura crescida no tamanho exato
   de um bloco novo é a assinatura de "apareceu conteúdo", não de layout mexido.
+- **Captura de página inteira não serve quando a rodada mexe na sidebar.** Um
+  item novo no menu muda o SHA de TODA tela do sistema sem que o conteúdo
+  tenha se mexido. Capture a coluna de conteúdo por elemento
+  (`main.conteudo`), que é o que precisa ser provado. E quando a referência
+  "antes" exigir o código anterior, `git stash push -u` / `git stash pop`
+  resolve — conferindo os SHA-256 dos arquivos no fim, porque o checkout
+  normaliza o fim de linha (compare o conteúdo com `
+` trocado por
+  `
+`, senão todo arquivo LF parece ter mudado).
 - **A referência da Visão Anual tem quatro estados por largura**, não um: cada
   ano relevante × olho fechado e aberto. Capturar só o estado aberto esconde
   metade da tela desde a rodada 19.
@@ -590,18 +699,29 @@ decisões, lições aprendidas). Resumo:
   série temporal de uma subcategoria com agrupamento e correção pelo IPCA,
   gráfico de linha e tabela dos pontos; `static/js/graficos.js` extraído da
   Anual; `somar_meses` e `intervalo_de_meses` promovidos para `util.py`.
+  Rodada 25: **página de Backup** em `/configuracoes/backup` — dump do banco
+  inteiro por `docker exec pg_dump`, confirmação em dois passos e download;
+  Configurações virou o quarto grupo da sidebar, com "Parâmetros" e "Backup".
+  Rodada 26: **Análise por prioridade** em `/analise/prioridade` — faixa
+  (Essencial ou P1–P4) em vez de subcategoria, filtro permanente por
+  `integra_ipca` (o primeiro e único uso da flag) e a nota do que ficou de
+  fora; o corpo das duas análises saiu para `main/_analise.html` e
+  `servico_analise.py` virou o serviço das duas, com `Recorte` e `painel()`;
+  `.ipca-dica` promovida a `.nota-topo`. Depois da 26, a pedido do dono:
+  **resumo de média, mediana e total** antes do gráfico, nas duas análises.
 - **Pendente**: a refatoração visual das telas que faltam — Visão Mensal,
   Orçamento, configurações e login ainda rodam sobre os apelidos da seção 1(b)
   do CSS. **Citada pelo nome, e não por número de rodada**: o número já mudou
   duas vezes, e cada mudança deixou comentário mentindo pelo código.
-- **Depois**, na ordem sugerida pelo histórico: a tela de **despesas mensais
-  somadas por `integra_ipca`** (o primeiro e único uso da flag, que hoje ninguém
-  lê); a refatoração visual pendente; **metas de independência** (TSR/S/R já
-  estão em `tb_configuracoes`, nada os lê); **patrimônio** (`tb_ativos` e
-  `tb_patrimonio_snapshots` existem e estão vazias); **deploy** com gunicorn no
-  docker-compose (`--timeout` compatível com os 20 s do botão do IPCA),
-  `TZ=America/Sao_Paulo`, Tailscale e segundo usuário. Backlog de deflação:
-  ticket médio deflacionado na análise e série real do ano na Visão Anual.
+- **Depois**, na ordem sugerida pelo histórico: a refatoração visual pendente;
+  **metas de independência** (TSR/S/R já estão em `tb_configuracoes`, nada os
+  lê); **patrimônio** (`tb_ativos` e `tb_patrimonio_snapshots` existem e estão
+  vazias); **deploy** com gunicorn no docker-compose (`--timeout` compatível
+  com os 20 s do botão do IPCA), `TZ=America/Sao_Paulo`, Tailscale e segundo
+  usuário. O item que abria esta lista — a tela de despesas mensais somadas
+  por `integra_ipca` — **saiu**: a rodada 26 deu à flag o uso que faltava.
+  Backlog de deflação: ticket médio deflacionado na análise e série real do
+  ano na Visão Anual.
 
 Referência visual: `design_handoff_freedom_visao_anual/` e
 `design_handoff_freedom_lancamentos_cadastros/`. **Cuidado**: os README desses
@@ -620,9 +740,13 @@ fazem parte da aplicação.
 - Não apague dado que você não criou.
 - Não leve o olho da Visão Anual para outra tela sem o dono pedir: o mecanismo
   é reutilizável, a decisão de onde usá-lo não é sua.
-- **Não leia `tb_despesas.integra_ipca`.** A coluna está reservada para uma tela
-  futura (despesas mensais somadas só das marcadas) e hoje **nada a consulta** —
-  nem a Análise por subcategoria, por decisão do dono.
+- **`tb_despesas.integra_ipca` é lida em um lugar só**: o recorte da Análise
+  por prioridade (rodada 26). Nenhuma outra tela a lê, e a Análise por
+  subcategoria **continua somando tudo**, de propósito — não a "corrija" por
+  coerência. Tela nova que precise da flag herda junto a obrigação de avisar
+  na tela que os totais dela não batem com os das outras.
+- Não implemente **restauração** de backup pela interface, nem parcial nem
+  "só dados", nem histórico de backups, nem agendamento do dump.
 - Não classifique subcategoria (coluna, flag ou heurística de "contínua" ou
   "esporádica"): quem escolhe a granularidade é quem olha, pelo agrupamento.
 - Não agende a chamada ao SIDRA (cron, thread, Agendador de Tarefas dentro do

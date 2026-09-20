@@ -1,0 +1,52 @@
+{% extends "main/_analise.html" %}
+{% import "_macros.html" as m %}
+
+{#
+  Analise por prioridade (rodada 26): uma faixa por vez - Essencial, ou uma
+  das quatro prioridades -, com os mesmos periodo, agrupamento e correcao pelo
+  IPCA da analise por subcategoria, que este arquivo estende.
+
+  Aqui fica so o que e desta tela: o titulo, o <select> de faixa, o aviso fixo
+  e o convite. O que ela soma tambem e proprio, e e a razao do aviso: **so o
+  que integra a serie historica**. E o unico lugar do sistema que le essa
+  marca.
+#}
+
+{% block title %}Análise por prioridade - Freedom{% endblock %}
+{% block titulo_pagina %}Análise por prioridade{% endblock %}
+
+{% block filtro_proprio %}
+  <label class="filtro-campo">
+    <span class="filtro-campo__rotulo">Faixa</span>
+    <select class="selecao" name="faixa">
+      <option value="">Escolha uma faixa</option>
+      {#
+        Uma por vez, sem mistura, e sem <optgroup>: Essencial e as quatro
+        prioridades sao cinco recortes do mesmo nivel, e agrupa-los sugeriria
+        que "Essencial" e uma prioridade, que nao e.
+      #}
+      {% for chave, rotulo, _nome in faixas %}
+        <option value="{{ chave }}" {{ 'selected' if chave == faixa }}>{{ rotulo }}</option>
+      {% endfor %}
+    </select>
+  </label>
+{% endblock %}
+
+{#
+  Sempre visivel, inclusive no convite e no "nenhum lancamento": e ela que
+  explica por que os numeros desta tela nao batem com os das outras, e essa
+  explicacao nao pode depender de ja haver grafico na tela.
+#}
+{% block nota_fixa %}
+  <p class="pagina-subtitulo nota-topo">
+    Esta tela soma só as despesas que entram na série histórica da casa.
+    Gastos pontuais, desmarcados na hora de lançar, ficam de fora — por isso
+    os totais daqui não batem com os da Visão Mensal nem com os da Análise
+    por subcategoria.
+  </p>
+{% endblock %}
+
+{% block convite %}
+  {{ m.vazio("Escolha uma faixa",
+             "A série de gastos aparece aqui, com a opção de corrigir pelo IPCA.") }}
+{% endblock %}

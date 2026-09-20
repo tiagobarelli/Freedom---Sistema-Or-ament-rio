@@ -1,4 +1,4 @@
-{% extends "layout_app.html" %}
+{% extends "main/_analise.html" %}
 {% import "_macros.html" as m %}
 
 {#
@@ -6,30 +6,20 @@
   opcao de corrigir pelo IPCA. Tudo por GET - a URL e o estado, e a tela e
   reproduzivel por link.
 
-  Nada e decidido aqui. O subtitulo, o rotulo de cada ponto, a nota do mes em
-  curso, a marca de parcial e os rotulos das series do grafico vem prontos de
-  `servico_analise.py`. Esta pagina NAO tem o olho: so a Visao Anual tem.
+  O corpo inteiro (barra de filtros do periodo para a direita, estados vazios,
+  grafico e tabela) mora em `_analise.html`, que a analise por prioridade
+  estende tambem. Aqui fica so o que e desta tela: o titulo, o <select> de
+  subcategoria e o convite.
+
+  Ela soma a subcategoria INTEIRA, e continua sem ler `integra_ipca`: um gasto
+  pontual desmarcado no lancamento entra nesta serie. Quem separa as duas
+  coisas e a analise por prioridade.
 #}
 
 {% block title %}Análise por subcategoria - Freedom{% endblock %}
 {% block titulo_pagina %}Análise por subcategoria{% endblock %}
 
-{% block subtitulo_pagina %}
-  {% if r %}
-    <p class="pagina-subtitulo">{{ r.subtitulo }}</p>
-  {% endif %}
-{% endblock %}
-
-{% block content %}
-
-{#
-  A barra de filtros da secao 5.13, a mesma da Visao Mensal e do orcamento.
-  GET com recarga inteira e um botao "Ver": sao cinco campos, e submeter a
-  cada `change` faria a pessoa esperar quatro vezes ate montar a pergunta.
-#}
-<form class="filtro-barra" method="get"
-      action="{{ url_for('main.analise_subcategoria') }}">
-
+{% block filtro_proprio %}
   <label class="filtro-campo">
     <span class="filtro-campo__rotulo">Subcategoria</span>
     <select class="selecao" name="sub">
@@ -45,137 +35,9 @@
       {% endfor %}
     </select>
   </label>
-
-  <label class="filtro-campo">
-    <span class="filtro-campo__rotulo">Período</span>
-    <select class="selecao" name="periodo">
-      <option value="3m"  {{ 'selected' if periodo == '3m' }}>Últimos 3 meses</option>
-      <option value="6m"  {{ 'selected' if periodo == '6m' }}>Últimos 6 meses</option>
-      <option value="12m" {{ 'selected' if periodo == '12m' }}>Últimos 12 meses</option>
-      <option value="tudo" {{ 'selected' if periodo == 'tudo' }}>Série inteira</option>
-      <option value="personalizado"
-              {{ 'selected' if periodo == 'personalizado' }}>Personalizado</option>
-    </select>
-  </label>
-
-  {#
-    Os dois meses ficam sempre visiveis e sao ignorados fora de
-    "Personalizado": esconde-los exigiria JavaScript, e mostrar o que o
-    servidor vai usar e mais honesto que um campo que aparece e some.
-    O `pattern` e o placeholder sao a reserva de quem nao tem
-    <input type="month"> (Firefox antigo, alguns Safari).
-  #}
-  <label class="filtro-campo">
-    <span class="filtro-campo__rotulo">De</span>
-    <input class="entrada" type="month" name="de" value="{{ de }}"
-           pattern="\d{4}-\d{2}" placeholder="AAAA-MM">
-  </label>
-
-  <label class="filtro-campo">
-    <span class="filtro-campo__rotulo">Até</span>
-    <input class="entrada" type="month" name="ate" value="{{ ate }}"
-           pattern="\d{4}-\d{2}" placeholder="AAAA-MM">
-  </label>
-
-  <label class="filtro-campo">
-    <span class="filtro-campo__rotulo">Agrupar por</span>
-    <select class="selecao" name="agrupar">
-      <option value="mes"       {{ 'selected' if agrupar == 'mes' }}>Mensal</option>
-      <option value="trimestre" {{ 'selected' if agrupar == 'trimestre' }}>Trimestral</option>
-      <option value="ano"       {{ 'selected' if agrupar == 'ano' }}>Anual</option>
-      <option value="12m"       {{ 'selected' if agrupar == '12m' }}>12 meses móveis</option>
-    </select>
-  </label>
-
-  {#
-    Sem serie do IPCA carregada nao ha a que corrigir: a caixa vem
-    desabilitada e a dica diz onde resolver isso.
-  #}
-  <label class="filtro-campo filtro-campo--caixa">
-    <span class="analise-caixa">
-      <input type="checkbox" name="ipca" value="1"
-             {{ 'checked' if corrigir }} {{ 'disabled' if not tem_ipca }}>
-      Aplicar correção pelo IPCA
-    </span>
-    {% if not tem_ipca %}
-      <span class="filtro-campo__rotulo">Carregue o IPCA em Cadastros › IPCA</span>
-    {% endif %}
-  </label>
-
-  <div class="filtro-campo filtro-campo--acao">
-    <button type="submit" class="btn btn--primario">Ver</button>
-  </div>
-</form>
-
-{% if erro %}
-  <div class="flash-lista">
-    <div class="flash flash--erro" role="status">{{ erro }}</div>
-  </div>
-{% elif not sub %}
-  {{ m.vazio("Escolha uma subcategoria",
-             "A série de gastos aparece aqui, com a opção de corrigir pelo IPCA.") }}
-{% elif sem_lancamento %}
-  {{ m.vazio("Nenhum lançamento no período",
-             "Experimente outro período ou outro agrupamento.") }}
-{% else %}
-
-  {#
-    Grafico e tabela mostram os MESMOS pontos: a tabela e a leitura exata do
-    que a linha desenha, com a quantidade de lancamentos ao lado - e ela que
-    separa "comprei mais vezes" de "comprei mais caro".
-  #}
-  <script type="application/json" id="dados-analise">{{ grafico | tojson }}</script>
-
-  <section class="card grafico">
-    <div class="grafico__area">
-      <canvas id="grafico-analise"></canvas>
-    </div>
-  </section>
-
-  <section class="card card--tabela">
-    <div class="tabela-caixa">
-      <table class="tabela tabela--resumo tabela--analise">
-        <caption class="so-leitor">{{ r.subtitulo }}</caption>
-        <thead>
-          <tr>
-            <th>Período</th>
-            <th class="col-num">Lançamentos</th>
-            <th class="col-num">Nominal</th>
-            {% if corrigir %}
-              <th class="col-num col-total">{{ r.rotulo_corrigido }}</th>
-            {% endif %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for p in r.pontos %}
-            <tr>
-              <th scope="row" class="tabela__principal">
-                {{ p.rotulo }}
-                {% if p.parcial %}<span class="analise-parcial">parcial</span>{% endif %}
-              </th>
-              <td class="col-num">{{ p.quantidade }}</td>
-              <td class="col-num">{{ m.reais(p.nominal) }}</td>
-              {% if corrigir %}
-                <td class="col-num col-total">{{ m.reais(p.corrigido) }}</td>
-              {% endif %}
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    {% if r.nota %}
-      <p class="card__nota nota-rodape">{{ r.nota }}</p>
-    {% endif %}
-  </section>
-{% endif %}
-
 {% endblock %}
 
-{% block scripts %}
-  {% if r %}
-    <script src="{{ url_for('static', filename='js/chart.umd.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/graficos.js') }}" defer></script>
-    <script src="{{ url_for('static', filename='js/analise.js') }}" defer></script>
-  {% endif %}
+{% block convite %}
+  {{ m.vazio("Escolha uma subcategoria",
+             "A série de gastos aparece aqui, com a opção de corrigir pelo IPCA.") }}
 {% endblock %}

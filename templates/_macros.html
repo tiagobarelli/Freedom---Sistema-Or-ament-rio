@@ -140,10 +140,16 @@
 {% endmacro %}
 
 
-{# --- Rodape de formulario ------------------------------------------------ #}
-{% macro acoes_formulario(url_voltar, rotulo_salvar="Salvar") %}
+{# --- Rodape de formulario ------------------------------------------------
+   Salvar (primário) e Cancelar (secundário). O ícone do botão primário é
+   opcional e usa o mesmo par tamanho/traçado do botão de entrar (14 e 2.25,
+   para pesar como o texto ao lado, e não como um ícone de menu). Sem ele o
+   HTML sai caractere por caractere igual ao de antes — é o que mantém
+   intactos os nove formulários que já chamavam a macro.
+#}
+{% macro acoes_formulario(url_voltar, rotulo_salvar="Salvar", icone_salvar=None) %}
   <div class="card__rodape">
-    <button type="submit" class="btn btn--primario">{{ rotulo_salvar }}</button>
+    <button type="submit" class="btn btn--primario">{% if icone_salvar %}{{ icone(icone_salvar, tamanho=14, tracado=2.25) }}{% endif %}{{ rotulo_salvar }}</button>
     <a class="btn btn--secundario" href="{{ url_voltar }}">Cancelar</a>
   </div>
 {% endmacro %}
@@ -652,6 +658,11 @@
   "log-in":
     '<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>'
     '<polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/>',
+  "key-round":
+    '<path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1'
+    'a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586'
+    'l.814-.814a6.5 6.5 0 1 0-4-4z"/>'
+    '<circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/>',
   "chevron-down":
     '<path d="m6 9 6 6 6-6"/>',
   "chevron-right":

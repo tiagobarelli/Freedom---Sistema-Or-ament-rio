@@ -106,6 +106,7 @@ relatório ou documento.** Referencie sempre pelo nome da variável.
 | Gráficos | Chart.js 4.5.1, UMD **local**, nas cinco telas que desenham: Visão Anual, as duas Análises, Independência e Patrimônio — esta com **dois** canvas (evolução e tendência) e por isso a única que precisa destruir instância antes de redesenhar. Núcleo, sem plugins. O comum a todas mora em `static/js/graficos.js`; `analise.js` serve às duas Análises sem ramificar por página |
 | CSS | Um arquivo escrito à mão (`static/css/app.css`), tokens em `:root`, uma camada só. **Sem Tailwind, sem React, sem biblioteca de ícones** |
 | Ícones | Lucide (ISC), **SVG inline** pela macro `icone` em `templates/_macros.html` |
+| Markdown | Python-Markdown (`markdown`), núcleo sem extensões, **no servidor**, e num lugar só: o `CHANGELOG.md` da raiz virando HTML na subida do app (rodada 32). Nada de markdown no cliente, e nada de markdown em texto de usuário — o resumo anual continua sendo texto puro |
 | Dinheiro | `Decimal` em todo cálculo; `float` só na serialização final para JSON de gráfico |
 | Testes/validação | Playwright (`requirements-dev.txt`), navegador real |
 
@@ -147,6 +148,15 @@ freedom/
                    so_fragmento; dobrar (NFD — nunca `locale`),
                    chave_alfabetica; fracao
   cli.py           flask create-user, flask set-password, flask carregar-ipca
+                   — a gravação da senha é de auth/servico.py, e a saída do
+                   comando não mudou com isso (rodada 32)
+  versao.py        a versão do sistema e o histórico, do CHANGELOG.md da raiz:
+                   versao_atual(texto) é pura (o primeiro token depois de
+                   `## `) e carregar(caminho) lê, renderiza o markdown e marca
+                   o HTML como seguro. ErroVersao derruba a subida — não há
+                   versão "—". Chamada UMA vez, no create_app, que guarda
+                   VERSAO e CHANGELOG_HTML no config e publica `versao` a todo
+                   template por context processor
   ipca.py          IPCA de ponta a ponta. Carga: buscar (rede), interpretar
                    (pura), gravar (banco, uma transação só) — tb_ipca só se
                    alimenta daqui; carregar() encadeia as três e é o caminho
@@ -154,7 +164,13 @@ freedom/
                    Texto pronto: texto_da_faixa, texto_do_erro, texto_das_nulas,
                    texto_da_dica; datas: mes_esperado e pendente (puras, a data
                    entra por parâmetro)
-  auth/            /login, /logout (POST com CSRF)
+  auth/            /login, /logout (POST com CSRF) e /conta/senha, a troca da
+                   própria senha (GET/POST, rodada 32): POST comum com
+                   redirect para si mesma, quatro recusas com texto no campo.
+                   servico.py tem trocar_senha(login, senha_nova) — o ÚNICO
+                   lugar que gera hash de senha, e o caminho tanto da tela
+                   quanto do `flask set-password`. Conferir a senha atual é da
+                   rota, nunca da função
   main/            "/" Visão Anual, "/mensal" Visão Mensal,
                    "/mensal/categoria/<id>" fragmento
                    servico.py        Anual: painel_do_ano, _totais_do_ano
@@ -181,6 +197,12 @@ freedom/
                    independencia.py  a rota GET "/independencia" (rodada 29),
                                      só ela: lê a query string e chama o
                                      serviço
+                   changelog.py      a rota GET "/changelog" (rodada 32), só
+                                     ela: o HTML já veio pronto do create_app,
+                                     aqui se escolhe o template. O número da
+                                     versão do subtítulo NÃO é passado daqui —
+                                     vem do context processor, o mesmo do
+                                     rodapé
                    servico_independencia.py o modelo do Mr. Money Mustache.
                                      anos_ate_if (de patrimônio zero),
                                      anos_restantes (da última foto, rodada
@@ -252,12 +274,20 @@ templates/         base.html (o `htmx-config` que libera 409/502/503),
                    lancamentos/ tem os cinco da foto de patrimônio
                    (patrimonio.html mais _patrimonio_barra, _grade, _resumo e
                    _resposta).
+                   auth/senha.html é a troca de senha (card + macros
+                   `campo` e `acoes_formulario`, nenhum CSS próprio) e
+                   main/changelog.html é o histórico de versões (um `.card
+                   prosa` com o HTML do markdown).
                    main/_analise.html é o corpo que as duas Análises estendem;
                    analise.html e analise_prioridade.html só preenchem título,
                    primeiro campo do filtro, convite e (só a segunda) o aviso
                    fixo. main/independencia.html tem corpo próprio e NÃO
                    estende _analise.html
 static/css/app.css seções numeradas 1–8 (ver seção 7 deste arquivo)
+CHANGELOG.md       a fonte ÚNICA do número de versão (raiz, versionado — ao
+                   contrário do README). Entrada nova no topo, `## <versão> —
+                   DD/MM/AAAA`; o rodapé da sidebar e o subtítulo do histórico
+                   saem daí
 static/js/         htmx.min.js, chart.umd.js; graficos.js (o que as telas
                    com gráfico fazem igual: cor por variável CSS, moeda,
                    eixo, base de opções, linha) + visao_anual.js, analise.js,
@@ -470,6 +500,33 @@ Regras que se aplicam a todo código novo:
   truncado com cara de backup. Nada em disco do servidor. Em qualquer falha,
   **nenhum download**: `flash` de erro com as últimas linhas do stderr e
   volta para a tela.
+- **Troca de senha** (`/conta/senha`, rodada 32): o usuário troca a própria
+  senha pela interface, e chega lá pelo **nome no rodapé da sidebar** — não
+  há item de menu, e não deve haver. POST comum com redirect para a própria
+  página (PRG), **sem HTMX** e sem `?retorno=`. Quatro recusas, cada uma com
+  o texto no campo que errou: senha atual que não confere, nova com menos de
+  **8 caracteres**, confirmação diferente e nova igual à atual. Recusa não
+  grava nada e os três campos voltam vazios. **Trocar a senha não invalida
+  sessão nenhuma** — nem as outras do mesmo usuário, nem a de quem trocou: é
+  decisão desta rodada, e o motivo é o tamanho do que há a proteger (sistema
+  doméstico, fora da internet, dois usuários). Não existe "esqueci a senha",
+  recuperação por e-mail, medidor de força nem tela de perfil: quem perdeu a
+  senha usa `flask set-password`, que é o caminho administrativo. **Um lugar
+  só gera hash de senha**: `auth/servico.py`, por onde passam a tela e o
+  comando; conferir a senha atual é da rota, porque o comando existe
+  justamente para quem não a tem.
+- **Versão e histórico de versões** (rodada 32): a versão do sistema é o
+  **primeiro título de nível 2 do `CHANGELOG.md`** da raiz (`^## (\S+)`, na
+  primeira linha que casar), e **não existe constante de versão em Python**.
+  O arquivo é lido UMA vez, no `create_app`; mudar o changelog exige
+  reiniciar, o que é aceitável para algo que muda uma vez por versão.
+  Changelog ausente ou sem título **derruba a subida** — a mesma regra da
+  Independência, onde premissa que falta vira travessão em vez de padrão
+  inventado; aqui nem travessão serve. O número aparece no rodapé da sidebar
+  (discreto, sem acento) e leva a `/changelog`, que mostra o arquivo
+  renderizado por Python-Markdown **no servidor**, dentro de um `.card
+  prosa`. O HTML é marcado como seguro porque é arquivo do repositório, e
+  não entrada de usuário.
   Foi ele que fez **Configurações virar grupo próprio** na sidebar (fechado
   por padrão, como Cadastros), com "Parâmetros" e "Backup" — até a 24 era um
   item só no fim de Cadastros. O rótulo da tela de parâmetros mudou; o
@@ -548,7 +605,7 @@ Regras que se aplicam a todo código novo:
   página de Backup. Por ser POST comum, a falha também segue o caminho
   comum — `flash` mais redirect, e não fragmento com status de erro.
 
-### CSS (`static/css/app.css`, ~4.950 linhas, seções numeradas)
+### CSS (`static/css/app.css`, ~5.030 linhas, seções numeradas)
 
 ```
 1 Variáveis   2 Reset   3 Fundo   4 Layout   5 Componentes   6 Login
@@ -559,7 +616,11 @@ Dentro de 5: 5.1 Card, 5.2 Botão, 5.3 Formulário, 5.4 Tabela, 5.5 Badge,
 5.12 Parâmetros, 5.13 Painéis (5.13.1 Gráficos, 5.13.2 Tabelas, 5.13.3 Visão
 Anual), 5.14 Visão Mensal (5.14.1 Detalhe), 5.15 Orçamento (5.15.1 faixas),
 5.16 Valores sensíveis, 5.17 IPCA, 5.18 Análises, 5.19 Backup,
-5.20 Edição em linha, 5.21 Independência financeira, 5.22 Patrimônio.
+5.20 Edição em linha, 5.21 Independência financeira, 5.22 Patrimônio,
+5.23 Prosa (o HTML que veio de Markdown: só o histórico de versões, e o
+único do sistema que chega ao template sem classe em elemento nenhum — daí
+a classe de componente, que impede `h2`/`ul`/`code` soltos de alcançarem
+toda tela).
 5.7 é lacuna (modal removido na 17) e fica lacuna; 5.18 virou só comentário
 na rodada 31, quando as duas classes dela foram adotadas por outras telas e
 subiram (`.marca-parcial` para 5.13.2, `.filtro-caixa` para 5.10):
@@ -944,7 +1005,12 @@ decisões, lições aprendidas). Resumo:
   `<input type="date">` travava a tela inteira numa data impossível), **eixo
   Y em milhões** no `graficos.js`, **gráfico de tendência** com projeção de
   cinco anos e a **carga da série de patrimônio** por CSV (161 fotos, de
-  abril de 2013 a agosto de 2026).
+  abril de 2013 a agosto de 2026). Rodada 32: **troca de senha** pela
+  interface (`/conta/senha`, alcançada pelo nome no rodapé da sidebar) e
+  **histórico de versões** (`/changelog`), com o número da versão no rodapé
+  saindo do `CHANGELOG.md` da raiz — que passa a ser a fonte única dela.
+  A gravação da senha virou uma função só (`auth/servico.py`), por onde
+  passam a tela e o `flask set-password`.
 - **Não há refatoração visual pendente.** O tema antigo não existe no
   repositório; comentário que diga o contrário é velho.
 - **Depois**: sobrou o **deploy** — gunicorn no docker-compose (`--timeout`
@@ -981,6 +1047,16 @@ fazem parte da aplicação.
   na tela que os totais dela não batem com os das outras.
 - Não implemente **restauração** de backup pela interface, nem parcial nem
   "só dados", nem histórico de backups, nem agendamento do dump.
+- Não crie **constante de versão em Python**, nem leia o `CHANGELOG.md` a
+  cada request: a fonte é o arquivo, lido uma vez na subida. E não invente
+  versão "—" quando ele faltar — é erro de subida, de propósito.
+- Não acrescente à troca de senha o que ela não tem: "esqueci a senha",
+  recuperação por e-mail, medidor de força, tela de perfil com outros campos
+  ou invalidação das outras sessões. Quem perdeu a senha usa
+  `flask set-password`.
+- Não gere hash de senha fora de `auth/servico.trocar_senha`, e não ponha a
+  conferência da senha atual dentro dela: o comando é o caminho de quem não
+  tem a senha.
 - Não aponte POST de validação para data que já tem foto de patrimônio: grade
   vazia **apaga** a foto daquela data, e isso é o contrato.
 - Não preencha a foto de patrimônio sozinho — nem por cotação, nem por

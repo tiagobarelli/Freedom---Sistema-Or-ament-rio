@@ -1,0 +1,34 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{#
+  Alterar a própria senha. Uma tela, um formulário, nada de HTMX: POST comum
+  com redirect para si mesma, e o sucesso chega pela faixa de flash que o
+  layout já desenha (a mesma do login).
+
+  Nenhum CSS novo: o `.card` da 5.1 com a largura de formulário da 5.3, os
+  campos da macro `campo` e o rodapé da `acoes_formulario`.
+#}
+
+{% block title %}Alterar senha - Freedom{% endblock %}
+{% block titulo_pagina %}Alterar senha{% endblock %}
+{% block subtitulo_pagina %}
+  <p class="pagina-subtitulo">Conectado como {{ current_user.login }}.</p>
+{% endblock %}
+
+{% block content %}
+  <div class="card formulario">
+    <form method="post" novalidate>
+      {{ form.hidden_tag() }}
+      {{ m.campo(form.senha_atual,
+                 extra={"autofocus": true, "autocomplete": "current-password"}) }}
+      {{ m.campo(form.senha_nova, dica="Pelo menos 8 caracteres.",
+                 extra={"autocomplete": "new-password"}) }}
+      {{ m.campo(form.senha_confirmacao,
+                 extra={"autocomplete": "new-password"}) }}
+      {{ m.acoes_formulario(url_for('main.index'),
+                            rotulo_salvar="Alterar senha",
+                            icone_salvar="key-round") }}
+    </form>
+  </div>
+{% endblock %}

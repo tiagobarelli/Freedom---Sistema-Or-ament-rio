@@ -10,7 +10,7 @@ from flask import Flask
 from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
 
-from freedom import db
+from freedom import db, versao
 from freedom.config import BASE_DIR, Config
 
 login_manager = LoginManager()
@@ -28,6 +28,20 @@ def create_app(config_class=Config):
 
     csrf.init_app(app)
     db.init_app(app)
+
+    # A versão do sistema e o histórico de versões saem do CHANGELOG.md da
+    # raiz, lido UMA VEZ, aqui. Não há constante de versão em Python: fonte
+    # única. Changelog ausente ou sem título derruba a subida, de propósito —
+    # um sistema que não sabe que versão é não deve atender.
+    app.config["VERSAO"], app.config["CHANGELOG_HTML"] = versao.carregar(
+        BASE_DIR / "CHANGELOG.md"
+    )
+
+    # O rodapé da sidebar mostra o número em toda tela autenticada, e a página
+    # de histórico o repete no subtítulo. Um valor, um lugar.
+    @app.context_processor
+    def versao_do_sistema():
+        return {"versao": app.config["VERSAO"]}
 
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"

@@ -8,6 +8,7 @@ from psycopg import errors
 from werkzeug.security import generate_password_hash
 
 from freedom import ipca
+from freedom.auth.servico import trocar_senha
 from freedom.db import get_connection
 from freedom.util import formatar_numero
 
@@ -101,9 +102,9 @@ def set_password(login):
         raise click.ClickException("Informe o login.")
 
     with get_connection() as conn, conn.cursor() as cur:
-        cur.execute(
-            "SELECT id, ativo FROM tb_usuarios WHERE login = %s", (login,)
-        )
+        # `ativo` porque o aviso do fim depende dele; o id nao e mais
+        # preciso desde que a gravacao passou a ser por login.
+        cur.execute("SELECT ativo FROM tb_usuarios WHERE login = %s", (login,))
         usuario = cur.fetchone()
 
     if usuario is None:
@@ -115,11 +116,9 @@ def set_password(login):
     if not senha:
         raise click.ClickException("A senha não pode ser vazia.")
 
-    with get_connection() as conn, conn.cursor() as cur:
-        cur.execute(
-            "UPDATE tb_usuarios SET senha_hash = %s WHERE id = %s",
-            (generate_password_hash(senha), usuario["id"]),
-        )
+    # A gravação é a mesma da tela /conta/senha, e é uma função só: o hash
+    # nasce em um lugar no sistema inteiro.
+    trocar_senha(login, senha)
 
     click.echo(f"Senha do usuário '{login}' atualizada.")
     if not usuario["ativo"]:

@@ -307,7 +307,14 @@
           {{ current_user.pessoa_nome[0] | upper }}
         </span>
         <span class="usuario__dados">
-          <span class="usuario__nome">{{ current_user.pessoa_nome }}</span>
+          {#
+            O nome e o caminho para a troca de senha - nao ha item de menu
+            para isso, e nao deve haver: e coisa que se faz uma vez por ano.
+            Sem `aria-current` e sem acender item nenhum quando a tela esta
+            aberta; quem esta na barra de navegacao continua sendo so o menu.
+          #}
+          <a class="usuario__nome" href="{{ url_for('auth.alterar_senha') }}"
+             title="Alterar senha">{{ current_user.pessoa_nome }}</a>
           <span class="usuario__login">{{ current_user.login }}</span>
         </span>
       </div>
@@ -324,6 +331,17 @@
         </button>
       </form>
     </div>
+
+    {#
+      A versao do sistema, embaixo do rodape. Linha propria, e nao um terceiro
+      texto dentro do bloco do usuario: versao nao e dado de quem entrou.
+
+      O numero vem do context processor do create_app, que o leu do
+      CHANGELOG.md - a MESMA origem do subtitulo da pagina de historico. Nao
+      ha constante de versao em Python para divergir dele.
+    #}
+    <a class="sidebar__versao" href="{{ url_for('main.changelog') }}"
+       title="Histórico de versões">{{ versao }}</a>
   </aside>
 
   {#

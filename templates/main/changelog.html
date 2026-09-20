@@ -1,0 +1,23 @@
+{% extends "layout_app.html" %}
+
+{#
+  Histórico de versões: o CHANGELOG.md do repositório, renderizado no
+  servidor. A página não decide nada — o HTML já chega pronto e já marcado
+  como seguro pelo Python (ver `freedom/versao.py`), e o número do subtítulo
+  é o mesmo `versao` que o rodapé do menu mostra, vindo do context processor.
+
+  O markdown vira `<h2>`, `<p>`, `<ul>` e `<code>` sem classe nenhuma: quem
+  os veste é o `.prosa` da seção 5.23, e só dentro dele.
+#}
+
+{% block title %}Histórico de versões - Freedom{% endblock %}
+{% block titulo_pagina %}Histórico de versões{% endblock %}
+{% block subtitulo_pagina %}
+  <p class="pagina-subtitulo">Versão {{ versao }}</p>
+{% endblock %}
+
+{% block content %}
+  <div class="painel painel--estreito">
+    <div class="card prosa">{{ changelog_html }}</div>
+  </div>
+{% endblock %}

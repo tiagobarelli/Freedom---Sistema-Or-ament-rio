@@ -68,6 +68,11 @@
             confirmacao; o resto e .card, .pilha, .card__rodape e .btn)
         5.20 Edicao em linha - a linha da tabela virada formulario, que
             Parametros e Orcamento usam; nasceu como `config-edicao` na 5.12
+        5.21 Independencia financeira (a nota da curva e o que e so dela)
+        5.22 Patrimonio (a grade da foto mensal e a altura do grafico de
+            evolucao, mais alto por ter uma marca por foto)
+        5.23 Prosa - o HTML que veio de Markdown (o historico de versoes),
+            o unico do sistema que chega ao template sem classe nenhuma
      6. Tela de login
      7. Responsivo (< 768px)
      8. Utilitarios
@@ -626,6 +631,25 @@ body {
 }
 
 .sair__botao:hover {
+  color: #fff;
+}
+
+/* A versao do sistema, embaixo do rodape do usuario e presa a ele. Fica aqui,
+   na secao da sidebar, e nao no fim do arquivo: e uma linha deste rodape, e
+   nao um componente que outra tela possa adotar.
+
+   Discreta de proposito - 11px e a mesma tinta secundaria do login e do botao
+   de sair (--ink-5), sem o acento teal. E uma informacao que so se procura
+   quando se quer saber o que mudou; o que precisa ser visto aqui e de quem e
+   a sessao. Acende em branco no hover, como o botao de sair ao lado. */
+.sidebar__versao {
+  flex: 0 0 auto;
+  padding: 8px 10px 0;
+  font-size: 11px;
+  color: var(--ink-5);
+}
+
+.sidebar__versao:hover {
   color: #fff;
 }
 
@@ -3962,6 +3986,71 @@ body {
    esticar a tabela no desktop tambem. */
 .tabela--foto .tabela__principal {
   white-space: normal;
+}
+
+
+/* --- 5.23 Prosa: o HTML que veio de Markdown ----------------------------
+   O historico de versoes e o unico HTML do sistema que nao foi escrito em
+   Jinja: sai do Python-Markdown, a partir do CHANGELOG.md, e chega ao
+   template sem uma classe sequer nos elementos.
+
+   Dai o componente. O que ele NAO pode ser e um punhado de regras para `h2`,
+   `p`, `ul` e `code` soltos: fora daqui esses seletores alcancariam toda tela
+   do sistema, e o erro seria silencioso (um `<code>` de outra tela mudando de
+   cor sem ninguem pedir). Tudo vive dentro de `.prosa`, que e o cartao.
+
+   Tipografia minima e nada mais: o arquivo tem titulo de versao, paragrafo,
+   lista e trecho de codigo, e e isso que esta vestido aqui.
+*/
+
+.prosa {
+  color: var(--ink-2);
+  line-height: 1.55;
+}
+
+/* O reset zera a margem de h2 e p (secao 2), entao o respiro entre blocos
+   nasce todo aqui - e o primeiro filho nao empurra o topo do cartao. */
+.prosa > * + * {
+  margin-top: var(--e-3);
+}
+
+/* Uma versao comeca aqui. O espaco maior e antes do titulo, e nao depois: e
+   ele que separa uma versao da anterior. O primeiro titulo nao ganha o vao,
+   porque encosta no paragrafo de abertura. */
+.prosa h2 {
+  margin-top: var(--e-6);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.prosa > *:first-child {
+  margin-top: 0;
+}
+
+/* A lista do markdown nao tem classe, entao o reset de `ul[class]` nao a
+   alcanca e ela chega com o recuo de 40px e a margem de 1em do navegador.
+   20px basta para o marcador ficar dentro do cartao; e o vao acima dela e
+   menor que o dos outros blocos, porque a lista e a continuacao do titulo da
+   versao, e nao um bloco a parte. */
+.prosa ul {
+  margin: var(--e-2) 0 0;
+  padding-left: 20px;
+}
+
+.prosa li + li {
+  margin-top: var(--e-2);
+}
+
+/* Trecho de codigo no meio da frase (nome de comando, de arquivo). Discreto:
+   o fundo e a fonte ja dizem o que e, sem borda. */
+.prosa code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--surface-alt);
+  font-family: var(--fonte-mono);
+  font-size: 12px;
+  color: var(--ink-2);
 }
 
 

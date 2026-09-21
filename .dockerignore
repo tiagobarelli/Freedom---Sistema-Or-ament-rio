@@ -1,0 +1,54 @@
+# O que não vai para o contexto do build. Espelha a lista do Dockerfile: lá o
+# COPY escolhe o que entra na imagem, aqui se evita que o resto seja sequer
+# enviado ao daemon do Docker.
+
+# Segredo. O ambiente da imagem vem do docker-compose.yml.
+.env
+
+# Ambiente virtual do desenvolvimento (Windows; nem serviria no Linux).
+venv/
+.venv/
+
+# Histórico do git: peso sem uso dentro da imagem.
+.git/
+.gitignore
+
+# Documentação e referência visual — não são executados.
+docs/
+design_handoff_freedom_visao_anual/
+design_handoff_freedom_lancamentos_cadastros/
+README.md
+CLAUDE.md
+Prompts/
+
+# Validação: roda no Windows, com o venv do host.
+requirements-dev.txt
+
+# Banco: o db/init é montado pelo compose a partir do repositório clonado, e
+# não copiado para dentro da imagem do app.
+db/
+
+# Capturas e arquivos de trabalho da validação.
+**/*.png
+**/*.sql
+**/*.zip
+capturas/
+
+# Python. O `**/` não é enfeite: um padrão sem ele casa SÓ na raiz do
+# contexto, e `COPY freedom/ ./freedom/` traria todo `freedom/**/__pycache__`
+# do Windows para dentro da imagem — bytecode de outro sistema de arquivos,
+# com a mtime preservada pelo COPY, que o Python pode aceitar como válido.
+# Medido nesta rodada: sem o `**/`, 47 arquivos `.pyc` entraram.
+**/__pycache__
+**/*.py[cod]
+**/*.egg-info
+
+# Editores / SO
+**/.vscode
+**/.idea
+**/Thumbs.db
+
+# O próprio Dockerfile e o compose não precisam entrar na imagem.
+Dockerfile
+.dockerignore
+docker-compose.yml

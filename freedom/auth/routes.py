@@ -23,7 +23,7 @@ def login():
         # Mensagem unica para login inexistente, inativo ou senha errada: nao
         # entregar a quem tenta adivinhar qual das tres coisas falhou.
         if user is None or not check_password_hash(user.senha_hash, form.senha.data):
-            flash("Login ou senha invalidos.", "erro")
+            flash("Login ou senha inválidos.", "erro")
         else:
             login_user(user)
             proximo = destino_interno(request.args.get("next"))
@@ -36,7 +36,7 @@ def login():
 @login_required
 def logout():
     logout_user()
-    flash("Sessao encerrada.", "info")
+    flash("Sessão encerrada.", "info")
     return redirect(url_for("auth.login"))
 
 

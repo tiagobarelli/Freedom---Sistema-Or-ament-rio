@@ -12,6 +12,11 @@
   ele NÃO faz é executar: o "Confirmar e baixar" é um POST de formulário
   comum, sem nenhum atributo `hx-`, porque HTMX troca DOM e não dispara
   download. Ver a docstring de `backup_executar`.
+
+  Quem gera o dump é o `pg_dump` da máquina que serve o app, falando com o
+  banco por TCP. A prosa não precisa dizer isso — para quem lê a tela o
+  arquivo simplesmente sai —, mas o comando de restauração que ela mostra é
+  do mesmo feitio, e por isso combina com o que está no roteiro de deploy.
 #}
 
 {% block title %}Backup - Freedom{% endblock %}
@@ -44,14 +49,17 @@
 
     <p>
       Não há restauração por aqui, e não vai haver: restaurar é derrubar o
-      banco que está no ar e pôr outro no lugar. Com o container em pé, na
-      pasta do projeto, o comando é este —
-      <code class="texto-mono">&lt;usuario&gt;</code> e
-      <code class="texto-mono">&lt;banco&gt;</code> são os valores do
+      banco que está no ar e pôr outro no lugar. O roteiro completo, com o
+      passo que esvazia o schema antes, está em
+      <code class="texto-mono">docs/Freedom - Deploy.md</code>; com o banco
+      em pé e o arquivo à mão, a linha é esta —
+      <code class="texto-mono">&lt;usuario&gt;</code>,
+      <code class="texto-mono">&lt;banco&gt;</code> e
+      <code class="texto-mono">&lt;porta&gt;</code> são os valores do
       <code class="texto-mono">.env</code>:
     </p>
 
-    <code class="backup-comando">docker compose exec -T postgres psql -U &lt;usuario&gt; -d &lt;banco&gt; &lt; freedom_AAAAMMDD-HHMM.sql</code>
+    <code class="backup-comando">psql -h localhost -p &lt;porta&gt; -U &lt;usuario&gt; -d &lt;banco&gt; -v ON_ERROR_STOP=1 -f freedom_AAAAMMDD-HHMM.sql</code>
 
     <p class="texto-suave">
       Onde o arquivo cai quem decide é o navegador, e não o sistema. No Chrome,

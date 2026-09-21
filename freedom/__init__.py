@@ -45,7 +45,7 @@ def create_app(config_class=Config):
 
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"
-    login_manager.login_message = "Faca login para continuar."
+    login_manager.login_message = "Faça login para continuar."
     login_manager.login_message_category = "info"
 
     from freedom.auth.models import User

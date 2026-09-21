@@ -6,7 +6,7 @@ lançamento nem cadastro.
 
 **Só exporta.** Não há restauração pela interface, e não há por quê: restaurar
 é derrubar o banco que está no ar e pôr outro no lugar, coisa que se faz no
-terminal, com o container à mão e sabendo o que se está apagando. A tela
+terminal, com o servidor à mão e sabendo o que se está apagando. A tela
 mostra o comando; quem o roda é o dono.
 
 Não há histórico de backup — nem tabela, nem log, nem "último backup em". O
@@ -14,9 +14,14 @@ arquivo sai pelo navegador e passa a ser do sistema de arquivos do dono; o
 sistema não teria como saber se ele ainda existe, e um "último backup em"
 que mente é pior que nenhum.
 
-O dump é gerado DENTRO do container, por `docker exec`. Assim o `pg_dump` é o
-da mesma versão do servidor (o binário da imagem `postgres:16`) e o host não
-precisa ter cliente Postgres instalado — hoje não tem.
+O dump é gerado pelo `pg_dump` da própria máquina onde o Flask roda, falando
+com o banco por TCP: host, porta, usuário e banco saem do `DATABASE_URL`, e
+de nenhum outro lugar. Em produção quem tem o `pg_dump` é a própria imagem que
+serve o app; no desenvolvimento é o Windows do dono, e é para ele que existe a
+variável `PG_DUMP` — ver `_executavel`.
+
+Assim o mecanismo é um só nos dois lugares, e o processo do Flask não precisa
+de nada além do banco a que já se conecta.
 
 Três cuidados que valem mais que o código que os implementa:
 
@@ -29,6 +34,7 @@ Três cuidados que valem mais que o código que os implementa:
 - **Nada de credencial na linha de comando.** Ver `_comando` abaixo.
 """
 
+import os
 import subprocess
 from datetime import datetime
 
@@ -38,9 +44,9 @@ from psycopg.conninfo import conninfo_to_dict
 
 from freedom.configuracoes import bp
 
-# `container_name` do serviço `postgres` no docker-compose.yml, onde é
-# literal (não vem do .env): o container sobe sempre com este nome.
-CONTAINER = "freedom_postgres"
+# Executável usado quando `PG_DUMP` não está no ambiente: o que estiver no
+# PATH. É o caso da imagem de produção, que instala o `postgresql-client`.
+PADRAO_PG_DUMP = "pg_dump"
 
 # Teto da geração inteira. O dump de hoje sai em menos de um segundo; 120 s
 # cobrem um acervo muitas vezes maior e ainda param bem antes de o navegador
@@ -57,34 +63,80 @@ class ErroBackup(Exception):
 
 
 def _identificacao():
-    """Usuário e banco saem do `DATABASE_URL`, e de nenhum outro lugar.
+    """Host, porta, usuário, banco e senha saem do `DATABASE_URL`, e de mais
+    nenhum lugar.
 
     `conninfo_to_dict` entende tanto a URL quanto o formato chave=valor, então
-    não importa em qual das duas formas o `.env` está escrito. A senha que vem
-    junto no dicionário é ignorada de propósito — ver `_comando`.
+    não importa em qual das duas formas o `.env` está escrito. A senha agora é
+    devolvida junto — o `pg_dump` por TCP precisa dela —, mas não chega perto
+    da linha de comando: quem a usa é `_ambiente`, e o `_comando` não a vê.
+
+    Porta e senha podem faltar numa conninfo legítima (conexão local no porto
+    padrão, autenticação sem senha). Faltando, cada uma vira o que o `pg_dump`
+    faria sozinho: 5432 e nenhuma senha.
     """
     info = conninfo_to_dict(current_app.config["DATABASE_URL"])
-    return info["user"], info["dbname"]
+    return (
+        info["host"],
+        info.get("port") or "5432",
+        info["user"],
+        info["dbname"],
+        info.get("password") or "",
+    )
 
 
-def _comando(usuario, banco):
-    """A linha do `docker exec`, como lista: `shell=False`, sem interpolação.
+def _executavel():
+    """Qual `pg_dump` chamar.
 
-    Sem senha nenhuma. Dentro do container a conexão do `pg_dump` é pelo
-    socket local, e o `pg_hba.conf` que a imagem oficial do Postgres gera
-    trata conexão local como `trust` — medido nesta rodada: o comando sai em
-    0,2 s e não pergunta nada.
+    Na imagem de produção é o do PATH, instalado pelo `postgresql-client`. No
+    Windows do desenvolvimento não há PATH que ajude: os binários do Postgres
+    ficam onde o dono os pôs, e `PG_DUMP` recebe o caminho do `.exe`.
+    """
+    return os.environ.get("PG_DUMP") or PADRAO_PG_DUMP
 
-    Se um dia ele passar a pedir senha, o jeito seria `-e PGPASSWORD=...` no
-    `docker exec`, lendo do `DATABASE_URL`. Isso não está escrito aqui porque
-    tem um preço que hoje não precisa ser pago: o valor apareceria na linha de
-    comando do processo no host, visível a qualquer um que liste processos.
+
+def _comando(host, porta, usuario, banco):
+    """A linha do `pg_dump`, como lista: `shell=False`, sem interpolação.
+
+    **Nenhuma credencial aqui.** A senha vai por `PGPASSWORD` no ambiente do
+    subprocesso, e não num argumento, porque argumento aparece para qualquer
+    um que liste os processos da máquina — e o `pg_dump` nem sequer aceita
+    senha por argumento, justamente por isso.
+
+    `--no-password` existe para o erro não virar espera: sem ele, um banco que
+    pede senha e não a recebe faz o `pg_dump` PERGUNTAR no terminal, e o
+    processo do Flask ficaria parado até o `TEMPO_LIMITE` estourar — a tela
+    diria "tempo esgotado" onde o que houve foi credencial errada.
+
+    `--no-owner` e `--no-privileges` deixam o dump reaplicável por outro
+    usuário: no servidor quem restaura é o dono do banco de lá, que não
+    precisa ser o mesmo nome de cá.
     """
     return [
-        "docker", "exec", CONTAINER,
-        "pg_dump", "-U", usuario, "-d", banco,
+        _executavel(),
+        "--host", host,
+        "--port", str(porta),
+        "--username", usuario,
+        "--dbname", banco,
+        "--no-password",
         "--no-owner", "--no-privileges", "--encoding=UTF8",
     ]
+
+
+def _ambiente(senha):
+    """O ambiente do subprocesso: o do processo mais `PGPASSWORD`.
+
+    Copiado, e não substituído: o `pg_dump` do Windows precisa do PATH e do
+    SystemRoot para carregar as próprias DLLs. `PGPASSWORD` vazio sairia da
+    cópia em vez de ficar lá como string vazia, que o Postgres trataria como
+    senha errada.
+    """
+    ambiente = dict(os.environ)
+    if senha:
+        ambiente["PGPASSWORD"] = senha
+    else:
+        ambiente.pop("PGPASSWORD", None)
+    return ambiente
 
 
 def _ultimas_linhas(bruto):
@@ -106,25 +158,26 @@ def nome_do_arquivo(agora):
 
 
 def gerar_dump():
-    """Roda o pg_dump no container e devolve (bytes, nome do arquivo).
+    """Roda o pg_dump e devolve (bytes, nome do arquivo).
 
     Levanta `ErroBackup` em qualquer falha, com mensagem pronta para a tela.
     Fora das rotas para o que é execução não se misturar com o que é HTTP.
     """
-    usuario, banco = _identificacao()
+    host, porta, usuario, banco, senha = _identificacao()
     try:
         processo = subprocess.run(
-            _comando(usuario, banco),
+            _comando(host, porta, usuario, banco),
             capture_output=True,
             timeout=TEMPO_LIMITE,
+            env=_ambiente(senha),
         )
     except FileNotFoundError:
-        # Docker fora do PATH do processo do Flask. Acontece de verdade: o
-        # serviço pode estar no ar e o `docker` não estar visível para quem
-        # subiu o servidor.
+        # O executável não existe. Na imagem de produção não acontece — ela
+        # instala o cliente Postgres. No Windows acontece: é o caso de
+        # `PG_DUMP` apontando para um caminho que mudou de lugar.
         raise ErroBackup(
-            "Não encontrei o comando docker. Confira se o Docker Desktop está "
-            "no ar e se o `docker` está no PATH de quem roda o servidor."
+            f"Não encontrei o pg_dump ({_executavel()}). Instale o cliente do "
+            "PostgreSQL ou aponte a variável PG_DUMP para o executável."
         ) from None
     except subprocess.TimeoutExpired:
         raise ErroBackup(

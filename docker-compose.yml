@@ -1,7 +1,17 @@
+# Os três serviços do Freedom. O mesmo arquivo serve ao desenvolvimento
+# (Windows, onde normalmente se sobe só `postgres` e `pgadmin` e o app roda no
+# host com `flask --debug run`) e à produção (servidor Ubuntu, onde sobe tudo).
+#
+# Nenhum serviço tem `container_name`: nome fixo impede que um segundo projeto
+# compose (`-p freedom_ensaio`, o ensaio do deploy) suba ao lado do de
+# desenvolvimento. Quem precisa falar com o banco o faz pelo nome do SERVIÇO,
+# `postgres`, que é o que a rede do compose resolve.
+#
+# O roteiro do servidor está em docs/Freedom - Deploy.md.
+
 services:
   postgres:
     image: postgres:16
-    container_name: freedom_postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -22,9 +32,42 @@ services:
       timeout: 5s
       retries: 5
 
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      # O host é o NOME DO SERVIÇO e a porta é a interna, 5432: dentro da rede
+      # do compose não se passa pela porta publicada no host. Por isso esta
+      # linha é montada aqui e não vem pronta do .env — o `DATABASE_URL` de lá
+      # continua sendo o do `flask run` no Windows, com localhost e
+      # ${POSTGRES_PORT}.
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SECRET_KEY: ${SECRET_KEY}
+      # Os mesmos padrões de freedom/config.py. Com default porque o .env pode
+      # não ter as chaves: sem ele, o compose passaria string vazia e o
+      # `int()` da configuração derrubaria a subida.
+      DB_POOL_MIN: ${DB_POOL_MIN:-1}
+      DB_POOL_MAX: ${DB_POOL_MAX:-5}
+      # Fuso do container: é o que faz o nome do arquivo de backup, a dica de
+      # mês do IPCA e o "mês corrente" dos painéis serem a hora de casa.
+      TZ: America/Sao_Paulo
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        # O pool do freedom/db.py abre a conexão na subida e desiste em 10 s,
+        # então subir antes do banco é falhar. Esperar o healthcheck, e não só
+        # o container existir, resolve isso NO `up`.
+        #
+        # No `restart` e depois de um reinício da máquina o `depends_on` não
+        # vale — medido na rodada 33: `compose restart` sobe os dois juntos.
+        # Ali quem cobre é o `restart: unless-stopped` acima: o gunicorn diz
+        # "Worker failed to boot", o container reinicia e tenta de novo até o
+        # banco atender. As duas coisas juntas é que dispensam passo manual.
+        condition: service_healthy
+
   pgadmin:
     image: dpage/pgadmin4:latest
-    container_name: freedom_pgadmin
     restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}

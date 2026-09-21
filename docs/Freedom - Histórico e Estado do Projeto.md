@@ -1,10 +1,10 @@
 # Freedom — Histórico e Estado do Projeto
 
-Documento de contexto para o projeto orquestrador e para o agente. Resume o que foi decidido, o que existe e o que falta. Consolidado após a rodada 31 e os ajustes pedidos depois dela (20/09/2026). Fica em `docs/` no repositório e na base de conhecimento do orquestrador; se um muda, o outro muda.
+Documento de contexto para o projeto orquestrador e para o agente. Resume o que foi decidido, o que existe e o que falta. Consolidado após a rodada 32 (20/09/2026), com as decisões do deploy (rodada 33) já fechadas na seção 8. Fica em `docs/` no repositório e na base de conhecimento do orquestrador; se um muda, o outro muda.
 
 ## 1. O que é o Freedom
 
-Sistema web pessoal de controle financeiro. Roda localmente em Windows via Docker; no futuro, outros membros da casa acessam pela rede Tailscale (nada exposto na nuvem). Um usuário master hoje; a esposa entra depois. Interface em português do Brasil.
+Sistema web pessoal de controle financeiro. Roda localmente em Windows via Docker; no futuro, outros membros da casa acessam pela rede Tailscale (nada exposto na nuvem). Um usuário master hoje; a esposa entra depois. Interface em português do Brasil. A partir da rodada 33, produção é um **servidor Ubuntu** com `docker compose` (banco, pgAdmin e app); o desenvolvimento continua no Windows.
 
 Objetivo de longo prazo: além de registrar despesas e receitas, medir crescimento real das despesas (deflação por IPCA), orçamento mensal por subcategoria, evolução do patrimônio e metas de independência financeira (TSR, retorno real, taxa de poupança).
 
@@ -47,10 +47,11 @@ O ciclo que funcionou: orquestrador faz poucas perguntas de decisão antes do pr
 - **Independência financeira** (rodada 29): página própria no grupo Painel, GET puro, sem olho. Lê TSR, S e R vigentes de `tb_configuracoes` — **a primeira e única tela que os lê** desde que foram cadastrados. Modelo do Mr. Money Mustache: `n = ln(1 + r·(1−s)/(s·TSR)) / ln(1+r)`, tudo em `Decimal` (`ln`/`exp`). Quatro `.kpi` (anos até a independência, patrimônio-alvo, taxa de poupança realizada e o desvio para a meta), tabela ano a ano e curva no Chart.js. A **simulação entra pela querystring** (`?s=&r=&tsr=`): não grava nada, o vigente continua sendo o do banco e a tela anuncia que está simulando. Premissa ausente ou impossível (`s ≤ 0`, `TSR ≤ 0`, `r < 0`) vira travessão — **nunca um padrão inventado**, porque um número plausível numa tela de meta é pior do que nenhum. A taxa de poupança realizada e o gasto anual saem dos **últimos 12 meses fechados**: o mês em curso entraria pela metade e puxaria a meta para baixo sem nada na tela explicando por quê.
 - **Ativos e foto de patrimônio** (rodada 30): `tb_ativos` é cadastro comum em Cadastros › Ativos, com `classe` em **texto livre** pela macro `combobox` (lista aberta: classe nova não pede rodada) — e "inativo" aqui lê-se "posição encerrada". A **foto** é mensal, em `/lancamentos/patrimonio`: uma data, sempre **fim de mês**, e o valor de cada ativo naquela data. A grade **é** o editor — gravar é um POST só que faz upsert do que foi preenchido e **DELETE do que foi esvaziado**, numa transação. Campo vazio quer dizer "não havia esse ativo nessa data", e daí decorre que **gravar uma grade inteiramente vazia apaga a foto daquela data**: é o contrato, não um defeito, e é o que uma validação descuidada pode disparar (aconteceu na 31). **Zero é valor legítimo** (posição zerada), como no orçamento. Data futura o servidor recusa com texto no campo — e por isso o campo **não** tem `max`: o HTMX valida o que o `hx-include` traz e abortaria o POST antes de a recusa em português existir. Trocar de mês é por **link** (setas ao lado da data), não pelo campo.
 - **Tendência e projeção do patrimônio** (rodada 31 e ajustes posteriores): abaixo da evolução, um segundo gráfico com a série observada e a curva **exponencial ajustada** (`ajuste_exponencial`, mínimos quadrados sobre `ln(y)` em `Decimal`), esticada por **cinco anos** (`MESES_PROJETADOS = 60`). Pede pelo menos **seis** fotos; foto zerada fica fora do ajuste (não há `ln(0)`) e o rodapé diz quantas. O eixo é uma grade **mensal contínua** — mês sem foto é buraco na série observada e a curva não ganha degrau falso —, e ali o buraco **se liga** (`spanGaps`): "não medi" não é "valia zero", ao contrário das Análises, onde o zero é resposta e a linha tem de encostar no eixo. Com a caixa do IPCA ligada, o ajuste é sobre a série corrigida e a projeção sai em poder de compra do mês base, que é o que se compara com o número de independência. O **R² exibido é o do Excel** — quadrado da correlação entre observado e ajustado —, e não o `1 − SSE/SST` da reta do logaritmo: a tela existe para espelhar a planilha do dono, e na série real as duas definições dão 0,956 e 0,833. **Não há outra projeção**: nem aporte previsto, nem meta, nem cenário. A curva diz o que a série vem fazendo, e mais nada.
+- **Troca de senha e histórico de versões** (rodada 32): `GET/POST /conta/senha` no blueprint `auth`, alcançada pelo **nome do usuário no rodapé da sidebar**, que virou link (sem `aria-current`, nenhum item do menu aceso). Senha atual + nova + confirmação; mínimo de 8 caracteres, confirmação e senha atual conferida são regras da **tela** — nova igual à atual é comparada com o hash, não com o texto do primeiro campo; os validadores do formulário rodam antes das checagens da rota. POST comum com redirect para a própria página (PRG) e flash "Senha alterada."; recusa devolve os três campos vazios; **não invalida outras sessões**. `auth.servico.trocar_senha(login, senha_nova)` é a **única** função que grava senha — a tela e `flask set-password` passam por ela, e o comando **não impõe mínimo, de propósito**: é o caminho administrativo e de recuperação, e sua saída não mudou um caractere. **Versão**: a única fonte é o `CHANGELOG.md` na raiz (versionado; o README continua fora do git) — o primeiro título `## x.y — DD/MM/AAAA` (`^## (\S+)`, `###` e `##` no meio da linha não contam), lido **uma vez** no `create_app` por `versao.carregar` e exposto por context processor; arquivo ausente ou sem título é `ErroVersao` na subida, nunca "—" (padrão inventado é pior que nenhum, como na Independência). **Nada de constante de versão em Python.** O número aparece discreto abaixo do nome no rodapé e é link para `/changelog`, renderizado por Python-Markdown (núcleo) num `.card .prosa`; o HTML é marcado seguro **porque é arquivo do repositório, não entrada de usuário**. O registro começa na **0.24**, sem entradas retroativas (decisão do dono); **1.0 só no deploy**. "Cancelar" da tela de senha volta à Visão Anual (a macro exige um destino e a tela não tem página-mãe).
 
 ## 4. Banco de dados
 
-Fonte da verdade: `docs/Freedom - Estrutura do Banco de Dados.md` e `db/init/01_schema.sql`. Regra: se um muda, o outro muda. O DDL mudou três vezes desde a rodada 1: `vw_receitas` (rodada 7), o **orçamento** (rodada 15: `tb_orcamento_meses` nova; `tb_orcamentos` trocou `categoria_id` por `subcategoria_id` e ganhou FK para o mês) e o **resumo anual** (rodada 20: `tb_resumos_anuais` nova, com trigger de `atualizado_em`). A mudança da rodada 15 foi feita com blocos idempotentes (`ADD/DROP COLUMN IF EXISTS`, `DO $$ IF NOT EXISTS (constraint)`), sem `DROP TABLE`, e validada re-executando o script no banco com dados e num banco descartável criado do zero; a da rodada 20 seguiu o mesmo rito. A rodada 21 **não mudou o schema**: só carregou `tb_ipca`. **As rodadas 21 a 31 também não** — `tb_ativos` e `tb_patrimonio_snapshots` existem desde a rodada 1 e só começaram a receber linha na 30, sem uma alteração de DDL.
+Fonte da verdade: `docs/Freedom - Estrutura do Banco de Dados.md` e `db/init/01_schema.sql`. Regra: se um muda, o outro muda. O DDL mudou três vezes desde a rodada 1: `vw_receitas` (rodada 7), o **orçamento** (rodada 15: `tb_orcamento_meses` nova; `tb_orcamentos` trocou `categoria_id` por `subcategoria_id` e ganhou FK para o mês) e o **resumo anual** (rodada 20: `tb_resumos_anuais` nova, com trigger de `atualizado_em`). A mudança da rodada 15 foi feita com blocos idempotentes (`ADD/DROP COLUMN IF EXISTS`, `DO $$ IF NOT EXISTS (constraint)`), sem `DROP TABLE`, e validada re-executando o script no banco com dados e num banco descartável criado do zero; a da rodada 20 seguiu o mesmo rito. A rodada 21 **não mudou o schema**: só carregou `tb_ipca`. **As rodadas 21 a 32 também não** — `tb_ativos` e `tb_patrimonio_snapshots` existem desde a rodada 1 e só começaram a receber linha na 30, sem uma alteração de DDL; a 32 só reescreve `tb_usuarios.senha_hash`.
 
 Resumo do que importa para escrever prompts:
 
@@ -67,7 +68,7 @@ Resumo do que importa para escrever prompts:
 - Trigger `fn_set_atualizado_em()` em despesas, receitas e resumos anuais; `atualizado_em` fica NULL até o primeiro UPDATE — e uma edição de validação **carimba** a linha (ficou registrado na despesa 613, rodada 13).
 - **Regras da aplicação, não do banco**: prioridade só quando a essencialidade efetiva é "Não Essencial"; autoria nunca muda; referência inativa visível na edição e nos filtros mas nunca gravada em lançamento novo; receita pré-seleciona a pessoa do usuário logado; configuração não aceita negativo; catálogo de chaves em Python; **mês de orçamento encerrado não recebe INSERT/UPDATE/DELETE em linhas nem na receita; reabrir só se não existir mês de orçamento posterior; mês criável = sem orçamento e (corrente ou futuro, ou seguinte a um mês orçado)**; sugestão de linhas exclui subcategoria inativa e subcategoria de categoria inativa.
 
-Estado dos dados (20/09/2026): **mais de 3.500 despesas e quase 400 receitas, de 2023 a 2026** — 2023 e 2024 entraram por carga de CSV exportado do Moneystats, o Tiago pretende chegar a 2012, e a carga do IPCA já cobre esse período; 24 categorias, 82 subcategorias, 3 contas, 5 pessoas, 8 fontes de receita. **`tb_ipca` com 393 meses (dez/1993 a ago/2026)**, sem variação nula. **Orçamento de setembro/2026 aberto com 66 linhas**, já revisado pelo Tiago (receita planejada R$ 31.000,00, total planejado R$ 38.107,20). Há resumo anual escrito para 2026 (a Anual mostra o card). `tb_configuracoes` tem TSR (3,5 %), S (40 %) e R (5 %), vigentes desde 07/09/2026 — **lidos pela tela de Independência desde a rodada 29**. **Patrimônio: 1 ativo e 161 fotos, uma por mês, de abril/2013 a agosto/2026** — a série inteira entrou por carga de um CSV do dono depois da rodada 31, conferida linha a linha contra o arquivo (117 novas, 1 atualizada, 43 já iguais, nenhum mês faltando). Usuário `tiago` ativo, `zz_consulta` desativado, `zz_teste` ativo — **senha na variável `senha_teste` do `.env`**. **Há dado real em produção: nenhuma rodada apaga linha que não criou; faxina de teste sempre por id; edição real de validação é revertida pelo mesmo caminho e relatada.**
+Estado dos dados (20/09/2026): **mais de 3.500 despesas e quase 400 receitas, de 2023 a 2026** — 2023 e 2024 entraram por carga de CSV exportado do Moneystats, o Tiago pretende chegar a 2012, e a carga do IPCA já cobre esse período; 24 categorias, 82 subcategorias, 3 contas, 5 pessoas, 8 fontes de receita. **`tb_ipca` com 393 meses (dez/1993 a ago/2026)**, sem variação nula. **Orçamento de setembro/2026 aberto com 66 linhas**, já revisado pelo Tiago (receita planejada R$ 31.000,00, total planejado R$ 38.107,20). Há resumo anual escrito para 2026 (a Anual mostra o card). `tb_configuracoes` tem TSR (3,5 %), S (40 %) e R (5 %), vigentes desde 07/09/2026 — **lidos pela tela de Independência desde a rodada 29**. **Patrimônio: 1 ativo e 161 fotos, uma por mês, de abril/2013 a agosto/2026** — a série inteira entrou por carga de um CSV do dono depois da rodada 31, conferida linha a linha contra o arquivo (117 novas, 1 atualizada, 43 já iguais, nenhum mês faltando). Usuário `tiago` ativo, `zz_consulta` desativado, `zz_teste` ativo — **senha na variável `senha_teste` do `.env`**, que tem **menos de 8 caracteres**: a tela `/conta/senha` a recusa como senha nova e só o comando a grava (pendência do dono, seção 9). **Há dado real em produção: nenhuma rodada apaga linha que não criou; faxina de teste sempre por id; edição real de validação é revertida pelo mesmo caminho e relatada.**
 
 ## 5. Stack da aplicação (fechada, não reabrir)
 
@@ -75,20 +76,22 @@ Estado dos dados (20/09/2026): **mais de 3.500 despesas e quase 400 receitas, de
 |---|---|
 | Web | Flask 3, application factory (`create_app` em `freedom/__init__.py`), Blueprints |
 | Banco | psycopg 3 + `psycopg_pool`, SQL direto parametrizado, `row_factory=dict_row`. **Sem ORM, sem migrações** |
-| Auth | Flask-Login; hash com `werkzeug.security` (scrypt) |
+| Auth | Flask-Login; hash com `werkzeug.security` (scrypt); a gravação da senha é uma função só, `auth.servico.trocar_senha`, compartilhada pela tela `/conta/senha` e por `flask set-password` (rodada 32) |
 | Formulários | Flask-WTF (CSRF em todo POST) |
 | Interatividade | HTMX 2.0.4, arquivo local, mais JS próprio pontual (menu do celular, sidebar recolhível, limpar filtros, autocomplete, gráficos, linha expansível, ocultar valores) |
 | Gráficos | Chart.js 4.5.1, UMD local, carregado pelo `{% block scripts %}` só nas telas que desenham — hoje cinco: Visão Anual, as duas Análises, Independência (29) e Patrimônio (30/31), esta com **dois** canvas e por isso a única que destrói a instância anterior antes de redesenhar (o HTMX troca o bloco inteiro e o canvas vira outro elemento). O que as duas fazem igual mora em `static/js/graficos.js`; cada tela tem o seu arquivo com o que é só dela. Núcleo, sem plugins. Barras proporcionais em tabela são CSS (`barra_pct`). Continuou local na refatoração visual (o handoff pedia CDN 4.4.1) |
 | CSS | Um arquivo escrito à mão (`static/css/app.css`), tokens do design system neutro/teal em `:root`, **uma camada só desde a rodada 28** (os apelidos do tema antigo viveram na seção 1(b) da 17 à 28 e não existem mais). Sem Tailwind, sem biblioteca de ícones: Lucide (ISC) em **SVG inline** pela macro `icone`. Favicon SVG próprio em `static/` |
 | Dinheiro | `Decimal` em todo cálculo (`ROUND_HALF_UP` onde arredonda); `float` só na serialização final para JSON de gráfico |
 | HTTP de saída | Só no comando do IPCA: `urllib.request` da stdlib, timeout 60 s, sem nova tentativa. Nada de `requests`, `sidrapy` ou `pandas` (rodada 21) |
-| Ambiente | Windows, PowerShell, venv em `venv/`, Python 3.14. Validação em navegador com Playwright (`requirements-dev.txt`, rodada 18) |
+| Markdown | Python-Markdown (`Markdown==3.10.3`, rodada 32), núcleo, sem extensões — só para renderizar o `CHANGELOG.md` no servidor; nenhum JS para isso |
+| Ambiente | Windows, PowerShell, venv em `venv/`, Python 3.14. Produção (rodada 33): servidor Ubuntu, `docker compose`, sem venv. Validação em navegador com Playwright (`requirements-dev.txt`, rodada 18) |
 
 ## 6. Estrutura atual do código
 
 ```
 freedom/
-  __init__.py      create_app: CSRF, pool, Flask-Login, blueprints, CLI, filtros Jinja `moeda` e `numero`
+  __init__.py      create_app: CSRF, pool, Flask-Login, blueprints, CLI, filtros Jinja `moeda` e `numero`;
+                   lê o CHANGELOG.md uma vez por versao.carregar e expõe a versão por context processor (32)
   config.py        lê .env; template_folder/static_folder apontam para a raiz
   db.py            ConnectionPool, dict_row, get_connection(), executar()
   util.py          destino_interno(); ValorInvalido, converter_valor, converter_numero(percentual=),
@@ -103,7 +106,9 @@ freedom/
                    caixa_marcada(texto) (caixa de filtro GET) e com_sinal(texto, valor),
                    que põe o "+" do positivo no texto já formatado — os três promovidos
                    na rodada 31, cada um de dois módulos que os repetiam
-  cli.py           flask create-user, flask set-password, flask carregar-ipca (rodada 21; imprime a partir
+  cli.py           flask create-user, flask set-password (desde a 32 grava por auth.servico.trocar_senha,
+                   sem mínimo de caracteres — é o caminho de recuperação; grava por login, o id morto saiu),
+                   flask carregar-ipca (rodada 21; imprime a partir
                    de ipca.carregar desde a 23; erro vira click.ClickException com código de saída 1)
   ipca.py          (rodada 21) tudo de tb_ipca: buscar (único ponto com rede), interpretar (função pura:
                    JSON do SIDRA → lista (mes, numero_indice, variacao_mensal); descarta antes de dez/1993;
@@ -117,7 +122,12 @@ freedom/
                    texto_da_faixa / texto_do_erro / texto_das_nulas, mes_esperado / pendente / texto_da_dica
                    (puras; a data entra por parâmetro; corte no dia 12). Rodada 24: base_de_correcao()
                    (último mês carregado e o índice dele, numa linha) para quem deflaciona
-  auth/            forms.py, models.py, routes.py (/login, /logout)
+  versao.py        (rodada 32) versao_atual(texto) pura — primeiro `## x.y` do CHANGELOG.md, ErroVersao se
+                   não houver — e carregar(), que lê o arquivo da raiz uma vez, guarda a versão e o HTML
+                   renderizado por Python-Markdown (núcleo). Chamada só pelo create_app
+  auth/            forms.py (TrocaSenhaForm desde a 32), models.py, routes.py (/login, /logout e, desde a 32,
+                   GET/POST /conta/senha), servico.py (rodada 32: trocar_senha(login, senha_nova), a única
+                   função que grava senha)
   main/            routes.py  "/" Visão Anual, "/mensal" Visão Mensal, "/mensal/categoria/<id>" fragmento
                    servico.py Anual: anos_com_lancamento, ano_valido (MESES_CURTOS vem de util desde a 22),
                               painel_do_ano, _totais_do_ano (origem única dos totais), _tabela_mensal,
@@ -152,6 +162,8 @@ freedom/
                               Decimal vira float)
                    independencia.py  (rodada 29) a rota GET "/independencia", e só ela: lê a
                               query string e chama o serviço
+                   changelog.py (rodada 32) a rota GET "/changelog", e só ela: serve o HTML que
+                              versao.carregar guardou, num .card .prosa; sem olho
                    servico_independencia.py (29, estendido na 31) o modelo do Mr. Money
                               Mustache. Puras: anos_ate_if(s, r, tsr) (de patrimônio zero),
                               anos_restantes(p0, g, a, r, tsr) (da última foto — a MESMA
@@ -209,12 +221,15 @@ templates/
                    `atributos_html` (no <html>), `cabeca` (fim do <head>) e `scripts`; favicon
   auth/login.html  fora do layout_app: cartão de 380px centrado sobre --bg, <h1 class="login-titulo">Freedom</h1>,
                    botão "Entrar" com log-in (rodada 27)
+  auth/ e main/    a página da troca de senha e a do histórico de versões (rodada 32; nomes exatos dos
+                   arquivos no CLAUDE.md §4)
   layout_app.html  sidebar escura com o menu numa estrutura só (`navegacao`, QUATRO grupos desde a
                    rodada 25: Painel — Visão Anual, Visão Mensal, Análise por subcategoria,
                    Análise por prioridade, Orçamento —, Lançamentos, Cadastros — terminando em
                    "Resumos anuais" e "IPCA" — e Configurações — "Parâmetros" e "Backup",
                    fechado por padrão), seções recolhíveis (`freedom.sidebar.<secao>`
-                   em localStorage), rodapé com usuário e logout POST; barra superior com os blocos
+                   em localStorage), rodapé com o usuário (link para /conta/senha desde a 32), a versão discreta abaixo dele
+                   (link para /changelog) e logout POST; barra superior com os blocos
                    `titulo_pagina`, `subtitulo_pagina`, `acoes_pagina`; `data-valores="ocultos"` e o
                    script dono do estado do olho no bloco `cabeca` (rodada 19); temAtivo() no script
                    colado às seções abre o grupo do item ativo antes de pintar, sem gravar (rodada 27)
@@ -234,7 +249,9 @@ templates/
                    (.nota-topo) que explica por que os totais desta tela não batem com os das outras
   _macros.html     icone (_CAMINHOS_ICONE, Lucide inline), campo, campo_selecao, campo_area,
                    badge_ativo, acoes_linha, cabecalho_tabela, vazio, lista_cadastro, filtro_inativos,
-                   filtros_cadastro, acoes_formulario, reais, barra_pct, badge_essencialidade,
+                   filtros_cadastro, acoes_formulario (icone_salvar=None desde a 32 — sem o parâmetro o HTML é
+                   byte a byte o de antes, e o "Salvar" dos nove formulários continua sem ícone), reais,
+                   barra_pct, badge_essencialidade,
                    bloco_prioridade, campos_despesa (grade de 12 colunas), campos_receita,
                    combobox (<input list> + datalist — lista ABERTA)
   main/index.html  (marcas sensivel* em todo número; card "Resumo do ano" entre os nove indicadores e os
@@ -263,7 +280,8 @@ static/
   css/app.css      seção 1 tokens do design system, UMA camada desde a 28 (paleta --grafico-*, --esqueleto, a
                    escala --e-*, --accent-ghost/--accent-line, --green/--red/--orange-line, --shadow-soft,
                    --radius-pill, --shadow-menu, --ink-ghost); 4 layout (sidebar escura, barra superior — o
-                   único backdrop-filter do sistema, na .pagina-cabecalho); 5.1 card (.card--tabela .tabela-caixa
+                   único backdrop-filter do sistema, na .pagina-cabecalho; o rodapé com o link do nome e a
+                   versão, da 32, fica aqui: modificador do rodapé, não componente); 5.1 card (.card--tabela .tabela-caixa
                    e as duas notas irmãs, .nota-rodape e .nota-topo); 5.2 botões (.btn--icone, rodada 19) e
                    .segmentado (era .anos da Anual; generalizado na 22; modo e período do Orçamento desde a 28);
                    componente .barra (após 5.4); 5.6 flash (em tokens desde a 27); 5.9 lançamento; 5.10 consulta;
@@ -275,14 +293,16 @@ static/
                    Orçamento (.tabela--orcamento e .tabela--acompanhamento repõem min-width: 560px; 5.15.1 só a
                    cor das três faixas); 5.16 ocultar valores (rodada 19); 5.17 IPCA (só os rótulos do botão);
                    5.18 as duas análises; 5.19 backup; 5.20 edição em linha (.edicao-linha, de Parâmetros e do
-                   Orçamento, rodada 28); 5.21 Independência (29); 5.22 Patrimônio (30, a grade da foto);
+                   Orçamento, rodada 28); 5.21 Independência (29); 5.22 Patrimônio (30, a grade da foto); 5.23 .prosa (32, o HTML do
+                   changelog: h2, p, ul/li, code — nada de estilizar h2/ul sem classe);
                    6 login (380px, .login-titulo); 7 responsivo; 8 utilitários (.negativo
                    global desde a 16). Seção 5.7 (modal) removida na 17; lacuna intencional — componente
                    novo entra no fim. Na 31 a **5.18 virou só comentário**: as duas classes que restavam
                    nela foram adotadas por outras telas e subiram (.analise-parcial → .marca-parcial em
                    5.13.2, .filtro-caixa para 5.10); no mesmo movimento .independencia-nota virou
                    .card__nota--fim (5.1) e nasceram .painel-titulo e .painel-grade--dois (5.13).
-                   ~4.950 linhas
+                   ~5.030 linhas. O **sumário do topo** parou na 5.20 por duas rodadas (5.21 e 5.22 nunca
+                   entraram nele) até a 32 pô-lo em dia: seção nova é linha no sumário, no mesmo commit
   js/htmx.min.js, js/chart.umd.js, js/graficos.js (o comum às telas com gráfico, rodada 24;
                    o rótulo do eixo Y ganhou a faixa dos milhões depois da 31 — a UNIDADE sai do
                    maior valor do eixo, as CASAS saem do passo), js/visao_anual.js, js/analise.js
@@ -293,11 +313,13 @@ static/
                    layout — sidebar, menu do celular, olho — são inline em layout_app.html
   favicon.svg      teal; única cópia do hex da cor primária fora do CSS (SVG estático não lê variáveis)
 db/init/01_schema.sql
+CHANGELOG.md     (rodada 32, versionado) a ÚNICA fonte do número de versão: primeiro `## x.y — DD/MM/AAAA`;
+                 sem título de nível 1 (o título é da página); registro a partir da 0.24, sem retroativo
 docs/            Freedom - Estrutura do Banco de Dados.md, Freedom - Histórico e Estado do Projeto.md
 design_handoff_freedom_visao_anual/, design_handoff_freedom_lancamentos_cadastros/
                  referência visual; os README erram sobre a stack e os support.js não são da aplicação
 CLAUDE.md        instruções permanentes do agente (onde divergir de um handoff, vale o CLAUDE.md)
-run.py, requirements.txt, requirements-dev.txt (Playwright), .gitignore,
+run.py, requirements.txt (Markdown==3.10.3 desde a 32), requirements-dev.txt (Playwright), .gitignore,
 README.md ("Comandos flask" — criar usuário, carregar IPCA e quando rodar; "Dependências de
                  front-end", com a licença do Lucide). **README.md está no .gitignore de propósito**
                  (decisão do dono): o que se escreve nele não é versionado
@@ -328,7 +350,7 @@ Padrões já estabelecidos no código (o agente deve mantê-los):
 - **Lista aberta → `combobox`; cadastro fechado → `<select>`** (chave de configuração é aberta; subcategoria é fechada).
 - Valor de dinheiro entra com vírgula (`converter_valor`); zero só onde o domínio admite (orçamento), tratado antes do parser.
 - `UniqueViolation` vira erro de campo legível; transação por request; rollback em erro.
-- Login: mensagem única; `destino_interno` em todo redirect; logout POST com CSRF. `?retorno=` aceita querystring completa (URL-encoded).
+- Login: mensagem única; `destino_interno` em todo redirect; logout POST com CSRF. `?retorno=` aceita querystring completa (URL-encoded). **Senha** (32): `/conta/senha` é POST comum com PRG, sem HTMX; campos de senha nunca voltam preenchidos; mínimo de 8 só na tela, o comando não tem. **Versão** (32): fonte única no `CHANGELOG.md`, lida uma vez na subida — mudar o arquivo exige reiniciar.
 - Selects de CHECK exibem rótulo amigável e gravam o valor exato. Subcategoria e fonte têm opção em branco e nunca vêm pré-selecionadas.
 - Conhecimento de tela fica no servidor e chega por fragmento ou JSON embutido; **nada decidido em Jinja** (cores, "—", estouro) — funções Python devolvem a classe/estado.
 - **Formatação**: `moeda`; percentual pelo filtro `numero` (vírgula, uma casa); sem denominador → "—" (`fracao` devolve `None`); negativo em vermelho **no `<span>`**, travessão nunca vermelho; mês maiúsculo como rótulo, minúsculo em frase, `MESES_CURTOS` onde não cabe.
@@ -336,7 +358,7 @@ Padrões já estabelecidos no código (o agente deve mantê-los):
 - **Script que decide o primeiro quadro roda antes de pintar**: colado no elemento (seções da sidebar) ou no `<head>` pelo bloco `cabeca` (olho), nunca no fim do corpo.
 - **Controle segmentado é grupo de links** `.segmentado` com `aria-current="page"` (seletor de ano da Anual, modo da tela do IPCA, modo e período do Orçamento): GET com recarga inteira, sem JS, e o estado visual é o mesmo atributo que o anunciado.
 - **Comando com fonte externa** (rodada 21): três funções separadas — I/O de rede, interpretação **pura** (testável com arquivo adulterado, sem rede e sem banco) e gravação em **uma transação** (erro no meio desfaz tudo). Valor numérico nasce `Decimal(texto)`, nunca `float`; `converter_numero` é para entrada do usuário com vírgula, não para API com ponto. Contagens de inserido/atualizado saem do banco (`RETURNING (xmax = 0)`), não do Python. Mensagens do CLI em português acentuado; erro é `click.ClickException` (prefixo "Error:" é do Click).
-- **Ícones**: macro `icone(nome)` com os caminhos em `_CAMINHOS_ICONE` (Lucide copiado do oficial, `currentColor`, `aria-hidden`); `notebook-pen` entrou na rodada 20, `percent` na 22, `refresh-cw` na 23, `chart-line` na 24, `database` na 25, `chart-column` na 26 e `log-in` na 27 (27 caminhos); a 28 não precisou de nenhum — `plus` já servia ao "Criar" do Orçamento e ao "Salvar valor" de Parâmetros. Todo botão primário tem ícone. Botão só de ícone leva nome acessível (`.so-leitor` ou `aria-label`) e `title`.
+- **Ícones**: macro `icone(nome)` com os caminhos em `_CAMINHOS_ICONE` (Lucide copiado do oficial, `currentColor`, `aria-hidden`); `notebook-pen` entrou na rodada 20, `percent` na 22, `refresh-cw` na 23, `chart-line` na 24, `database` na 25, `chart-column` na 26, `log-in` na 27 e `key-round` na 32 (28 caminhos); a 28 não precisou de nenhum — `plus` já servia ao "Criar" do Orçamento e ao "Salvar valor" de Parâmetros. Todo botão primário da barra superior ou avulso tem ícone; **o "Salvar" da macro `acoes_formulario` nunca teve** — os nove formulários que a chamam vão sem ícone, o que só ficou visível na 32, quando a macro ganhou `icone_salvar` opcional (um padrão na macro alinharia os nove de uma vez: backlog). Botão só de ícone leva nome acessível (`.so-leitor` ou `aria-label`) e `title`.
 - **Barra superior**: cada tela preenche `titulo_pagina`, `subtitulo_pagina` e `acoes_pagina`. Sticky no desktop, estática no celular, onde os botões da barra dividem a linha por `flex` (um botão sozinho ocupa 100%).
 - **Sidebar**: seções recolhíveis com preferência em `localStorage` (`freedom.sidebar.<secao>`); Cadastros e Configurações fecham por padrão. Desde a 27 o grupo que contém o item ativo abre sozinho, decidido pelo `temAtivo()` no script colado às seções — antes de pintar (medido: `readyState === 'loading'`, antes do primeiro `requestAnimationFrame`) — e **sem gravar**: a preferência é do usuário. Abaixo de 768px tudo é visível e nada disso se aplica.
 - **Ocultar valores (Visão Anual, rodada 19)**: o servidor manda `data-valores="ocultos"` no `<html>`; o script em `cabeca` do `layout_app.html` é o dono único do estado, guardado por aba (`sessionStorage`, chaves `freedom.valores…`). Navegação é `pagehide` antes de `hidden`; saída de aba é `hidden` sozinho; um prazo de 300 ms separa fechar a aba de navegar. Marcas: `sensivel` (valor em linha), `sensivel-bloco` (célula ou bloco inteiro — use quando um `<span>` mudaria o subpixel do texto), `sensivel-barra` (preenchimento), `sensivel-area` (gráfico, com `visibility: hidden` para o Chart.js não perder a medida). Os dois ícones vão no botão e o CSS escolhe; `aria-pressed` sai `false` do servidor e é corrigido no `DOMContentLoaded` (exceção conhecida à regra de estado único).
@@ -374,6 +396,7 @@ Padrões já estabelecidos no código (o agente deve mantê-los):
 | 30 | **Patrimônio**: cadastro de ativos (`tb_ativos`, `classe` livre pela `combobox`) e a **foto mensal** em `/lancamentos/patrimonio` — a grade É o editor, e um POST só faz upsert do preenchido e DELETE do esvaziado numa transação, com `ON CONFLICT … WHERE IS DISTINCT FROM` e `RETURNING (xmax = 0)`. Cards, alocação por classe, histórico de fotos e gráfico de evolução. Dois achados de navegador: `max` num `<input type="date">` que o `hx-include` carrega **aborta o POST em silêncio** (`htmx:validation:halted`) e foi retirado; e `.tabela th { white-space: nowrap }`, herdado pelo `<th scope="row">`, estourava a grade no celular (nome de 375px em caixa de 316px) — o primeiro teste passou por sorte, com nomes curtos, e foi refeito com nomes reais | ✅ |
 | 31 | **Anos restantes, patrimônio corrigido e quatro limpezas**: segunda fileira de cards na Independência (`n = ln((G/TSR + A/r)/(P₀ + A/r))/ln(1+r)` — a MESMA fórmula, que com `P₀ = 0` devolve a primeira, provado por invariante), caixa do IPCA na evolução do patrimônio (linha, coluna, subtítulo e nota ligam e desligam juntos), CSRF em campo oculto, `_com_sinal` promovido a `com_sinal` em `util.py`, nota de vigência fora da faixa e Parâmetros recusando zero em TSR e S (R aceita). Import circular resolvido com import tardio de `ultima_foto` dentro de `consultar()`. **Um teste de CSRF apagou a foto real do dono**: POST sem nenhum campo `valor_*` na data que tinha foto, o que pelo contrato da grade esvazia aquela data. Restaurada na hora, relatada, e o teste repontado para uma data sem foto | ✅ |
 | 31+ | **Ajustes pedidos depois da entrega**, um a um. **Setas de mês** ao lado da data da foto: o `<input type="date">` entra em `badInput` sempre que o dia atual não existe no mês de destino (31 → fev, abr, jun, set, nov) e trava os DOIS botões sem mensagem nenhuma — link não passa por validação de formulário e é também a saída quando o campo já travou. **Eixo Y em milhões** no `graficos.js` (a unidade sai do maior valor do eixo, as casas do passo — saía "R$ 3000 mil"), provado inócuo abaixo de R$ 1 mi pelo SHA da Anual e das Análises. **Gráfico de tendência** com ajuste exponencial e projeção de 60 meses. **Carga da série de patrimônio** por CSV do dono: 161 fotos de abr/2013 a ago/2026, conferidas linha a linha. E o **R² passou a ser o do Excel** (quadrado da correlação entre observado e ajustado): a definição da escala do logaritmo dava 0,833 contra os 0,954 da planilha — com a série até jul/26, onde o gráfico dele termina, a nova conta dá 0,9540 | ✅ |
+| 32 | **Troca de senha e histórico de versões**: `/conta/senha` (senha atual + nova + confirmação, quatro recusas com mensagem no campo, PRG com flash) alcançada pelo nome do usuário na sidebar; `auth/servico.py` com `trocar_senha`, compartilhada com `flask set-password` — saída do comando byte a byte igual nos três caminhos, provada por `CliRunner`; `CHANGELOG.md` na raiz como fonte única da versão (`versao.py`: `versao_atual` pura e `carregar` no `create_app`), `/changelog` por Python-Markdown em `.card .prosa` (5.23), número `0.24` discreto abaixo do nome, link para a página; ícone `key-round`; `acoes_formulario(icone_salvar=None)`. 59 verificações em navegador, 0 falhas; hash do `tiago` idêntico; `zz_teste` restaurado pelo comando (a senha de teste tem menos de 8 caracteres e a tela não a aceita). Quatro capturas de `main.conteudo` com SHA idêntico em duas passadas. Achados: sumário do CSS sem 5.21/5.22 (corrigido), `set-password` gravava por um `id` morto (agora por `login`), mensagens do `auth/` sem acento (limpeza da 33). Sem commit; DDL intacto | ✅ |
 
 ## 8. Roteiro (ordem sugerida)
 
@@ -381,13 +404,13 @@ Padrões já estabelecidos no código (o agente deve mantê-los):
 2. ~~**Refatoração visual pendente**~~ — **feita nas rodadas 27 e 28**: Mensal, login, sidebar, Orçamento e Parâmetros no design system; a seção 1(b), o `card--solido` e os literais roxos não existem mais. Nada mais se cita como pendente, por nome ou por número.
 3. ~~**Metas de independência**~~ — **feita na rodada 29** e ampliada na 31 com os anos restantes a partir da última foto. TSR, S e R saíram de "nada os lê" para "uma tela os lê".
 4. ~~**Patrimônio**~~ — **feito na rodada 30**: ativos, foto mensal, alocação, histórico e evolução; tendência e projeção na 31 e nos ajustes seguintes. `tb_ativos` e `tb_patrimonio_snapshots` não estão mais vazias.
-5. **Deploy**: serviço `app` no `docker-compose` com gunicorn (`--timeout` compatível com o botão do IPCA) e `TZ=America/Sao_Paulo` (a dica de mês provável usa a data local); Tailscale; segundo usuário; decidir se o Agendador de Tarefas do Windows roda `carregar-ipca` nos dias 12 e 15 como rede de segurança. Com o celular na rede, conferir o olho no aparelho (ver seção 9).
+5. **Deploy** (rodada 33, decisões fechadas pelo dono em 20/09/2026): produção é um **servidor Ubuntu**; o código chega por **`git clone`/`pull`**; **o app roda no `docker compose`** como terceiro serviço — imagem própria com gunicorn e `pg_dump`, `TZ=America/Sao_Paulo` (a dica de mês provável usa a data local), `--timeout` acima do `TEMPO_LIMITE` do backup —, ao lado de `postgres` e `pgadmin`, **na mesma estrutura de yml**; portas do host pelo `.env` (`POSTGRES_PORT`, `PGADMIN_PORT` e `APP_PORT`, novo), `.env` criado no servidor (não copiado do Windows: CRLF). **A página de Backup deixa o `docker exec`** e chama `pg_dump` por TCP até o serviço `postgres`, com a senha no ambiente do subprocesso, nunca na linha de comando; o caminho do executável é configurável para o Windows do desenvolvimento. O banco entra por **restauração do dump gerado pela própria página de Backup** num `public` esvaziado, e a idempotência do `01_schema.sql` re-executado sobre o restaurado é a prova de que dump e schema batem. Tailscale já funciona (sem tutorial); **sem segundo usuário** por enquanto; **sem cron** para o IPCA — só o botão. A rodada fecha com a entrada `1.0` no changelog; a etiqueta é do dono. Com o celular na rede, conferir o olho no aparelho (ver seção 9).
 
-Backlog consciente: exportação CSV/Excel, duplicar lançamento, edição em lote, intervalo livre de datas, ordenação por cabeçalho, sugestão que preencha valor, autocomplete em receitas, comparação entre anos/meses, links dos cards para a consulta, detalhe por categoria na Anual (subcategoria × mês), detalhe por pessoa, setas entre meses, exportação de gráfico, animação dos gráficos, orçamento por pessoa, cópia de orçamento entre anos, histórico de alterações do orçamento, integração dos painéis com o orçamento, edição em linha nos cadastros e na despesa, busca nos cadastros, paginação dos recentes (os três recusados como mudança funcional na rodada 18), acumulado em 12 meses na tela do IPCA, ticket médio deflacionado na análise por subcategoria, deflação na Visão Anual (série real do ano), rentabilidade por ativo e aporte informado no patrimônio (hoje a tendência é só extrapolação da série), `.nota-topo` na montagem do orçamento dizendo que Média 12m e Realizado são recalculados a cada visita (era o subtítulo antigo, retirado na 28).
+Backlog consciente: exportação CSV/Excel, duplicar lançamento, edição em lote, intervalo livre de datas, ordenação por cabeçalho, sugestão que preencha valor, autocomplete em receitas, comparação entre anos/meses, links dos cards para a consulta, detalhe por categoria na Anual (subcategoria × mês), detalhe por pessoa, setas entre meses, exportação de gráfico, animação dos gráficos, orçamento por pessoa, cópia de orçamento entre anos, histórico de alterações do orçamento, integração dos painéis com o orçamento, edição em linha nos cadastros e na despesa, busca nos cadastros, paginação dos recentes (os três recusados como mudança funcional na rodada 18), acumulado em 12 meses na tela do IPCA, ticket médio deflacionado na análise por subcategoria, deflação na Visão Anual (série real do ano), rentabilidade por ativo e aporte informado no patrimônio (hoje a tendência é só extrapolação da série), `.nota-topo` na montagem do orçamento dizendo que Média 12m e Realizado são recalculados a cada visita (era o subtítulo antigo, retirado na 28), ícone padrão no "Salvar" de `acoes_formulario` (alinha os nove formulários de uma vez), `create-user` gerando o hash por conta própria enquanto `trocar_senha` o faz para o `UPDATE` (uma linha a compartilhar), mínimo de caracteres também no comando se um dia o dono quiser simetria com a tela.
 
 ## 9. Pendências e lembretes
 
-- **Estado dos commits em 20/09/2026**: as etiquetas estão três à frente do número da rodada — `0.18` é a rodada 26, `0.19` a 27, `0.20` a 28 (com `0.20.1` só de documentação), `0.21` a **29** e `0.22` a **30**. A **rodada 31 e os quatro ajustes pedidos depois dela** (setas de mês, eixo em milhões, gráfico de tendência e a carga do CSV de patrimônio, mais a troca da definição do R²) estavam por commitar quando este documento foi atualizado.
+- **Estado dos commits em 20/09/2026**: as etiquetas estão três à frente do número da rodada — `0.18` é a rodada 26, `0.19` a 27, `0.20` a 28 (com `0.20.1` só de documentação), `0.21` a **29** e `0.22` a **30**. A **rodada 31 e os quatro ajustes pedidos depois dela** (setas de mês, eixo em milhões, gráfico de tendência e a carga do CSV de patrimônio, mais a troca da definição do R²) estavam por commitar quando este documento foi atualizado. A **rodada 32** também está sem commit: `0.23` fecha a 31 com os ajustes, `0.24` fecha a 32 — e é o número que o `CHANGELOG.md` já mostra.
 - O repositório anexado ao projeto do orquestrador só reflete o último sync: sincronizar depois de cada commit, senão revisão e prompt olham código velho (em 12/09 o orquestrador não tinha o código das rodadas 16 a 21).
 - **`docs/Freedom - Estrutura do Banco de Dados.md`** foi posto em dia em 13/09/2026 (depois da rodada 24) e recebeu em 20/09/2026 as duas únicas correções que a rodada 26 exigiu: a descrição de `integra_ipca` (que dizia "nada lê esta coluna") e a linha "Despesa deflacionada" dos padrões de acesso, que agora nomeia as duas análises. O resto daquele arquivo continua valendo: o roteiro saiu dele (fica só aqui, seções 7 e 8), `tb_ipca` diz quem a alimenta e quem a lê, o cruzamento com o IPCA é pelo **mês da data** (nunca pelo `ano_mes`) e os padrões de acesso trazem o upsert, a deflação por lançamento e a consulta da análise. **O DDL não muda desde a rodada 20** — as rodadas 25 a 28 não tocaram em tabela, coluna, view, índice nem trigger.
 - As revisões das entregas das rodadas 18 e 20 não ficaram registradas no orquestrador; o que está aqui sobre elas vem dos prompts, do código e do schema.
@@ -395,7 +418,7 @@ Backlog consciente: exportação CSV/Excel, duplicar lançamento, edição em lo
 - Ritual mensal: depois do dia 10, `python -m flask --app freedom carregar-ipca` (ou, a partir da 23, o botão da tela) e conferir o último mês com o site do IBGE. Se o IBGE revisar um mês passado, a recarga corrige sozinha (é upsert). Nenhum dos dois caminhos precisa do agente.
 - **Olho, a conferir no celular real** (quando houver acesso pela rede): se a miniatura do trocador de apps é capturada antes do `hidden`; alvo de toque de 30px, abaixo dos 44px recomendados; bfcache do Safari/iOS. Risco residual medido: aba reaberta em menos de 300 ms do fechamento volta à mostra. O logout limpa o estado interceptando o formulário de sair — redundante com o prazo, mantido.
 - O único `backdrop-filter` do sistema é o da `.pagina-cabecalho` (desktop). A `.topo-mobile` perdeu o dela na 28 (desfocava fundo opaco) — o que mudou o antialiasing da marca em duas telas, para melhor. Um `--cor-*`, `--vidro*`, `--solido*`, `--linha*`, `--raio-*` ou `--sombra-*` que reapareça no CSS é código velho sem definição; o navegador o ignora em silêncio.
-- Usuários: `tiago`, `zz_consulta` (desativado), `zz_teste` — senha em `senha_teste`. **Todo prompt nomeia a variável.** Validação que edita dado real carimba `atualizado_em`; se isso incomodar, o agente cria e apaga a própria despesa de teste.
+- Usuários: `tiago`, `zz_consulta` (desativado), `zz_teste` — senha em `senha_teste`. **Todo prompt nomeia a variável.** Validação que edita dado real carimba `atualizado_em`; se isso incomodar, o agente cria e apaga a própria despesa de teste. **A senha de `zz_teste` tem menos de 8 caracteres**: a tela `/conta/senha` não a aceita como senha nova, e por isso nenhuma validação em navegador consegue restaurá-la pela tela — só `flask set-password`. Trocá-la por uma de 8+ (comando + `.env`) é pendência do dono antes da próxima validação que mexa em senha. Durante a 32 havia **dois servidores `--debug` na porta 5000** na máquina do dono, que não eram do agente; matá-los.
 - `favicon.svg` repete o hex da cor primária (`#30B0C7`); se a paleta mudar, são dois lugares.
 - `tb_configuracoes` tem TSR, S e R; nada os lê até a página de metas. Configuração recusa negativo; `R` negativo exigiria uma linha em `converter_numero`.
 - `<details>` no desktop usa `::details-content` (Chromium 131+ / Firefox 139+).
@@ -403,6 +426,8 @@ Backlog consciente: exportação CSV/Excel, duplicar lançamento, edição em lo
 - Ano futuro no seletor só com lançamento futuro; média e "meses no azul" mostram "—"; tabela mensal mostra o que houver lançado e "—" em acumulado e taxa.
 - `SECRET_KEY` no `.env`, documentada no README. **Python 3.14 roda** — o aviso antigo de recriar o venv com 3.12 era de quando faltava wheel para alguma dependência e não vale mais; num clone novo, conferir antes de trocar de versão.
 - Antes de citar arquivo, macro ou variável num prompt, conferir que existe onde o documento diz.
+- As três mensagens visíveis do `auth/` sem acento ("Sessao encerrada.", "Faca login para continuar.", "Login ou senha invalidos.") são uma ilha do começo do projeto; entram como limpeza na rodada 33. Validação que confira o texto do login depois disso usa a forma acentuada.
+- A página de Backup até a 32 depende do `docker exec` no host e do nome literal do container; em container ela quebra. A rodada 33 troca o mecanismo (ver seção 8) e o `CONTAINER` literal deixa de existir.
 - **Backup**: o dump sai só por clique e o arquivo passa a ser responsabilidade do dono — o sistema não sabe se ele ainda existe. Se o `pg_dump` um dia pedir senha (hoje não pede: socket local, `trust`), o jeito é `-e PGPASSWORD=` no `docker exec`, e isso põe o valor na linha de comando do processo do host; está escrito na docstring de `_comando` e **precisa ser relatado** se for usado.
 - **Só a Análise por prioridade lê `integra_ipca`**. A Análise por subcategoria continua somando tudo, e isso é decisão, não esquecimento: qualquer "correção por coerência" está errada. Tela nova que use a flag herda a obrigação do aviso na tela.
 - **A foto de patrimônio tem hoje um ativo só** e 161 datas. Enquanto for assim, a alocação por classe é uma linha de 100 % — não é defeito.
@@ -459,6 +484,7 @@ Backlog consciente: exportação CSV/Excel, duplicar lançamento, edição em lo
 - `min-width` herdado de `.tabela` faz tabela pequena rolar por dentro; `min-width: 0` onde cabe. `sticky` precisa de teto no celular. `.so-leitor` absoluto dentro de contêiner rolável estica a página sem ancestral posicionado.
 - Seletor de descendência (`.tabela--x th`) alcança tabela aninhada; efeito acidental que só o SHA da captura revelou (1px).
 - Manter lacuna de numeração; modificador temporário para não tocar outra tela é aceitável, mas é dívida a pagar na rodada seguinte.
+- Sumário escrito à mão desatualiza em silêncio: 5.21 e 5.22 ficaram duas rodadas fora dele sem que ninguém notasse. Seção nova é linha no sumário, no mesmo commit.
 
 **Navegador: ciclo de vida da página**
 - `visibilitychange` com `hidden` dispara também quando a própria aba navega (troca de ano, clique no menu, F5), não só quando o usuário sai dela.
@@ -472,6 +498,7 @@ Backlog consciente: exportação CSV/Excel, duplicar lançamento, edição em lo
 **Processo**
 - **Navegador real** pegou os piores bugs (OOB expulso, vão branco, filtros inacessíveis, canvas travado, tabela duplicada, `.so-leitor` esticando). Edge headless com tempo virtual congela `requestAnimationFrame`.
 - Nomear a variável da senha de teste no prompt; placeholder não pode ir para o agente.
+- **A senha de teste precisa cumprir a regra que a rodada cria.** Com `senha_teste` abaixo do mínimo de 8, o passo "restaure pela tela" do prompt da 32 era impossível; o agente restaurou pelo comando, que não tem mínimo. Antes de escrever a validação, conferir que o dado de teste passa nas regras novas — e conferir a macro antes de citá-la: "pelas macros, com ícone" assumia um "Salvar" com ícone que a `acoes_formulario` nunca teve.
 - **Validação nunca aponta escrita para registro do dono.** Na 31 um teste de CSRF mandou um POST de foto sem nenhum campo `valor_*` para a data que tinha a foto real e, pelo contrato da grade, apagou-a. O que evita isso não é cuidado: é escolher uma data (ou chave) **que não existe** antes de escrever o teste, e afirmar no fim que o registro real continua lá. Vale para todo POST que a tela interpreta como "o estado desta chave agora é este".
 - **Teste com valor cravado envelhece junto com o acervo.** As asserções da tendência diziam "104 meses no eixo" e "R² 0,959"; a carga do CSV as quebrou todas sem que nada estivesse errado. Derivar o esperado do banco na hora, e conferir o número da tela contra uma reimplementação independente (em `float`, escrita por outro caminho), prova mais e sobrevive ao próximo lançamento.
 - **Número que veio de planilha se confere contra a planilha**, não contra a definição de livro. O R² do Excel para linha de tendência exponencial não é o `1 − SSE/SST` da reta ajustada no logaritmo; a diferença na série real foi de 0,833 para 0,956. Onde a tela existe para espelhar uma planilha, quem decide a definição é a planilha — e o que confirma é achar o recorte em que os dois números coincidem (aqui, a série até jul/26: 0,9540).

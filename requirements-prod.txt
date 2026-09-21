@@ -1,0 +1,10 @@
+# Dependências de produção: o que roda dentro da imagem do Dockerfile.
+#
+# É `requirements.txt` mais uma linha. A aplicação não importa gunicorn em
+# lugar nenhum — ele é o servidor que a executa, e por isso não tem por que
+# estar na lista do desenvolvimento, onde quem serve é o `flask run`.
+-r requirements.txt
+
+# Servidor WSGI de produção. Dois workers, e o `--timeout` fica no Dockerfile,
+# junto da explicação de por que ele precisa ser maior que o do backup.
+gunicorn==26.2.0

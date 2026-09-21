@@ -40,11 +40,23 @@ wheel. (O aviso antigo de "use 3.12" ficou de quando havia dependência sem whee
 para a 3.14; não vale mais. Num clone novo, conferir antes de trocar de versão.)
 
 ```powershell
-docker compose up -d                     # Postgres 16 + pgAdmin
+docker compose up -d postgres pgadmin    # em dev sobe-se só o banco e o pgAdmin
 .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 python -m flask --app freedom --debug run --port 5000
 ```
+
+O `docker-compose.yml` tem **três** serviços desde a rodada 33 — `postgres`,
+`app` e `pgadmin`. Em desenvolvimento o `app` não sobe: quem serve é o
+`flask run` do host, com recarga. `docker compose up -d` sem nomear serviço
+subiria os três e poria um segundo Freedom na `APP_PORT`, o que não é erro mas
+não é o que se quer aqui. Quem sobe os três é o servidor — ver
+`docs/Freedom - Deploy.md`.
+
+**Nenhum serviço tem `container_name`.** Quem precisa falar com o banco usa o
+nome do SERVIÇO (`postgres`), que é o que a rede do compose resolve, e todo
+comando é `docker compose exec <servico>`, nunca `docker exec <nome>`. Nome
+fixo impedia subir um segundo projeto compose ao lado do de desenvolvimento.
 
 **Sempre com `--debug`.** Sem ele o Jinja não recarrega template e o Python não
 recarrega módulo — duas rodadas do projeto perderam a validação inteira por causa
@@ -81,11 +93,13 @@ O `.env` fica na raiz e **nunca** vai para o git. Chaves usadas:
 
 | Chave | Função |
 |---|---|
-| `DATABASE_URL` | String de conexão do psycopg. |
+| `DATABASE_URL` | String de conexão do psycopg. É a do **host** (`localhost` e `POSTGRES_PORT`), do `flask run`. O serviço `app` não a lê do `.env`: o compose monta a dele, com host `postgres` e a porta interna 5432. |
 | `SECRET_KEY` | Assina o cookie de sessão e os tokens CSRF. |
 | `DB_POOL_MIN` / `DB_POOL_MAX` | Tamanho do pool (padrão 1 e 5). |
 | `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_PORT` | Lidos pelo `docker-compose.yml`. |
 | `PGADMIN_EMAIL` / `PGADMIN_PASSWORD` / `PGADMIN_PORT` | idem. |
+| `APP_PORT` | Porta do host que publica o serviço `app`. Só o compose a lê, e ela tem padrão (8000) — em dev pode faltar. |
+| `PG_DUMP` | Caminho do `pg_dump.exe` para a página de Backup. Existe porque o Windows não tem o cliente do Postgres no PATH; a imagem de produção tem, e lá a chave não existe. Ausente, vale `pg_dump`. **Barra normal, não contrabarra**: o `python-dotenv` interpreta escapes em valor sem aspas, e `in` vira dois caracteres de controle. |
 | `senha_teste` | Senha do usuário de teste, usada só pela validação em navegador. |
 
 Num clone novo o `.env` precisa ser recriado. Gere a `SECRET_KEY` com
@@ -109,6 +123,7 @@ relatório ou documento.** Referencie sempre pelo nome da variável.
 | Markdown | Python-Markdown (`markdown`), núcleo sem extensões, **no servidor**, e num lugar só: o `CHANGELOG.md` da raiz virando HTML na subida do app (rodada 32). Nada de markdown no cliente, e nada de markdown em texto de usuário — o resumo anual continua sendo texto puro |
 | Dinheiro | `Decimal` em todo cálculo; `float` só na serialização final para JSON de gráfico |
 | Testes/validação | Playwright (`requirements-dev.txt`), navegador real |
+| Produção | gunicorn (`requirements-prod.txt`, que é `-r requirements.txt` mais ele), dentro da imagem do `Dockerfile` da raiz — `python:3.14-slim` com `tzdata` e `postgresql-client` do Debian. `.dockerignore` diz o que nem chega ao daemon. **Só na imagem**: em desenvolvimento quem serve é o `flask --debug run`, e o gunicorn nem é instalado |
 
 **Nenhuma requisição a domínio externo, em nenhuma tela.** Sem CDN, sem unpkg, sem
 fonte web. A única chamada externa do sistema inteiro é a da API do SIDRA
@@ -119,10 +134,36 @@ cron, thread nem tarefa do Windows dentro do app. Nenhuma tela pede nada a
 domínio externo: quem fala com o IBGE é o servidor, quando alguém manda. A tipografia é a fonte do sistema. Isso é verificável e é verificado: a
 validação de cada rodada confere que a aba Rede só tem `/static/...`.
 
-O sistema sai do próprio processo em **mais um** ponto, e ele não é rede: o
-`docker exec` que a página de Backup usa para rodar o `pg_dump` dentro do
-container (`subprocess.run` com lista de argumentos, `shell=False`, rodada
-25). Vale a mesma regra do SIDRA — **só por clique**, nunca por agendamento.
+O sistema sai do próprio processo em **mais um** ponto, e ele não é rede
+externa: o `pg_dump` que a página de Backup executa (`subprocess.run` com lista
+de argumentos, `shell=False`, rodada 25). Desde a rodada 33 ele é o `pg_dump`
+da própria máquina que serve o app e fala com o banco **por TCP**, com host,
+porta, usuário, banco e senha saindo do `DATABASE_URL` — a senha em
+`PGPASSWORD` no `env=` do subprocesso, nunca em argumento. Em produção o
+executável vem do `postgresql-client` da imagem; no Windows, da variável
+`PG_DUMP`. Não há mais `docker exec` em código nenhum, e o app não precisa de
+daemon do Docker ao alcance. Vale a mesma regra do SIDRA — **só por clique**,
+nunca por agendamento.
+
+**Um número amarra dois arquivos**: o `--timeout` do gunicorn (Dockerfile, 150 s)
+tem de ser MAIOR que o `TEMPO_LIMITE` do backup (`freedom/configuracoes/backup.py`,
+120 s), senão o worker morre no meio de um dump que ia dar certo e a tela
+mostra queda de conexão em vez de arquivo. O `TEMPO_LIMITE_WEB` do IPCA (20 s)
+cabe folgado. Mudou um, mude o outro.
+
+O roteiro de produção está em **`docs/Freedom - Deploy.md`**: pré-requisitos,
+`.env` do servidor, restauração do dump, subida, conferências, comandos
+`flask` dentro do container e atualização.
+
+**`depends_on: service_healthy` vale no `up`, e só nele.** Medido na rodada
+33: `docker compose restart` sobe `app` e `postgres` ao mesmo tempo (236 ms de
+diferença, com o banco ainda em `starting`), e depois de um reinício da
+máquina quem manda é a política de restart do daemon, não o compose. O que
+cobre esse caso é o `restart: unless-stopped`: sem banco, o `create_app`
+falha, o gunicorn encerra com "Worker failed to boot" e o container volta a
+tentar — até o banco atender (medido: 3 s depois de o banco voltar, sem
+nenhum comando). Não escreva que o `depends_on` garante a ordem no reinício;
+ele garante no `up`.
 
 ## 4. Mapa do código
 
@@ -259,8 +300,12 @@ freedom/
                              Chama-se "Parâmetros" na tela desde a rodada 25;
                              o endpoint e a URL não mudaram
                    backup.py a página de backup (rodada 25): gerar_dump() roda
-                             pg_dump por docker exec, bufferiza e devolve os
-                             bytes mais o nome do arquivo
+                             o pg_dump da própria máquina por TCP (rodada 33),
+                             bufferiza e devolve os bytes mais o nome do
+                             arquivo. `_identificacao` tira host, porta,
+                             usuário, banco e senha do DATABASE_URL;
+                             `_executavel` lê a variável PG_DUMP; `_ambiente`
+                             põe a senha em PGPASSWORD
   orcamento/       /orcamento — servico.py (montagem; criar() escolhe a origem:
                    copia o mês anterior se houver, senão média de 12 meses) e
                    acompanhamento.py (leitura; _card traduz para main.servico.card)
@@ -295,8 +340,16 @@ static/js/         htmx.min.js, chart.umd.js; graficos.js (o que as telas
                    depois do swap do HTMX (`htmx:afterSettle` filtrado pelo id
                    do cartão), destruindo a instância anterior
 db/init/01_schema.sql
+Dockerfile         a imagem de produção (rodada 33): python:3.14-slim, tzdata e
+                   postgresql-client do Debian, requirements-prod.txt e o
+                   comando do gunicorn. O `--timeout` dele está amarrado ao
+                   TEMPO_LIMITE do backup — ver §3
+.dockerignore      o que nem chega ao daemon no build (.env, venv/, .git/,
+                   docs/, handoffs, requirements-dev.txt, db/, capturas)
+requirements-prod.txt  `-r requirements.txt` mais o gunicorn. Só a imagem usa
 docs/              Freedom - Estrutura do Banco de Dados.md   (fonte da verdade)
                    Freedom - Histórico e Estado do Projeto.md (decisões e lições)
+                   Freedom - Deploy.md                        (o roteiro do servidor)
 ```
 
 **Camadas**: a rota só orquestra (valida entrada, escolhe o template). Toda
@@ -394,8 +447,9 @@ Regras que se aplicam a todo código novo:
   dele é travessão, porque não há dezembro de 1992.
 - **Botão "Atualizar do IBGE"** (rodada 23): POST com CSRF por HTMX, na mesma
   tela, com o **mesmo `ipca.carregar`** do comando — o que muda é só a espera
-  (**20 s** na web, porque o gunicorn do deploy corta em 30 s; 60 s no
-  terminal) e o formato do relato. A resposta traz o cartão inteiro (faixa,
+  (**20 s** na web, porque quem clicou está olhando a tela; 60 s no terminal)
+  e o formato do relato. O `--timeout` do gunicorn, decidido na rodada 33, é
+  150 s — quem o dita é o backup, não o IPCA, e os 20 s cabem folgados. A resposta traz o cartão inteiro (faixa,
   dica, nota, tabela) e o subtítulo fora de banda, no modo em que a pessoa
   estava. A **faixa** é texto de servidor e não é estado: some ao recarregar.
   Diz "Nenhum mês novo", "<Mês> carregado: índice e variação" ou "N meses
@@ -490,12 +544,19 @@ Regras que se aplicam a todo código novo:
   Não há restauração pela interface — a tela mostra o comando do `psql` e
   quem o roda é o dono —, não há histórico de backup (nem tabela, nem log,
   nem "último backup em", que mentiria assim que o arquivo fosse apagado) e
-  não há agendamento: o dump sai por clique, e por mais nada. O `pg_dump`
-  roda DENTRO do container por `docker exec`, **sem senha** (lá a conexão é
-  por socket local e a imagem oficial do Postgres trata isso como `trust`);
-  usuário e banco saem do `DATABASE_URL` por `conninfo_to_dict`, e nenhuma
-  credencial vai para a linha de comando. O dump é **bufferizado inteiro** e
-  só vira resposta com `returncode == 0` e stdout não vazio: streamar daria
+  não há agendamento: o dump sai por clique, e por mais nada. Desde a rodada
+  33 o `pg_dump` é o da **própria máquina que serve o app** e fala com o banco
+  **por TCP**: host, porta, usuário, banco e senha saem do `DATABASE_URL` por
+  `conninfo_to_dict`, e a senha vai em **`PGPASSWORD` no `env=` do
+  subprocesso** — nenhuma credencial na linha de comando, que é visível a
+  quem liste os processos. O executável é o `PG_DUMP` do ambiente ou o
+  `pg_dump` do PATH: no Windows do desenvolvimento a variável aponta para o
+  `.exe`; na imagem de produção o `postgresql-client` já o põe no PATH.
+  `--no-password` está lá para o erro não virar espera: sem ele o `pg_dump`
+  PERGUNTA a senha no terminal e o worker fica parado até o `TEMPO_LIMITE`,
+  e a tela diria "tempo esgotado" onde houve credencial errada. Um `pg_dump`
+  mais novo que o servidor funciona; o contrário, não. O dump é
+  **bufferizado inteiro** e só vira resposta com `returncode == 0` e stdout não vazio: streamar daria
   200 antes de saber o desfecho, e uma falha no meio deixaria um `.sql`
   truncado com cara de backup. Nada em disco do servidor. Em qualquer falha,
   **nenhum download**: `flash` de erro com as últimas linhas do stderr e
@@ -978,7 +1039,7 @@ decisões, lições aprendidas). Resumo:
   gráfico de linha e tabela dos pontos; `static/js/graficos.js` extraído da
   Anual; `somar_meses` e `intervalo_de_meses` promovidos para `util.py`.
   Rodada 25: **página de Backup** em `/configuracoes/backup` — dump do banco
-  inteiro por `docker exec pg_dump`, confirmação em dois passos e download;
+  inteiro pelo `pg_dump`, confirmação em dois passos e download;
   Configurações virou o quarto grupo da sidebar, com "Parâmetros" e "Backup".
   Rodada 26: **Análise por prioridade** em `/analise/prioridade` — faixa
   (Essencial ou P1–P4) em vez de subcategoria, filtro permanente por
@@ -1010,18 +1071,25 @@ decisões, lições aprendidas). Resumo:
   **histórico de versões** (`/changelog`), com o número da versão no rodapé
   saindo do `CHANGELOG.md` da raiz — que passa a ser a fonte única dela.
   A gravação da senha virou uma função só (`auth/servico.py`), por onde
-  passam a tela e o `flask set-password`.
+  passam a tela e o `flask set-password`. Rodada 33: **deploy** — `Dockerfile`
+  com gunicorn, o serviço `app` no compose (três serviços, nenhum com
+  `container_name`), o backup por `pg_dump` via TCP, as três mensagens do
+  auth acentuadas e o roteiro do servidor em `docs/Freedom - Deploy.md`. A
+  versão passou a **1.0**.
 - **Não há refatoração visual pendente.** O tema antigo não existe no
   repositório; comentário que diga o contrário é velho.
-- **Depois**: sobrou o **deploy** — gunicorn no docker-compose (`--timeout`
-  compatível com os 20 s do botão do IPCA), `TZ=America/Sao_Paulo`, Tailscale
-  e segundo usuário. Os dois itens que vinham antes dele saíram da lista
-  porque foram feitos: metas de independência na rodada 29 e patrimônio na
-  30 — `tb_ativos` e `tb_patrimonio_snapshots` não estão mais vazias. O item
-  que abria a lista original — a tela de despesas mensais somadas por
-  `integra_ipca` — saiu na 26, quando a flag ganhou o uso que faltava.
-  Backlog de deflação: ticket médio deflacionado na análise e série real do
-  ano na Visão Anual.
+- **Depois**: o **deploy saiu da lista** na rodada 33 — os arquivos e o
+  roteiro estão prontos (`docs/Freedom - Deploy.md`), e quem os roda no
+  servidor é o dono. Ficaram, fora desta linha do tempo e sem data: o
+  **segundo usuário** (o mecanismo já existe — `flask create-user` —, falta a
+  decisão) e o **usuário não-root na imagem**. O Tailscale já funciona e
+  nunca foi trabalho do sistema. Os dois itens que vinham antes do deploy
+  saíram da lista porque foram feitos: metas de independência na rodada 29 e
+  patrimônio na 30 — `tb_ativos` e `tb_patrimonio_snapshots` não estão mais
+  vazias. O item que abria a lista original — a tela de despesas mensais
+  somadas por `integra_ipca` — saiu na 26, quando a flag ganhou o uso que
+  faltava. Backlog de deflação: ticket médio deflacionado na análise e série
+  real do ano na Visão Anual.
 
 Referência visual: `design_handoff_freedom_visao_anual/` e
 `design_handoff_freedom_lancamentos_cadastros/`. **Cuidado**: os README desses
@@ -1047,6 +1115,14 @@ fazem parte da aplicação.
   na tela que os totais dela não batem com os das outras.
 - Não implemente **restauração** de backup pela interface, nem parcial nem
   "só dados", nem histórico de backups, nem agendamento do dump.
+- Não ponha senha em argumento do `pg_dump` (nem `PGPASSWORD=` inline, nem
+  `--password`): ela iria para a linha de comando, que qualquer um que liste
+  processos vê. O lugar é o `env=` do subprocesso.
+- Não volte o backup para `docker exec`, e não devolva `container_name` ao
+  compose: um exige daemon do Docker ao alcance do processo do Flask, o outro
+  impede dois projetos compose lado a lado.
+- Não mexa no `--timeout` do gunicorn sem olhar o `TEMPO_LIMITE` do backup —
+  o primeiro tem de ser maior que o segundo.
 - Não crie **constante de versão em Python**, nem leia o `CHANGELOG.md` a
   cada request: a fonte é o arquivo, lido uma vez na subida. E não invente
   versão "—" quando ele faltar — é erro de subida, de propósito.

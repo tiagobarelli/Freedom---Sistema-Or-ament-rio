@@ -32,9 +32,17 @@ def login():
     return render_template("auth/login.html", form=form)
 
 
-@bp.route("/logout", methods=["GET", "POST"])
+@bp.route("/logout", methods=["POST"])
 @login_required
 def logout():
+    """Encerra a sessao. **So POST**, e de proposito.
+
+    Quem sai e o botao da sidebar, que ja e um <form method="post"> com token
+    CSRF. Aceitar GET fazia de `/logout` um link: qualquer <img> ou <iframe>
+    de outra pagina, ou um pre-fetch do navegador, derrubava a sessao sem que
+    ninguem tivesse clicado em nada. Sem GET, o Flask responde 405 e nao
+    encerra coisa nenhuma.
+    """
     logout_user()
     flash("Sessão encerrada.", "info")
     return redirect(url_for("auth.login"))

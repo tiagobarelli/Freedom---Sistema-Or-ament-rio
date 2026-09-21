@@ -6,12 +6,13 @@ Application factory. Rode com:
 ou pelo run.py na raiz.
 """
 
-from flask import Flask
-from flask_login import LoginManager
+from flask import Flask, flash, make_response, redirect, request
+from flask_login import LoginManager, login_url
 from flask_wtf.csrf import CSRFProtect
 
 from freedom import db, versao
 from freedom.config import BASE_DIR, Config
+from freedom.util import caminho_interno
 
 login_manager = LoginManager()
 csrf = CSRFProtect()
@@ -47,6 +48,47 @@ def create_app(config_class=Config):
     login_manager.login_view = "auth.login"
     login_manager.login_message = "Faça login para continuar."
     login_manager.login_message_category = "info"
+
+    @login_manager.unauthorized_handler
+    def sem_sessao():
+        """Quem chegou sem sessão. Dois caminhos, porque são duas perguntas.
+
+        Fica colado no `login_view` e no `login_message` acima de propósito:
+        os três dizem a mesma coisa — para onde vai quem não entrou, e com que
+        aviso — e separá-los seria deixar dois lugares para discordar.
+
+        **Requisição do HTMX** (cabeçalho `HX-Request`): o navegador tem de
+        SAIR da página, não receber pedaço nenhum. Sem isso o XHR segue o 302
+        até `/login`, volta com a página de login inteira e o HTMX a encaixa
+        no alvo do disparador — o cartão "Faça login para continuar." aparecia
+        dentro do formulário de despesa, no lugar das sugestões da descrição.
+        A resposta é 204 sem corpo, e quem manda o navegador embora é o
+        cabeçalho `HX-Redirect`, que o HTMX trata ANTES de qualquer troca.
+
+        A tela em que a pessoa estava vem do `HX-Current-URL` (o disparador
+        não sabe dela, e `request.url` aqui é a rota do fragmento, que não é
+        lugar de voltar). `caminho_interno` reduz a URL ao caminho e recusa o
+        que não for daqui; sem cabeçalho ou com cabeçalho torto, vai-se para o
+        login sem `next`, que é melhor que um `next` inventado.
+
+        **Requisição comum**: exatamente o que o Flask-Login já fazia, e pelo
+        mesmo `login_url` que ele usa por dentro — mesmo flash, mesma
+        categoria, mesmo `?next=` reduzido a caminho e query. Esta rodada não
+        mexeu nesse caminho, e o relatório dela prova a URL idêntica.
+        """
+        flash(login_manager.login_message, login_manager.login_message_category)
+
+        if "HX-Request" not in request.headers:
+            return redirect(
+                login_url(login_manager.login_view, next_url=request.url)
+            )
+
+        resposta = make_response("", 204)
+        resposta.headers["HX-Redirect"] = login_url(
+            login_manager.login_view,
+            next_url=caminho_interno(request.headers.get("HX-Current-URL")),
+        )
+        return resposta
 
     from freedom.auth.models import User
 

@@ -12,7 +12,7 @@ import re
 import unicodedata
 from datetime import date
 from decimal import Decimal, InvalidOperation
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit, urlunsplit
 
 from flask import request
 
@@ -129,6 +129,26 @@ def destino_interno(valor):
     if not valor.startswith("/") or valor.startswith("//"):
         return None
     return valor
+
+
+def caminho_interno(valor):
+    """De uma URL qualquer, só o caminho e a query — e só se forem seguros.
+
+    Par de `destino_interno`, para a entrada que ela sozinha não sabe tratar:
+    o HTMX manda a tela em que a pessoa está no cabeçalho `HX-Current-URL`, e
+    ele vem ABSOLUTO (`http://servidor:8600/lancamentos/despesas`). Com
+    esquema e host, `destino_interno` recusaria tudo, sempre — e o `?next=`
+    do login nunca teria para onde apontar.
+
+    Jogar fora esquema, host e fragmento antes de perguntar é o que torna a
+    pergunta respondível, e de quebra é o que impede um cabeçalho forjado de
+    virar redirecionamento para fora: `//outro.site/x` sai daqui como `/x`, e
+    o que não começar com `/` continua sendo recusado por `destino_interno`.
+    """
+    if not valor:
+        return None
+    partes = urlsplit(valor)
+    return destino_interno(urlunsplit(("", "", partes.path, partes.query, "")))
 
 
 # --------------------------------------------------------------------------

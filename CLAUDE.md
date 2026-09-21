@@ -338,13 +338,14 @@ CHANGELOG.md       a fonte ÚNICA do número de versão (raiz, versionado — ao
                    contrário do README). Entrada nova no topo, `## <versão> —
                    DD/MM/AAAA`; o rodapé da sidebar e o subtítulo do histórico
                    saem daí
-static/icones/     o ícone do APP INSTALADO (rodada 34): elo-1024.png é o
-                   original do dono, e dele saem apple-touch-icon.png (180),
-                   icone-192.png e icone-512.png. Os três são o MIOLO do
-                   original — 80 px recortados de cada lado, para não sobrar
-                   canto arredondado nem a franja clara da borda, que viraria
-                   filete branco sob a máscara do celular. Derivados uma vez
-                   com Pillow; o comando não é do projeto
+static/icones/     o ícone do APP INSTALADO (rodada 34): apple-touch-icon.png
+                   (180), icone-192.png e icone-512.png, e mais nada. Os três
+                   são o MIOLO do original — 80 px recortados de cada lado,
+                   para não sobrar canto arredondado nem a franja clara da
+                   borda, que viraria filete branco sob a máscara do celular.
+                   O original de 1024 NÃO mora aqui: é `docs/icones/`, porque
+                   nenhuma tela o serve. Derivados uma vez com Pillow; o
+                   comando está logo abaixo desta árvore
 static/manifest.webmanifest  nome, `start_url`, `display: standalone`, as cores
                    de abertura (`--bg`, e não o roxo do ícone) e os PNGs de 192
                    e 512 com `purpose: any`. O Flask já o serve como
@@ -376,7 +377,46 @@ requirements-prod.txt  `-r requirements.txt` mais o gunicorn. Só a imagem usa
 docs/              Freedom - Estrutura do Banco de Dados.md   (fonte da verdade)
                    Freedom - Histórico e Estado do Projeto.md (decisões e lições)
                    Freedom - Deploy.md                        (o roteiro do servidor)
+                   icones/elo-1024.png                        (o original do dono)
 ```
+
+### Como os ícones de app foram derivados
+
+O original é `docs/icones/elo-1024.png`, e está em `docs/` de propósito: é
+matéria-prima, não arquivo servido — a imagem de produção não o carrega, já
+que o `.dockerignore` deixa `docs/` de fora. Os três PNGs de `static/icones/`
+saem dele por este comando, que **roda uma vez** e não é script do projeto
+(salve num arquivo temporário FORA do repositório e rode da raiz):
+
+```python
+from PIL import Image
+
+RECORTE = 80                       # px de cada lado; ver o porquê abaixo
+original = Image.open("docs/icones/elo-1024.png").convert("RGBA")
+L = original.size[0]
+miolo = original.crop((RECORTE, RECORTE, L - RECORTE, L - RECORTE))
+
+# Depois do recorte não sobra um pixel translúcido; RGB tira o canal alfa,
+# que o iOS não quer no apple-touch-icon.
+assert miolo.getchannel("A").getextrema() == (255, 255)
+miolo = miolo.convert("RGB")
+
+for nome, lado in [("apple-touch-icon.png", 180),
+                   ("icone-192.png", 192),
+                   ("icone-512.png", 512)]:
+    saida = miolo.resize((lado, lado), Image.Resampling.LANCZOS)
+    saida.save(f"static/icones/{nome}", format="PNG", optimize=True)
+```
+
+**O 80 não é chute**, e é o número que não se deve mexer sem refazer a conta:
+o canto arredondado do original tem raio 228 px; a borda do quadrado só fica
+inteiramente opaca a partir de **68 px**; e até **72 px** ainda entra a franja
+CLARA da borda do desenho (canto `(179,151,245)` contra `(150,112,238)` do
+degradê 40 px adentro), que é justamente o filete branco que a máscara do
+celular revelaria. 80 px deixa 8 px de folga além disso e ainda é o **maior**
+recorte que sobrevive inteiro à máscara REDONDA do Android — o ponto mais
+externo do desenho fica a 0,982 do raio, e em 90 px já corta. Daí também o
+`purpose: any` do manifesto: `maskable` exigiria caber em 0,8.
 
 **Camadas**: a rota só orquestra (valida entrada, escolhe o template). Toda
 consulta e toda composição de tela moram em `servico.py`. O template só formata.
@@ -643,6 +683,27 @@ Regras que se aplicam a todo código novo:
 - `destino_interno` em todo redirect que aceita `?next=` / `?retorno=`.
 - **Helper duplicado é contradição**: promova para `util.py` na hora e aponte
   todos os módulos para lá.
+- **O cookie de sessão tem nome próprio**: `SESSION_COOKIE_NAME =
+  "freedom_session"`, em `config.py` (rodada 35). O servidor de produção
+  hospeda outros sistemas web na mesma máquina, em portas diferentes, e
+  **cookie de navegador ignora porta** — mesmo host, mesmo pote. Outro app
+  Flask de lá gravava `session`, o nome padrão, e os dois se sobrescreviam: o
+  Freedom deslogava sozinho segundos depois do login, sem nenhum `/logout` no
+  meio, e o outro sistema caía quando o Freedom abria. Trocar o nome é o
+  conserto inteiro; não há nada a fazer no `.env`, no compose nem na imagem.
+- **Requisição do HTMX sem sessão manda o navegador embora, nunca devolve a
+  tela de login como fragmento.** É o `unauthorized_handler` de
+  `create_app`, e ele tem dois caminhos porque são duas perguntas. Com
+  `HX-Request`: **204 sem corpo** mais `HX-Redirect`, que o HTMX trata ANTES
+  de qualquer troca (conferido no `htmx.min.js` 2.0.4: o `location.href` sai e
+  a função retorna, sem passar pelo `responseHandling`). O `?next=` vem do
+  `HX-Current-URL` reduzido por `util.caminho_interno` — `request.url` ali é a
+  rota do fragmento, que não é lugar de voltar —, e cabeçalho ausente ou de
+  fora vira login sem `next`, nunca um `next` inventado. Sem `HX-Request`:
+  exatamente o que o Flask-Login fazia, pelo mesmo `login_url`, com o mesmo
+  flash e o mesmo `?next=` (provado igual na rodada 35, contra o manipulador
+  padrão). Sem isso, o 302 era seguido pelo XHR e a página de login inteira
+  caía dentro do formulário de despesa, no lugar das sugestões.
 
 ### HTMX
 
@@ -1155,6 +1216,14 @@ fazem parte da aplicação.
 - Não volte o backup para `docker exec`, e não devolva `container_name` ao
   compose: um exige daemon do Docker ao alcance do processo do Flask, o outro
   impede dois projetos compose lado a lado.
+- **Não devolva o cookie de sessão ao nome padrão** (`session`), nem apague o
+  `SESSION_COOKIE_NAME` do `config.py` "por simplicidade": o servidor divide o
+  host com outros sistemas, e o nome padrão faz os dois se derrubarem. O
+  mesmo vale para qualquer app novo que venha a rodar ali.
+- **Não reabra `GET` no `/logout`.** Ele é POST com CSRF desde a rodada 35, e
+  o único caminho é o botão da sidebar. Com GET, um `<img>` ou um pre-fetch
+  de qualquer página derruba a sessão sem clique nenhum. `GET` responde 405, e
+  é para continuar assim.
 - Não mexa no `--timeout` do gunicorn sem olhar o `TEMPO_LIMITE` do backup —
   o primeiro tem de ser maior que o segundo.
 - Não crie **constante de versão em Python**, nem leia o `CHANGELOG.md` a

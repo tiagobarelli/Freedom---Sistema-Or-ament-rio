@@ -12,6 +12,32 @@
   {# Sem esta linha o navegador pede /favicon.ico em toda tela e leva 404. #}
   <link rel="icon" type="image/svg+xml"
         href="{{ url_for('static', filename='favicon.svg') }}">
+  {#
+    O icone da ABA continua sendo o SVG acima. O que vem abaixo e outra coisa:
+    o icone e o nome do APP INSTALADO, e vale para toda pagina - o login
+    inclusive, que e de onde se instala.
+
+    No Windows o Edge deixa escolher o icone na hora de instalar; no iPhone,
+    nao: o Safari usa o `apple-touch-icon` que a pagina declarar, e sem ele
+    tira uma foto da tela e usa aquilo. Dai o PNG de 180, que e um arquivo e
+    nao um SVG porque o iOS nao aceita SVG aqui.
+
+    `standalone` (no manifesto) e os dois `*-web-app-capable` sao o que abre o
+    app sem a barra do navegador. O `status-bar-style` fica em `default`
+    porque o fundo do sistema e claro (--bg).
+
+    NAO ha service worker, e nao vai haver: toda tela e servida na hora, e um
+    service worker no meio do caminho do HTMX e exatamente o que nao queremos.
+    "Instalavel" aqui e icone, nome e modo autonomo - so isso.
+  #}
+  <link rel="manifest"
+        href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <link rel="apple-touch-icon" sizes="180x180"
+        href="{{ url_for('static', filename='icones/apple-touch-icon.png') }}">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Freedom">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
   {#
     O HTMX 2 nao troca resposta 4xx/5xx: `responseHandling` vem com

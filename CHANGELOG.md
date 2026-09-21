@@ -2,6 +2,15 @@ O que mudou em cada versão do Freedom, da mais nova para a mais antiga. Este
 arquivo é a fonte do número de versão que aparece no rodapé do menu: a versão
 é o primeiro título daqui, e o sistema o lê quando sobe.
 
+## 1.0.1 — 20/09/2026
+
+- **Ícone de app e nome próprio.** Instalado como aplicativo, o Freedom passa
+  a aparecer com o ícone da corrente e o nome "Freedom", e abre sem a barra do
+  navegador — no iPhone, no Android e no Windows.
+- No iPhone isso não existia: sem o ícone declarado, o Safari usava uma foto
+  da tela. Agora a página diz qual é o ícone.
+- Nada mais mudou: nenhuma tela, nenhum número, nenhum comportamento.
+
 ## 1.0 — 20/09/2026
 
 - O sistema passa a rodar **no servidor**, dentro do mesmo `docker compose`

@@ -10,3 +10,12 @@
 #
 # O navegador fica em %LOCALAPPDATA%\ms-playwright, fora do projeto.
 playwright
+
+# Pillow serviu UMA vez, na rodada 34: recortar o miolo do icone de 1024 e
+# derivar os tres PNGs de `static/icones/`. Os arquivos estao versionados, e
+# o comando que os gerou esta relatado na rodada - nao ha script no projeto
+# que precise importar isto. Fica aqui para quem um dia refizer os icones.
+#
+# A aplicacao NAO importa Pillow em lugar nenhum, e ele nao entra no
+# `requirements.txt` nem na imagem de producao.
+Pillow

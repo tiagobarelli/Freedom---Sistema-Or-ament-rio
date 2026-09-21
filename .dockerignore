@@ -28,10 +28,16 @@ requirements-dev.txt
 # não copiado para dentro da imagem do app.
 db/
 
-# Capturas e arquivos de trabalho da validação.
-**/*.png
-**/*.sql
-**/*.zip
+# Capturas e arquivos de trabalho da validação. **Sem `**/`**, de propósito:
+# um padrão sem barras casa só na RAIZ do contexto, que é onde a validação
+# larga captura e dump. Com `**/` ele alcançaria `static/icones/*.png` e a
+# imagem subiria com a pasta VAZIA — o manifesto apontando para 404 e o
+# iPhone sem ícone. Aconteceu na rodada 34, e foi assim que se descobriu.
+# Regra: o que está debaixo de `static/` é da aplicação e não se filtra por
+# extensão.
+*.png
+*.sql
+*.zip
 capturas/
 
 # Python. O `**/` não é enfeite: um padrão sem ele casa SÓ na raiz do

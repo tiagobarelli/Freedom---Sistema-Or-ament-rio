@@ -119,10 +119,11 @@ relatório ou documento.** Referencie sempre pelo nome da variável.
 | Interatividade | HTMX 2.0.4 (arquivo local) + JS vanilla pontual |
 | Gráficos | Chart.js 4.5.1, UMD **local**, nas cinco telas que desenham: Visão Anual, as duas Análises, Independência e Patrimônio — esta com **dois** canvas (evolução e tendência) e por isso a única que precisa destruir instância antes de redesenhar. Núcleo, sem plugins. O comum a todas mora em `static/js/graficos.js`; `analise.js` serve às duas Análises sem ramificar por página |
 | CSS | Um arquivo escrito à mão (`static/css/app.css`), tokens em `:root`, uma camada só. **Sem Tailwind, sem React, sem biblioteca de ícones** |
-| Ícones | Lucide (ISC), **SVG inline** pela macro `icone` em `templates/_macros.html` |
+| Ícones | Lucide (ISC), **SVG inline** pela macro `icone` em `templates/_macros.html`. O da **aba** é `static/favicon.svg`. O do **app instalado** é outra coisa e mora em `static/icones/` — PNG, porque o iOS não aceita SVG ali (rodada 34) |
 | Markdown | Python-Markdown (`markdown`), núcleo sem extensões, **no servidor**, e num lugar só: o `CHANGELOG.md` da raiz virando HTML na subida do app (rodada 32). Nada de markdown no cliente, e nada de markdown em texto de usuário — o resumo anual continua sendo texto puro |
 | Dinheiro | `Decimal` em todo cálculo; `float` só na serialização final para JSON de gráfico |
 | Testes/validação | Playwright (`requirements-dev.txt`), navegador real |
+| Imagens | Pillow, **só em `requirements-dev.txt`** e só para derivar os PNGs de `static/icones/` uma vez (rodada 34). A aplicação não o importa, e ele não entra em `requirements.txt` nem na imagem |
 | Produção | gunicorn (`requirements-prod.txt`, que é `-r requirements.txt` mais ele), dentro da imagem do `Dockerfile` da raiz — `python:3.14-slim` com `tzdata` e `postgresql-client` do Debian. `.dockerignore` diz o que nem chega ao daemon. **Só na imagem**: em desenvolvimento quem serve é o `flask --debug run`, e o gunicorn nem é instalado |
 
 **Nenhuma requisição a domínio externo, em nenhuma tela.** Sem CDN, sem unpkg, sem
@@ -309,7 +310,11 @@ freedom/
   orcamento/       /orcamento — servico.py (montagem; criar() escolhe a origem:
                    copia o mês anterior se houver, senão média de 12 meses) e
                    acompanhamento.py (leitura; _card traduz para main.servico.card)
-templates/         base.html (o `htmx-config` que libera 409/502/503),
+templates/         base.html (o `htmx-config` que libera 409/502/503; e o
+                   `<head>` de TODA tela, login incluído: favicon SVG da aba
+                   mais as seis tags do app instalado — manifesto,
+                   apple-touch-icon e os quatro `meta` de nome, modo autônomo
+                   e barra de status, rodada 34),
                    layout_app.html (sidebar: temAtivo() abre o grupo do item
                    ativo antes de pintar, sem gravar), auth/login.html (fora do
                    layout, cartão de 380px), _macros.html + uma pasta por
@@ -333,6 +338,19 @@ CHANGELOG.md       a fonte ÚNICA do número de versão (raiz, versionado — ao
                    contrário do README). Entrada nova no topo, `## <versão> —
                    DD/MM/AAAA`; o rodapé da sidebar e o subtítulo do histórico
                    saem daí
+static/icones/     o ícone do APP INSTALADO (rodada 34): elo-1024.png é o
+                   original do dono, e dele saem apple-touch-icon.png (180),
+                   icone-192.png e icone-512.png. Os três são o MIOLO do
+                   original — 80 px recortados de cada lado, para não sobrar
+                   canto arredondado nem a franja clara da borda, que viraria
+                   filete branco sob a máscara do celular. Derivados uma vez
+                   com Pillow; o comando não é do projeto
+static/manifest.webmanifest  nome, `start_url`, `display: standalone`, as cores
+                   de abertura (`--bg`, e não o roxo do ícone) e os PNGs de 192
+                   e 512 com `purpose: any`. O Flask já o serve como
+                   `application/manifest+json` (o `mimetypes` do Python conhece
+                   a extensão, no Windows e na imagem) — não há
+                   `mimetypes.add_type` no `create_app`
 static/js/         htmx.min.js, chart.umd.js; graficos.js (o que as telas
                    com gráfico fazem igual: cor por variável CSS, moeda,
                    eixo, base de opções, linha) + visao_anual.js, analise.js,
@@ -345,7 +363,15 @@ Dockerfile         a imagem de produção (rodada 33): python:3.14-slim, tzdata 
                    comando do gunicorn. O `--timeout` dele está amarrado ao
                    TEMPO_LIMITE do backup — ver §3
 .dockerignore      o que nem chega ao daemon no build (.env, venv/, .git/,
-                   docs/, handoffs, requirements-dev.txt, db/, capturas)
+                   docs/, handoffs, requirements-dev.txt, db/, capturas).
+                   **Duas classes de padrão, e a diferença importa**: os de
+                   lixo do Python levam `**/` (`**/__pycache__`), senão só
+                   pegam a raiz e o bytecode do Windows entra na imagem
+                   (rodada 33); os de captura e dump NÃO levam (`*.png`,
+                   `*.sql`), senão alcançam `static/icones/` e a imagem sobe
+                   com os ícones fora — o manifesto apontando para 404
+                   (rodada 34). Nada debaixo de `static/` se filtra por
+                   extensão: aquilo é a aplicação
 requirements-prod.txt  `-r requirements.txt` mais o gunicorn. Só a imagem usa
 docs/              Freedom - Estrutura do Banco de Dados.md   (fonte da verdade)
                    Freedom - Histórico e Estado do Projeto.md (decisões e lições)
@@ -1115,6 +1141,14 @@ fazem parte da aplicação.
   na tela que os totais dela não batem com os das outras.
 - Não implemente **restauração** de backup pela interface, nem parcial nem
   "só dados", nem histórico de backups, nem agendamento do dump.
+- **Nenhum service worker, nenhum cache offline, nenhuma PWA de verdade.** O
+  banco é a fonte da verdade e toda tela é servida na hora; um service worker
+  interceptando o HTMX é exatamente o que não se quer. O que a rodada 34
+  entregou é ícone, nome e modo autônomo — o manifesto e as seis tags do
+  `<head>` do `base.html` —, e para por aí. Não acrescente `serviceWorker`,
+  `caches`, tela de instalação, `beforeinstallprompt`, nem `purpose:
+  "maskable"` nos ícones: o desenho encosta na zona segura da máscara circular
+  (medido: 0,982 do raio), e declará-lo `maskable` o faria ser cortado.
 - Não ponha senha em argumento do `pg_dump` (nem `PGPASSWORD=` inline, nem
   `--password`): ela iria para a linha de comando, que qualquer um que liste
   processos vê. O lugar é o `env=` do subprocesso.

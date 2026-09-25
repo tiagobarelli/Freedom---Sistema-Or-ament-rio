@@ -46,7 +46,7 @@
                 <tr>
                   <td class="col-data">{{ i.data.strftime('%d/%m') }}</td>
                   <td class="tabela__principal col-descricao">
-                    {{ i.descricao }}
+                    {{ i.descricao }}{{ m.observacao(i.observacoes, 'obs-despesa-' ~ i.id) }}
                     {#
                       Coluna principal larga: no celular a pessoa desce para
                       dentro desta celula, como na consulta de despesas - e

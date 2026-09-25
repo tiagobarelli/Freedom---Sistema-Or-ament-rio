@@ -306,6 +306,9 @@ def categoria(categoria_id):
 def lancamentos_da_categoria(inicio, fim, categoria_id):
     """Lançamentos de uma categoria no mês, com o nome de quem gastou.
 
+    A observação vem junto desde a rodada 36, para o "i" da linha, como nas
+    listas de lançamento.
+
     `vw_despesas` traz `pessoa_id`, não o nome — mesmo JOIN do cubo. A ordem
     do SQL agrupa por subcategoria e, dentro dela, põe o mais antigo primeiro;
     o `id` fecha o critério para dois lançamentos do mesmo dia não trocarem de
@@ -313,7 +316,7 @@ def lancamentos_da_categoria(inicio, fim, categoria_id):
     """
     return query_all(
         "SELECT v.id, v.data, v.descricao, v.valor, v.subcategoria,"
-        "       p.nome AS pessoa"
+        "       v.observacoes, p.nome AS pessoa"
         "  FROM vw_despesas v"
         "  JOIN tb_pessoas  p ON p.id = v.pessoa_id"
         " WHERE v.data >= %s AND v.data < %s AND v.categoria_id = %s"

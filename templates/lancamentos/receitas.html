@@ -154,3 +154,9 @@
   </script>
 </div>
 {% endblock %}
+
+{# O "i" da anotacao nas linhas da lista (rodada 36). O script e o mesmo das
+   despesas: na receita o campo so tem outro nome. #}
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/observacao.js') }}" defer></script>
+{% endblock %}

@@ -10,7 +10,7 @@
 <tr id="despesa-{{ item.id }}" class="{{ 'linha--nova' if nova else '' }}">
   <td class="col-data">{{ item.data.strftime('%d/%m/%Y') }}</td>
   <td class="tabela__principal col-descricao">
-    {{ item.descricao }}
+    {{ item.descricao }}{{ m.observacao(item.observacoes, 'obs-despesa-' ~ item.id) }}
     {# So aparece abaixo de 768px: recebe o que as colunas escondidas diriam,
        para a tabela caber sem rolagem horizontal no celular. #}
     <span class="linha-secundaria">

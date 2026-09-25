@@ -199,6 +199,47 @@
 {% endmacro %}
 
 
+{# --- Observacao da linha: o "i" que mostra o texto -------------------------
+   Rodada 36. A observacao de uma despesa (e a anotacao de uma receita) so se
+   via abrindo a edicao; agora a linha avisa que ela existe e mostra o texto
+   sem sair da lista. Serve as quatro tabelas que listam lancamento: recentes,
+   consulta, receitas e o detalhe da Visao Mensal.
+
+   Sem texto, a macro nao escreve nada - nem o botao. O vazio ja chega do
+   banco como NULL (as rotas gravam `strip() or None`).
+
+   O balao e um popover do HTML, e nao um balao de CSS posicionado: as
+   tabelas moram numa `.tabela-caixa`, que rola na horizontal, e quem rola num
+   eixo recorta nos dois - o balao das ultimas linhas sairia cortado. O
+   popover vai para a camada de cima da pagina, fora de qualquer recorte, e o
+   navegador ja cuida do clique, do toque, de Enter, Espaco, Esc e do clique
+   fora. O que ele nao faz - abrir ao passar o mouse e ficar colado ao botao -
+   e do `static/js/observacao.js`; sem o script, o balao abre no clique, no
+   meio da tela.
+
+   `id_balao` vem de quem chama e tem de ser unico na pagina: o prefixo diz a
+   tabela (`obs-despesa-`, `obs-receita-`), o sufixo e o id do registro. O
+   texto encosta nas tags de proposito: o balao preserva espaco e quebra de
+   linha (`pre-wrap`), e a indentacao do template viraria recuo na tela.
+
+   O "i" desce junto com a ultima palavra da descricao, e nunca sozinho para
+   a linha de baixo. Tres coisas fazem isso, e as tres sao necessarias: a
+   chamada encosta na descricao (`{{ descricao }}{{ observacao(...) }}`, sem
+   espaco no meio), o botao fica fora do fluxo (5.24 do CSS) e o invólucro
+   termina num `&#8288;`, o WORD JOINER, invisivel. O Chrome decide se quebra
+   antes de uma caixa inline olhando o caractere que vem DEPOIS dela: a quebra
+   de linha do template deixava, o word joiner nao deixa.
+#}
+{% macro observacao(texto, id_balao, rotulo="Observações") -%}
+  {%- if texto -%}
+    <span class="observacao"><button type="button" class="observacao__botao"
+          popovertarget="{{ id_balao }}" aria-label="{{ rotulo }}">
+        {{- icone("info", tamanho=14, tracado=2, classe="observacao__icone") -}}
+      </button><span class="observacao__balao" id="{{ id_balao }}" popover>{{ texto }}</span>&#8288;</span>
+  {%- endif -%}
+{%- endmacro %}
+
+
 {#
   As duas peças que a rota de classificação devolve.
 
@@ -568,11 +609,14 @@
    excecao (14x14, 2.25), porque vao dentro do botao primario e precisam
    pesar como o texto ao lado. O `log-in` entrou na rodada 27, com a tela de
    entrada refeita: e o espelho do `log-out` da sidebar, do mesmo desenho do
-   Lucide. `currentColor` deixa a cor com o CSS - o icone acende junto com o
+   Lucide. `info` (rodada 36) e o "i" da observacao na linha de despesa e de
+   receita: 14x14 e 2, porque senta no meio de uma linha de texto de 14px.
+   `currentColor` deixa a cor com o CSS - o icone acende junto com o
    item de menu ativo sem regra propria. `aria-hidden` porque todo icone daqui
-   acompanha um rotulo: visivel, ou dentro de um `.so-leitor` quando o
-   controle mostra so o icone (o botao de sair e o olho da Visao Anual).
-   Nenhum e o unico conteudo de um controle.
+   acompanha um rotulo: visivel, ou dentro de um `.so-leitor` ou de um
+   `aria-label` quando o controle mostra so o icone (o botao de sair, o olho
+   da Visao Anual e o "i" da observacao). Nenhum e o unico conteudo de um
+   controle.
 
    Lucide, licenca ISC (registrada no README, em "Dependencias de front-end").
 #}
@@ -684,6 +728,8 @@
     '<path d="m2 2 20 20"/>',
   "plus":
     '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  "info":
+    '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
 } %}
 
 {% macro icone(nome, tamanho=16, tracado=1.75, classe="icone") -%}

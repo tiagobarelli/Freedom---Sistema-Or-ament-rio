@@ -266,6 +266,8 @@
   Enter e Espaco ja disparam `click` nele.
 #}
 {% block scripts %}
+  {# O "i" da observacao nas linhas do detalhe (rodada 36). #}
+  <script src="{{ url_for('static', filename='js/observacao.js') }}" defer></script>
   <script>
     (function () {
       var tabela = document.getElementById('tabela-categorias');

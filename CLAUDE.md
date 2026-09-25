@@ -332,7 +332,11 @@ templates/         base.html (o `htmx-config` que libera 409/502/503; e o
                    analise.html e analise_prioridade.html só preenchem título,
                    primeiro campo do filtro, convite e (só a segunda) o aviso
                    fixo. main/independencia.html tem corpo próprio e NÃO
-                   estende _analise.html
+                   estende _analise.html.
+                   _macros.html tem, desde a rodada 36, a macro `observacao`
+                   (o "i" e o balão), chamada colada à descrição nas linhas
+                   de lancamentos/_linha_despesa, _linha_consulta,
+                   _linha_receita e main/_detalhe_categoria
 static/css/app.css seções numeradas 1–8 (ver seção 7 deste arquivo)
 CHANGELOG.md       a fonte ÚNICA do número de versão (raiz, versionado — ao
                    contrário do README). Entrada nova no topo, `## <versão> —
@@ -357,7 +361,11 @@ static/js/         htmx.min.js, chart.umd.js; graficos.js (o que as telas
                    eixo, base de opções, linha) + visao_anual.js, analise.js,
                    independencia.js e patrimonio.js — este último redesenha
                    depois do swap do HTMX (`htmx:afterSettle` filtrado pelo id
-                   do cartão), destruindo a instância anterior
+                   do cartão), destruindo a instância anterior.
+                   observacao.js (rodada 36) é o único que não desenha
+                   gráfico: o "i" da observação nas quatro tabelas que listam
+                   lançamento. Por delegação no documento, então serve às
+                   linhas que chegam por HTMX sem nada a religar
 db/init/01_schema.sql
 Dockerfile         a imagem de produção (rodada 33): python:3.14-slim, tzdata e
                    postgresql-client do Debian, requirements-prod.txt e o
@@ -658,6 +666,19 @@ Regras que se aplicam a todo código novo:
   por padrão, como Cadastros), com "Parâmetros" e "Backup" — até a 24 era um
   item só no fim de Cadastros. O rótulo da tela de parâmetros mudou; o
   endpoint e a URL `/configuracoes`, não.
+- **Observação na linha** (rodada 36): despesa com `observacoes` (e receita
+  com `anotacoes`, que é o mesmo campo com outro nome) ganha um "i" ao lado
+  da descrição nas **quatro** tabelas que listam lançamento — recentes de
+  Lançar despesa, Consultar despesas, Receitas e o detalhe por categoria da
+  Visão Mensal. Sem texto, nada: nem botão, nem espaço, e o HTML da linha é
+  o mesmo de antes, byte a byte. O texto vai num **popover do HTML**
+  (`popovertarget`), e não num balão de CSS posicionado: toda tabela dessas
+  mora numa `.tabela-caixa` que rola na horizontal, e quem rola num eixo
+  recorta nos dois. Abre ao **passar o mouse** e fecha ao sair; **clicar
+  fixa** (inclusive um que o mouse abriu); toque, Enter e Espaço abrem; Esc
+  e clique fora fecham. Rolar leva o balão junto com o botão. A tela da
+  consulta **não busca** na observação — ficou no backlog, por decisão do
+  dono, porque mudaria o que o total do filtro significa.
 
 ## 7. Convenções de código que o projeto exige
 
@@ -753,7 +774,7 @@ Regras que se aplicam a todo código novo:
   página de Backup. Por ser POST comum, a falha também segue o caminho
   comum — `flash` mais redirect, e não fragmento com status de erro.
 
-### CSS (`static/css/app.css`, ~5.030 linhas, seções numeradas)
+### CSS (`static/css/app.css`, ~5.130 linhas, seções numeradas)
 
 ```
 1 Variáveis   2 Reset   3 Fundo   4 Layout   5 Componentes   6 Login
@@ -768,7 +789,7 @@ Anual), 5.14 Visão Mensal (5.14.1 Detalhe), 5.15 Orçamento (5.15.1 faixas),
 5.23 Prosa (o HTML que veio de Markdown: só o histórico de versões, e o
 único do sistema que chega ao template sem classe em elemento nenhum — daí
 a classe de componente, que impede `h2`/`ul`/`code` soltos de alcançarem
-toda tela).
+toda tela), 5.24 Observação da linha (o "i" e o balão, rodada 36).
 5.7 é lacuna (modal removido na 17) e fica lacuna; 5.18 virou só comentário
 na rodada 31, quando as duas classes dela foram adotadas por outras telas e
 subiram (`.marca-parcial` para 5.13.2, `.filtro-caixa` para 5.10):
@@ -855,6 +876,24 @@ componente novo entra no fim.
   agent). Todo componente com `display:` próprio precisa de
   `.componente[hidden] { display: none }` — feito para `.btn` na rodada 20,
   quando um botão passou a sumir da barra superior.
+- **Popover não leva `display`.** O `[popover]` fechado some pelo
+  `display: none` da folha do navegador, e um `display` de autor o deixaria
+  aberto para sempre — a mesma armadilha do `[hidden]`. O
+  `.observacao__balao` (5.24) declara tipografia, fundo e sombra, e nunca
+  `display`. Ele também herda da célula onde mora (negrito da
+  `.tabela__principal`, `nowrap` da `.tabela--recentes`), e por isso declara
+  a tipografia inteira.
+- **Botão colado a texto quebra a linha sozinho no Chrome.** Caixa atômica
+  (botão, inline-block, SVG) abre ponto de quebra antes dela mesmo sem
+  espaço, com ou sem word joiner em volta. Um ícone que tem de descer junto
+  com a última palavra (o "i" da observação) fica **fora do fluxo**, dentro
+  de um inline que só reserva o lugar com `padding`, e esse inline **termina
+  num `&#8288;`**: o Chrome decide a quebra antes de uma caixa inline pelo
+  caractere que vem DEPOIS dela. Medido na rodada 36 em 360, 390 e 430px:
+  com uma peça só, até 24 de 25 ícones soltos numa página; com as duas,
+  nenhum. A verificação é o centro do ícone entre o topo e a base da última
+  letra (por `Range`), com controle negativo que tira cada peça e tem de
+  acusar.
 - `white-space: nowrap` herdado estica tabela no celular — sempre desfaça na
   seção 7.
 - Chart.js: contêiner com **altura fixa** e `maintainAspectRatio: false`; eixo sem
@@ -1162,7 +1201,9 @@ decisões, lições aprendidas). Resumo:
   com gunicorn, o serviço `app` no compose (três serviços, nenhum com
   `container_name`), o backup por `pg_dump` via TCP, as três mensagens do
   auth acentuadas e o roteiro do servidor em `docs/Freedom - Deploy.md`. A
-  versão passou a **1.0**.
+  versão passou a **1.0**. Rodada 36 (versão 1.0.3): o **"i" da observação**
+  nas quatro tabelas que listam lançamento, receitas incluídas — macro
+  `observacao`, `static/js/observacao.js` e a seção 5.24 do CSS.
 - **Não há refatoração visual pendente.** O tema antigo não existe no
   repositório; comentário que diga o contrário é velho.
 - **Depois**: o **deploy saiu da lista** na rodada 33 — os arquivos e o
@@ -1176,7 +1217,10 @@ decisões, lições aprendidas). Resumo:
   vazias. O item que abria a lista original — a tela de despesas mensais
   somadas por `integra_ipca` — saiu na 26, quando a flag ganhou o uso que
   faltava. Backlog de deflação: ticket médio deflacionado na análise e série
-  real do ano na Visão Anual.
+  real do ano na Visão Anual. **Busca na observação** (e na anotação das
+  receitas) pelo campo de busca da consulta: adiada pelo dono em 25/09/2026,
+  porque o total do filtro passaria a somar despesas cuja descrição não casa
+  com o que foi digitado — quando vier, a tela tem de dizer isso.
 
 Referência visual: `design_handoff_freedom_visao_anual/` e
 `design_handoff_freedom_lancamentos_cadastros/`. **Cuidado**: os README desses
@@ -1253,5 +1297,9 @@ fazem parte da aplicação.
 - Não reintroduza apelido de tema (`--cor-*`, `--vidro*`…) nem `card--solido`:
   são código velho sem definição.
 - Não cite trabalho adiado por número de rodada; pelo nome do que é.
+- Não troque o popover da observação por balão de CSS posicionado, nem pelo
+  `title` nativo: o primeiro é recortado pela `.tabela-caixa`, o segundo não
+  aparece no toque nem pelo teclado. E não faça a busca da consulta olhar a
+  observação sem o dono pedir — está no backlog, com o motivo.
 - Não escreva valor de senha, chave ou token em lugar nenhum.
 - Não faça commit nem push sem o dono pedir.

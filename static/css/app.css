@@ -73,6 +73,8 @@
             evolucao, mais alto por ter uma marca por foto)
         5.23 Prosa - o HTML que veio de Markdown (o historico de versoes),
             o unico do sistema que chega ao template sem classe nenhuma
+        5.24 Observacao da linha - o "i" ao lado da descricao nas listas de
+            lancamento e o balao (popover) que ele abre
      6. Tela de login
      7. Responsivo (< 768px)
      8. Utilitarios
@@ -4051,6 +4053,100 @@ body {
   font-family: var(--fonte-mono);
   font-size: 12px;
   color: var(--ink-2);
+}
+
+/* --- 5.24 Observacao da linha -------------------------------------------
+   Rodada 36. O "i" ao lado da descricao nas quatro tabelas que listam
+   lancamento (recentes, consulta, receitas e o detalhe da Visao Mensal) e o
+   balao que ele abre. O HTML e da macro `observacao`; abrir ao passar o
+   mouse e ficar colado ao botao e do `observacao.js`.
+
+   O icone NAO leva a classe `.icone`: o detalhe da Mensal esconde todo
+   `.icone` no desktop (e o do botao Editar, que so aparece no celular), e o
+   "i" sumiria junto.
+*/
+
+/* O invólucro e um inline sem desenho proprio que so reserva o lugar do
+   icone (5px de vao mais 14 de desenho); o botao se posiciona dentro dele,
+   fora do fluxo.
+
+   Por que assim, e nao o botao direto na linha: botao e caixa atomica, e o
+   Chrome abre ponto de quebra antes de caixa atomica mesmo sem espaco, com
+   ou sem WORD JOINER em volta. No celular o "i" caia sozinho na linha de
+   baixo da descricao. O invólucro, que nao e atomico, obedece ao word joiner
+   que a macro poe no fim dele, e desce colado a ultima palavra. Medido na
+   rodada 36 em 360, 390 e 430px, tres meses, 62 icones por largura: com uma
+   peca so, ate 24 soltos numa pagina (24 de 25 em "Migrado Moneystats", em
+   fevereiro de 2023); com as duas, nenhum. E, fora do fluxo, o botao tambem
+   nao mexe na altura da linha. */
+.observacao {
+  position: relative;
+  padding-left: 19px;
+}
+
+.observacao__botao {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 5px;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-4);
+  cursor: pointer;
+}
+
+/* O alvo de toque maior que o desenho, sem ocupar lugar na linha: 14px e
+   pouco para o polegar. */
+.observacao__botao::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+}
+
+.observacao__botao:hover,
+.observacao__botao:focus-visible {
+  color: var(--accent);
+}
+
+/* Aberto, o icone fica aceso: e o que liga o balao a linha de onde ele saiu.
+   Regra separada da de cima porque um seletor que o navegador nao conheca
+   derruba a lista inteira em que estiver. */
+.observacao:has(> .observacao__balao:popover-open) > .observacao__botao {
+  color: var(--accent);
+}
+
+/* O balao. NUNCA `display` aqui: o popover fechado some pelo `display: none`
+   da folha do navegador, e um `display` de autor venceria - o balao ficaria
+   aberto para sempre. E a mesma armadilha do `[hidden]` (ver `.btn[hidden]`,
+   5.2); aqui nao declarar e mais simples que declarar e desfazer.
+
+   Ele herda da celula onde mora - o negrito da `.tabela__principal`, o
+   `nowrap` da `.tabela--recentes`, o tamanho de letra de cada tabela - e por
+   isso declara a tipografia inteira. `pre-wrap` preserva as quebras de linha
+   que foram digitadas e `overflow-wrap: anywhere` impede uma URL de alargar
+   o balao: o par do texto livre do projeto.
+
+   A posicao sai do `observacao.js`. Sem ele vale a do navegador para o
+   popover: no meio da tela. */
+.observacao__balao {
+  max-width: min(360px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-popover);
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: normal;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 

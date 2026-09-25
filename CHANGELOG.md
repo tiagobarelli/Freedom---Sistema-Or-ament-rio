@@ -2,6 +2,16 @@ O que mudou em cada versão do Freedom, da mais nova para a mais antiga. Este
 arquivo é a fonte do número de versão que aparece no rodapé do menu: a versão
 é o primeiro título daqui, e o sistema o lê quando sobe.
 
+## 1.0.3 — 25/09/2026
+
+- **Observação à vista na lista.** Despesa que tem observação ganha um "i" ao
+  lado da descrição, em Lançar despesa, em Consultar despesas e no detalhe
+  por categoria da Visão Mensal. Passar o mouse sobre ele mostra o texto; no
+  celular, basta tocar. Clicar deixa o texto aberto até clicar fora ou
+  apertar Esc.
+- O mesmo vale para as **anotações das receitas**, na tela de Receitas.
+- Despesa e receita sem observação continuam exatamente como eram.
+
 ## 1.0.2 — 21/09/2026
 
 - **O Freedom não desloga mais sozinho.** O servidor hospeda outros sistemas, e

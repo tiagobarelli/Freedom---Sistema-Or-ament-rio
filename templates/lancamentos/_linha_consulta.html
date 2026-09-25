@@ -4,7 +4,7 @@
 <tr id="consulta-{{ item.id }}">
   <td class="col-data">{{ item.data.strftime('%d/%m/%Y') }}</td>
   <td class="tabela__principal col-descricao">
-    {{ item.descricao }}
+    {{ item.descricao }}{{ m.observacao(item.observacoes, 'obs-despesa-' ~ item.id) }}
     <span class="linha-secundaria">
       {{ item.data.strftime('%d/%m') }} · {{ item.categoria }} · {{ item.subcategoria }}
       · {{ item.pessoa_nome }} · {{ item.essencialidade }}{% if item.prioridade %} P{{ item.prioridade }}{% endif %}

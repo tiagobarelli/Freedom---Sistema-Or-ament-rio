@@ -22,7 +22,10 @@ desde a 22 e **já corrige valor** na Análise por subcategoria (rodada 24).
 Patrimônio e metas **existem desde as rodadas 29 e 30**: `/independencia`
 calcula quanto falta para a independência financeira a partir de TSR, S e R, e
 `/lancamentos/patrimonio` guarda uma foto mensal dos ativos, com evolução,
-tendência e projeção de cinco anos. A refatoração visual está **concluída**
+tendência e projeção de cinco anos. O **módulo de investimentos** começou na
+rodada 37 (versão 1.1): `/alocacao` tem o plano de alocação da carteira por
+classe e subclasse e o balanceamento contra a última foto, e cada ativo diz
+de que subclasses é feito (a composição). A refatoração visual está **concluída**
 (rodadas 17, 18, 27 e 28): não existe tema antigo no repositório.
 
 **Há dado real em produção** (mais de 3.500 despesas e quase 400 receitas, de
@@ -178,6 +181,10 @@ freedom/
   util.py          destino_interno(); ValorInvalido, converter_valor,
                    converter_numero(percentual=), formatar_valor,
                    formatar_numero, escapar_like; MESES e MESES_CURTOS;
+                   data_de_texto(texto) -> date ou None (a data da foto e a
+                   do plano; subiu do Patrimonio na rodada 37);
+                   reais_com_sinal(valor) -> "+R$ 1.234,56" (a variacao do
+                   Patrimonio e o ajuste do balanceamento);
                    nome_do_periodo(ano, mês) ou (date) -> "agosto de 2026";
                    data_por_extenso(date) -> "31 de agosto de 2026";
                    com_sinal(texto, valor) põe o "+" do positivo no texto já
@@ -262,8 +269,15 @@ freedom/
   cadastros/       /cadastros — um módulo por entidade + servico.py
                    (alternar_ativo, traduzir_unique, contagem).
                    ativos.py é o cadastro dos ativos de patrimônio (rodada
-                   30): padrão dos outros, com `classe` em texto livre pela
-                   macro `combobox` — inativo aqui lê-se "posição encerrada".
+                   30): padrão dos outros — inativo aqui lê-se "posição
+                   encerrada". Desde a rodada 37 o formulário tem a grade da
+                   COMPOSIÇÃO no lugar do antigo campo `classe` (texto
+                   livre, que saiu do banco); quem lê, valida e grava a grade
+                   junto com o ativo é `alocacao/composicao.py`, e a lista
+                   mostra a composição resumida.
+                   classes.py e subclasses.py (rodada 37): os dois níveis da
+                   alocação, no molde de categorias.py e subcategorias.py —
+                   a subclasse escolhe a classe por <select>.
                    resumos_anuais.py é o de fora da série: chave é o ano, não
                    há `ativo`, e a segunda ação é Excluir.
                    serie_ipca.py tem a tela do IPCA: GET /cadastros/ipca e
@@ -276,7 +290,13 @@ freedom/
                    patrimonio.py       a foto mensal dos ativos (rodada 30):
                                        GET da tela, POST que grava a foto e
                                        POST que exclui a foto de uma data
-                   servico_patrimonio.py o serviço dela. Puras: fim_do_mes,
+                   servico_patrimonio.py o serviço dela. Desde a rodada 37
+                                       a alocação por classe é a da Alocação
+                                       (`alocacao/servico.valores_da_foto`),
+                                       com "Não classificado" para ativo sem
+                                       composição, e a grade não tem mais a
+                                       coluna de classe; cinco consultas por
+                                       carregamento. Puras: fim_do_mes,
                                        data_padrao, salto_de_mes (as duas
                                        setas de mês da barra),
                                        ajuste_exponencial e montar_tendencia
@@ -292,12 +312,13 @@ freedom/
                                        leitura que a Independência importa
                                        (rodada 31), e o histórico traz o total
                                        corrigido pelo IPCA na mesma varredura
-                                       do `LAG`; quatro consultas por
-                                       carregamento
+                                       do `LAG`
   configuracoes/   /configuracoes — um módulo por assunto:
-                   rotas.py  parâmetros com vigência (CATALOGO em Python:
-                             formato e, desde a rodada 31, se a chave recusa
-                             zero — TSR e S recusam, R aceita).
+                   rotas.py  parâmetros com vigência; o CATALOGO mora em
+                             servico.py (formato e, desde a rodada 31, se a
+                             chave recusa zero — TSR, S e TOL recusam, R
+                             aceita). TOL, a tolerância da alocação, entrou
+                             na rodada 37.
                              Chama-se "Parâmetros" na tela desde a rodada 25;
                              o endpoint e a URL não mudaram
                    backup.py a página de backup (rodada 25): gerar_dump() roda
@@ -310,6 +331,38 @@ freedom/
   orcamento/       /orcamento — servico.py (montagem; criar() escolhe a origem:
                    copia o mês anterior se houver, senão média de 12 meses) e
                    acompanhamento.py (leitura; _card traduz para main.servico.card)
+  alocacao/        /alocacao (rodada 37), o começo do módulo de investimentos.
+                   Uma tela, dois modos (Plano | Balanceamento), no molde do
+                   Orçamento — a URL é o estado.
+                   servico.py      o que os outros três e o Patrimônio
+                                   dividem: ler_percentual (vazio -> None,
+                                   acima de 100 % recusado), arredondar e
+                                   centavos (ROUND_HALF_UP, só no ponto
+                                   exibido), soma_de_cem, referencias() (a
+                                   árvore classe -> subclasses, inativas
+                                   marcadas) e valores_da_foto() — a última
+                                   foto × composição por GROUPING SETS, origem
+                                   única do "Atual" do balanceamento e da
+                                   alocação do Patrimônio
+                   plano.py        o modo Plano: vigencias, vigente_em (pura),
+                                   linhas_do_plano; blocos_da_grade, ler_grade,
+                                   validar e montar_grade (puras); gravar
+                                   (upsert + DELETE numa transação, contagens
+                                   do RETURNING), criar (copia o vigente NA
+                                   DATA) e excluir
+                   balanceamento.py o modo Balanceamento: ratear() é a regra
+                                   do aporte, pura, a mesma nos dois níveis;
+                                   situacao() aplica a TOL; montar_linhas e
+                                   montar são puras; painel() faz cinco
+                                   consultas
+                   composicao.py   a composição do ativo: grupos_da_grade,
+                                   ler, validar, montar e resumo (puras);
+                                   gravar() grava o ativo e a composição numa
+                                   transação
+                   rotas.py        a tela (GET), criar plano (POST comum),
+                                   gravar a grade (POST por HTMX, devolve a
+                                   grade) e excluir plano (HTMX, 204 com
+                                   HX-Redirect)
 templates/         base.html (o `htmx-config` que libera 409/502/503; e o
                    `<head>` de TODA tela, login incluído: favicon SVG da aba
                    mais as seis tags do app instalado — manifesto,
@@ -333,6 +386,10 @@ templates/         base.html (o `htmx-config` que libera 409/502/503; e o
                    primeiro campo do filtro, convite e (só a segunda) o aviso
                    fixo. main/independencia.html tem corpo próprio e NÃO
                    estende _analise.html.
+                   alocacao/ tem alocacao.html (as duas barras e o modo),
+                   _plano.html, _plano_grade.html (a grade, alvo do POST) e
+                   _balanceamento.html (uma macro `cartao` para o nível 1 e
+                   para cada bloco de classe).
                    _macros.html tem, desde a rodada 36, a macro `observacao`
                    (o "i" e o balão), chamada colada à descrição nas linhas
                    de lancamentos/_linha_despesa, _linha_consulta,
@@ -434,11 +491,14 @@ consulta e toda composição de tela moram em `servico.py`. O template só forma
 Fonte da verdade: `docs/Freedom - Estrutura do Banco de Dados.md` e
 `db/init/01_schema.sql`. **Se um muda, o outro muda.**
 
-15 tabelas (`tb_categorias`, `tb_subcategorias`, `tb_ref_receitas`, `tb_pessoas`,
+21 tabelas (`tb_categorias`, `tb_subcategorias`, `tb_ref_receitas`, `tb_pessoas`,
 `tb_usuarios`, `tb_contas`, `tb_ipca`, `tb_configuracoes`, `tb_despesas`,
 `tb_receitas`, `tb_orcamento_meses`, `tb_orcamentos`, `tb_resumos_anuais`,
-`tb_ativos`, `tb_patrimonio_snapshots`) e duas views (`vw_despesas`,
-`vw_receitas`).
+`tb_ativos`, `tb_patrimonio_snapshots` e, desde a rodada 37,
+`tb_alocacao_classes`, `tb_alocacao_subclasses`, `tb_alocacao_planos`,
+`tb_alocacao_alvos_classes`, `tb_alocacao_alvos_subclasses` e
+`tb_alocacao_composicao`) e duas views (`vw_despesas`, `vw_receitas`).
+`tb_ativos` não tem mais `classe` (rodada 37).
 
 Regras que se aplicam a todo código novo:
 
@@ -451,7 +511,8 @@ Regras que se aplicam a todo código novo:
 - **Nada derivado é armazenado.** Toda FK é `NOT NULL` e `ON DELETE RESTRICT`.
 - Referência não se apaga: tem `ativo` (`ativa` em `tb_contas`).
 - Chave primária é `id`, **menos onde o período é a chave**: `tb_orcamento_meses`
-  (`ano_mes`) e `tb_resumos_anuais` (`ano`). Há no máximo uma linha por período,
+  (`ano_mes`), `tb_resumos_anuais` (`ano`) e `tb_alocacao_planos`
+  (`vigente_desde`, rodada 37). Há no máximo uma linha por período,
   e um `id` ao lado exigiria um `UNIQUE` para dizer o mesmo.
 - `NOT NULL` em `TEXT` aceita `''`. Quando o vazio não faz sentido, o `CHECK`
   vai junto: `texto ~ '[^[:space:]]'` (pelo menos um caractere visível) cobre
@@ -591,8 +652,8 @@ Regras que se aplicam a todo código novo:
   curso entraria pela metade e puxaria a meta para baixo. Sem foto de
   patrimônio, a segunda fileira não aparece.
 - **Ativos e foto de patrimônio** (rodada 30): `tb_ativos` é cadastro comum
-  (Cadastros › Ativos; `classe` é texto livre pela macro `combobox`, e inativo
-  aqui lê-se "posição encerrada"). A **foto** é mensal e mora em
+  (Cadastros › Ativos; inativo aqui lê-se "posição encerrada"; a classe, que
+  era texto livre, virou a composição na rodada 37). A **foto** é mensal e mora em
   `/lancamentos/patrimonio`: uma data, sempre **fim de mês**, e o valor de cada
   ativo naquela data. A grade **é** o editor — gravar é um POST só que faz
   upsert do que foi preenchido e **DELETE do que foi esvaziado**, numa
@@ -614,6 +675,41 @@ Regras que se aplicam a todo código novo:
   poder de compra do mês base, que é o que se compara com o número de
   independência. **Não há outra projeção**: nem aporte previsto, nem meta, nem
   cenário. A curva diz só o que a série vem fazendo.
+- **Alocação** (`/alocacao`, rodada 37): último item do grupo Painel (ícone
+  `scale`), sem olho. Dois níveis — **classe** com alvo sobre o total,
+  **subclasse** com alvo sobre a classe — e dois modos por `.segmentado` GET.
+  O padrão é o Balanceamento; sem plano vigente ele é o estado vazio que leva
+  ao Plano.
+  **Composição**: cada ativo diz de que subclasses é feito (Cadastros ›
+  Ativos). Soma 100 % ou tudo vazio; zero é recusado (quem não participa não
+  tem linha); **sem vigência**, por decisão — descreve o produto. Ativo sem
+  composição é **"Não classificado"**: fora dos totais, do percentual e do
+  rateio, com bloco próprio no balanceamento e linha própria no Patrimônio.
+  **Plano**: data como chave; o vigente é o de maior `vigente_desde <= hoje`.
+  A grade é o editor (upsert do preenchido, DELETE do esvaziado, numa
+  transação), **vazio é fora e zero é alvo**. Quatro recusas, com texto no
+  bloco e nada gravado: classes não somam 100 %; subclasses de classe
+  preenchida não somam 100 % — **inclusive nenhuma**, por decisão do dono;
+  subclasse preenchida com a classe vazia; grade inteira vazia. Criar copia
+  o plano **vigente na data escolhida**, linhas como estão. Excluir apaga o
+  plano inteiro, com confirmação.
+  **Balanceamento**: última foto × composição atual contra o plano vigente
+  hoje. Atual (%) sobre o total investido (só o classificado) **sem o caixa
+  digitado** — diferença deliberada da planilha do dono. Desvio em p.p. com
+  sinal; ajuste = alvo × total − atual, em reais com sinal. **Nenhum número é
+  vermelho**: desvio não é prejuízo. Situação pela `TOL` vigente (desvio
+  relativo: fora quando `|atual − alvo| > TOL × alvo`; no limite, dentro;
+  alvo zero com valor positivo, fora), fora em âmbar; sem `TOL` a coluna some
+  e uma `.nota-topo` explica. Linha com valor e sem alvo no plano: entra no
+  total, alvo "—", "Sem alvo", nunca recebe aporte.
+  **Aporte**: `?aporte=` no nível 1 e `?caixa_<id da classe>=` em cada bloco,
+  independentes, num GET só, **nada gravado**. `ratear()` é a mesma função nos
+  dois níveis (T = valores + caixa; déficit = alvo × T − valor; elegíveis as
+  que recebem com déficit > 0; parte = déficit ÷ soma × caixa), em `Decimal`,
+  arredondada só no ponto exibido — a soma exibida pode diferir do caixa em um
+  centavo, e isso não se corrige. Sem elegível e caixa > 0, a frase "Nenhuma
+  linha que recebe aporte está abaixo do alvo.", não um número. Com o nível 1
+  preenchido, cada bloco mostra como dica a parte que o nível 1 lhe deu.
 - **Backup** (`/configuracoes/backup`, rodada 25): a página **só exporta**.
   Não há restauração pela interface — a tela mostra o comando do `psql` e
   quem o roda é o dono —, não há histórico de backup (nem tabela, nem log,
@@ -774,7 +870,7 @@ Regras que se aplicam a todo código novo:
   página de Backup. Por ser POST comum, a falha também segue o caminho
   comum — `flash` mais redirect, e não fragmento com status de erro.
 
-### CSS (`static/css/app.css`, ~5.130 linhas, seções numeradas)
+### CSS (`static/css/app.css`, ~5.410 linhas, seções numeradas)
 
 ```
 1 Variáveis   2 Reset   3 Fundo   4 Layout   5 Componentes   6 Login
@@ -789,7 +885,10 @@ Anual), 5.14 Visão Mensal (5.14.1 Detalhe), 5.15 Orçamento (5.15.1 faixas),
 5.23 Prosa (o HTML que veio de Markdown: só o histórico de versões, e o
 único do sistema que chega ao template sem classe em elemento nenhum — daí
 a classe de componente, que impede `h2`/`ul`/`code` soltos de alcançarem
-toda tela), 5.24 Observação da linha (o "i" e o balão, rodada 36).
+toda tela), 5.24 Observação da linha (o "i" e o balão, rodada 36),
+5.25 Alocação (rodada 37: o campo de percentual, a composição do ativo, a
+grade do plano, o campo de aporte no cabeçalho do cartão e a coluna
+Situação).
 5.7 é lacuna (modal removido na 17) e fica lacuna; 5.18 virou só comentário
 na rodada 31, quando as duas classes dela foram adotadas por outras telas e
 subiram (`.marca-parcial` para 5.13.2, `.filtro-caixa` para 5.10):
@@ -826,7 +925,10 @@ componente novo entra no fim.
   subiu de 5.14.1 para 5.13.2 (três telas); e `.linha-edicao`/`.config-edicao*`,
   que o Orçamento escrevia desde a 15 sem ser configuração, virou `.edicao-linha`
   na 5.20. A tabela mês a mês da Anual chama-se `.tabela--meses` — o nome antigo
-  (`.tabela--mensal`) era o da outra tela.
+  (`.tabela--mensal`) era o da outra tela. Na 37, com a Alocação, mais dois:
+  `.orcamento-barras` virou `.filtro-barras` (5.13, as duas barras lado a lado)
+  e `.grade-foto__acoes` virou `.card__acoes` (5.1, a barra de ação de um
+  `.card--tabela`).
 - **Tokens em pares**: `--orange-ink`/`--orange`, `--green-ink`/`--green` — o
   `-ink` é tinta de texto, o puro é preenchimento. Um apelido só para os dois
   deixou a barra do alerta do orçamento marrom até a 28. Lavagem neutra de
@@ -1203,7 +1305,11 @@ decisões, lições aprendidas). Resumo:
   auth acentuadas e o roteiro do servidor em `docs/Freedom - Deploy.md`. A
   versão passou a **1.0**. Rodada 36 (versão 1.0.3): o **"i" da observação**
   nas quatro tabelas que listam lançamento, receitas incluídas — macro
-  `observacao`, `static/js/observacao.js` e a seção 5.24 do CSS.
+  `observacao`, `static/js/observacao.js` e a seção 5.24 do CSS. Rodada 37
+  (versão 1.1): **Alocação** — seis tabelas novas, `tb_ativos.classe` fora,
+  Cadastros › Classes e Subclasses, a composição no formulário do ativo, a
+  chave `TOL` em Parâmetros, a tela `/alocacao` (Plano | Balanceamento, com o
+  rateio do aporte) e a alocação do Patrimônio pelas classes novas.
 - **Não há refatoração visual pendente.** O tema antigo não existe no
   repositório; comentário que diga o contrário é velho.
 - **Depois**: o **deploy saiu da lista** na rodada 33 — os arquivos e o
@@ -1301,5 +1407,14 @@ fazem parte da aplicação.
   `title` nativo: o primeiro é recortado pela `.tabela-caixa`, o segundo não
   aparece no toque nem pelo teclado. E não faça a busca da consulta olhar a
   observação sem o dono pedir — está no backlog, com o motivo.
+- Na Alocação, **não implemente** o que ficou para outras rodadas ou fora por
+  decisão: operações, preço médio, cotações, API externa, Tesouro, "Qtde" por
+  preço de tela, "Já na CC" / "Transferir" (é controle de saldo, que o sistema
+  não faz), vigência na composição e gravação do aporte. O aporte vive na URL.
+- Não pinte de vermelho número do balanceamento (desvio não é prejuízo), não
+  some o caixa digitado ao "Atual (%)" e não corrija o centavo que a soma do
+  aporte exibido pode ter a mais ou a menos.
+- Não invente `TOL` quando ela faltar: a coluna Situação some e a tela diz
+  por quê.
 - Não escreva valor de senha, chave ou token em lugar nenhum.
 - Não faça commit nem push sem o dono pedir.

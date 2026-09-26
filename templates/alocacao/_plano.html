@@ -1,0 +1,14 @@
+{% import "_macros.html" as m %}
+{#
+  O modo Plano: a grade da vigencia aberta, ou o convite para criar a
+  primeira. A grade mora num parcial proprio porque e tambem a resposta do
+  POST de gravacao (HTMX, alvo nela mesma).
+#}
+{% if plano %}
+  {% include "alocacao/_plano_grade.html" %}
+{% else %}
+  <div class="card">
+    {{ m.vazio("Nenhum plano ainda",
+               "Escolha acima a data em que o plano passa a valer e clique em Criar plano. O primeiro nasce vazio, para preencher; os seguintes copiam o plano que valia na data escolhida.") }}
+  </div>
+{% endif %}

@@ -29,23 +29,32 @@ Os cards, a alocação e o histórico falam sempre da **última foto do acervo**
 e não da data aberta na grade: a pergunta deles é "quanto a casa tem", que não
 muda por alguém estar olhando um mês antigo.
 
-Três consultas por carregamento, e são estas: a grade da data, o histórico com
-`LAG` (cuja primeira linha É a última foto, e é a origem única do total) e a
-alocação por classe com o que faltou e o que veio de encerrado, numa varredura
-só por `GROUPING SETS`.
+**A alocação é por classe de alocação** desde a rodada 37: a foto vezes a
+composição ATUAL de cada ativo, pelas classes do módulo de Alocação, com
+"Não classificado" para o ativo sem composição. Quem faz a conta é
+`alocacao/servico.valores_da_foto`, a mesma que dá o "Atual" do
+balanceamento — os dois lugares mostram o mesmo número, e leem da mesma
+origem. Até a 36 a classe era um texto livre do ativo.
+
+Cinco consultas por carregamento, e são estas: a base do IPCA, a grade da
+data, o histórico com `LAG` (cuja primeira linha É a última foto, e é a origem
+única do total), o que faltou e o que veio de encerrado na última foto, e a
+alocação dela por classe.
 """
 
 from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
 from freedom import ipca
+from freedom.alocacao.servico import valores_da_foto
 from freedom.db import (get_connection, query_all,
                         query_one)
 from freedom.main.servico import SEM_VALOR, card
-from freedom.util import (MESES_CURTOS, ValorInvalido, com_sinal,
-                          converter_valor, data_por_extenso, formatar_numero,
-                          formatar_valor, fracao, nome_do_periodo, parece_zero,
-                          somar_meses)
+from freedom.util import (MESES_CURTOS, ValorInvalido, chave_alfabetica,
+                          com_sinal, converter_valor, data_de_texto,
+                          data_por_extenso, formatar_numero, formatar_valor,
+                          fracao, nome_do_periodo, parece_zero,
+                          reais_com_sinal, somar_meses)
 
 ZERO = Decimal("0.00")
 CENTAVO = Decimal("0.01")
@@ -55,6 +64,10 @@ CEM = Decimal(100)
 # Fica aqui, e não espalhado entre a rota e o template, porque é contrato
 # entre os dois.
 PREFIXO_CAMPO = "valor_"
+
+# A linha da alocação para o ativo sem composição. Mesmo texto do bloco do
+# balanceamento da Alocação.
+NAO_CLASSIFICADO = "Não classificado"
 
 
 # --------------------------------------------------------------------------
@@ -103,17 +116,6 @@ def salto_de_mes(data_foto, passos, hoje):
     return None if alvo > hoje else alvo
 
 
-def data_de_texto(texto):
-    """'2026-08-31' -> date; qualquer outra coisa -> None.
-
-    Pública porque a rota de exclusão também lê uma data do caminho, e ler
-    data é uma coisa só no sistema inteiro."""
-    try:
-        return date.fromisoformat((texto or "").strip())
-    except (ValueError, TypeError):
-        return None
-
-
 def data_valida(texto, hoje):
     """A data que a tela abre. Nunca levanta e nunca mostra erro. Pura.
 
@@ -156,7 +158,7 @@ def erro_da_data(texto, hoje):
 # já vem pela outra junção, e repeti-lo na coluna de apoio confundiria quem
 # compara o que era com o que é.
 _SQL_GRADE = """
-    SELECT a.id, a.nome, a.classe,
+    SELECT a.id, a.nome,
            s.valor    AS valor_na_data,
            ult.data   AS ultima_data,
            ult.valor  AS ultimo_valor
@@ -171,7 +173,7 @@ _SQL_GRADE = """
              LIMIT 1
       ) ult ON TRUE
      WHERE a.ativo
-     ORDER BY a.classe, a.nome
+     ORDER BY a.nome
 """
 
 # O histórico inteiro, mais recente primeiro. Sem paginação: são fotos
@@ -212,39 +214,31 @@ _SQL_HISTORICO = """
      ORDER BY s.data DESC
 """
 
-# Alocação por classe na última foto, mais o que a tela precisa dizer sobre
-# ela, numa varredura só.
+# O que a tela precisa dizer sobre a última foto além do total: quais ativos
+# em carteira ficaram DE FORA dela e quantas posições ENCERRADAS ainda estão
+# dentro.
 #
 # O conjunto de linhas é "ativo em carteira (tenha ou não valor na última
-# foto) OU linha da última foto de ativo encerrado" — é o `WHERE` do CTE. Daí:
-#
-# - as linhas por classe dão a alocação;
-# - a linha do `()` dá a lista dos que FALTAM (em carteira, sem valor na foto)
-#   e quantos ENCERRADOS entraram no total.
-#
-# `GROUPING SETS ((classe), ())` responde as duas perguntas na mesma passagem.
-# O total do `()` não é usado: quem diz quanto a casa tem é o histórico, e um
-# número com duas origens é um número que um dia diverge.
+# foto) OU linha da última foto de ativo encerrado" — é o `WHERE` do CTE.
+# Até a rodada 36 esta mesma varredura dava também a alocação por classe, por
+# `GROUPING SETS`; a classe virou composição na 37, e a alocação saiu para
+# `alocacao/servico.valores_da_foto`, que é a origem que o balanceamento lê.
 _SQL_RESUMO = """
     WITH ultima AS (
         SELECT max(data) AS data FROM tb_patrimonio_snapshots
     ),
     linhas AS (
-        SELECT a.nome, a.classe, a.ativo, s.valor
+        SELECT a.nome, a.ativo, s.valor
           FROM tb_ativos a
           LEFT JOIN tb_patrimonio_snapshots s
                  ON s.ativo_id = a.id
                 AND s.data = (SELECT data FROM ultima)
          WHERE a.ativo OR s.valor IS NOT NULL
     )
-    SELECT classe,
-           COALESCE(SUM(valor), 0) AS valor,
-           array_agg(nome ORDER BY nome)
+    SELECT array_agg(nome ORDER BY nome)
                FILTER (WHERE valor IS NULL AND ativo) AS faltando,
            count(*) FILTER (WHERE valor IS NOT NULL AND NOT ativo) AS encerrados
       FROM linhas
-     GROUP BY GROUPING SETS ((classe), ())
-     ORDER BY classe NULLS LAST
 """
 
 
@@ -306,10 +300,8 @@ def ultima_foto():
 
 
 def resumo_da_ultima():
-    """(linhas por classe, linha do total) da última foto."""
-    linhas = query_all(_SQL_RESUMO)
-    return ([l for l in linhas if l["classe"] is not None],
-            next((l for l in linhas if l["classe"] is None), None))
+    """{faltando, encerrados} da última foto: a nota do card do total."""
+    return query_one(_SQL_RESUMO)
 
 
 # --------------------------------------------------------------------------
@@ -428,23 +420,6 @@ def _plural(quantidade, um, varios):
     return f"{quantidade} {um if quantidade == 1 else varios}"
 
 
-def _reais_com_sinal(valor):
-    """'+R$ 1.234,56' / '-R$ 1.234,56'.
-
-    O sinal vem NA FRENTE do R$, e não depois (como a macro `reais` faz para
-    um valor negativo), porque esta coluna não é uma quantia: é uma variação,
-    e o que se lê primeiro é se subiu ou desceu. Por isso o texto nasce
-    inteiro aqui, e o template não chama a macro.
-
-    O negativo entra pelo `-` que `formatar_valor` já produz, sobre o módulo
-    do valor; quem acrescenta o `+` do positivo é `com_sinal`, de `util.py`, a
-    mesma que assina o desvio da Independência financeira.
-    """
-    if valor < 0:
-        return f"-R$ {formatar_valor(-valor)}"
-    return com_sinal(f"R$ {formatar_valor(valor)}", valor)
-
-
 def _texto_do_campo(linha, data_tem_foto):
     """O que vai dentro do `<input>` de uma linha da grade. Puro.
 
@@ -478,7 +453,6 @@ def montar_grade(linhas, data_foto, datas_com_foto, digitado=None, erros=None):
         grade.append({
             "id": linha["id"],
             "nome": linha["nome"],
-            "classe": linha["classe"],
             "ultimo": (SEM_VALOR if ultimo is None
                        else f"R$ {formatar_valor(ultimo)}"),
             # A data do último valor acompanha o número: sem ela, "R$ 1.000"
@@ -567,7 +541,7 @@ def montar_cards(historico_linhas, total_resumo):
             apoio = (com_sinal(formatar_numero(pct, 1) + "%", delta)
                      + " · " + apoio)
         variacao = card(
-            "Variação vs foto anterior", texto=_reais_com_sinal(delta),
+            "Variação vs foto anterior", texto=reais_com_sinal(delta),
             classe="kpi__valor--negativo" if delta < 0 else None,
             apoio=apoio)
 
@@ -579,22 +553,34 @@ def montar_cards(historico_linhas, total_resumo):
     ]
 
 
-def montar_alocacao(linhas_resumo, total):
+def montar_alocacao(foto, total):
     """Classe · Valor · % da última foto, com o rodapé. Pura.
 
-    Só classe com valor **maior que zero**: uma classe inteira zerada não é
+    As classes são as do módulo de Alocação: a foto vezes a composição atual
+    de cada ativo (`alocacao/servico.valores_da_foto`). O ativo sem
+    composição entra inteiro numa linha própria, "Não classificado", no fim
+    — ele está no patrimônio, e sumir com ele faria as barras não fecharem.
+
+    Só linha com valor **maior que zero**: uma classe inteira zerada não é
     alocação, é uma linha de 0,0 % ocupando espaço — e a posição zerada
     continua contada no total, que é o que importa.
 
     O denominador é o total da ÚLTIMA FOTO vindo do histórico, o mesmo do
-    card: a soma das barras fecha em 100 % porque é a mesma conta.
+    card: a soma das barras fecha em 100 % porque as composições fecham em
+    100 %. O valor de uma classe tem até oito casas (valor × fração), e o
+    corte a centavos é aqui, no ponto exibido.
     """
-    if not total:
+    if not total or foto is None:
         return None
+    nomes = foto["nomes_classes"]
+    linhas = sorted(
+        ((nomes[cid], valor) for cid, valor in foto["classes"].items()),
+        key=lambda par: chave_alfabetica(par[0]))
+    linhas.append((NAO_CLASSIFICADO, foto["total_nao_classificado"]))
     classes = [
-        {"classe": l["classe"], "valor": l["valor"],
-         "pct": fracao(l["valor"], total) or ZERO}
-        for l in linhas_resumo if l["valor"] > 0
+        {"classe": nome, "valor": _centavos(valor),
+         "pct": fracao(valor, total) or ZERO}
+        for nome, valor in linhas if valor > 0
     ]
     if not classes:
         return None
@@ -613,7 +599,7 @@ def montar_historico(linhas):
             "total": l["total"],
             "corrigido": _centavos(l["corrigido"]),
             "delta": (SEM_VALOR if l["delta"] is None
-                      else _reais_com_sinal(l["delta"])),
+                      else reais_com_sinal(l["delta"])),
             # Travessão nunca é vermelho: a classe só entra quando há número.
             "delta_negativo": l["delta"] is not None and l["delta"] < 0,
         }
@@ -826,7 +812,7 @@ def rotulo_corrigido(base_mes):
 
 def painel(data_foto, hoje, corrigir=False, digitado=None, erros=None,
            aviso=None, erro_data=None):
-    """Tudo o que a tela mostra. Quatro consultas, nenhuma a mais.
+    """Tudo o que a tela mostra. Cinco consultas, nenhuma a mais.
 
     `digitado`, `erros` e `aviso` vêm só do POST; num GET a grade sai do
     banco e não há nada a avisar. `hoje` entra por parâmetro, como em toda
@@ -841,7 +827,7 @@ def painel(data_foto, hoje, corrigir=False, digitado=None, erros=None,
 
     linhas_grade = grade_da_data(data_foto)
     historico_linhas = historico(numero_base)
-    resumo_linhas, total_resumo = resumo_da_ultima()
+    total_resumo = resumo_da_ultima()
 
     datas = {l["data"] for l in historico_linhas}
     total = historico_linhas[0]["total"] if historico_linhas else None
@@ -861,7 +847,7 @@ def painel(data_foto, hoje, corrigir=False, digitado=None, erros=None,
         "tem_ativos": bool(linhas_grade),
         "aviso": aviso,
         "cards": montar_cards(historico_linhas, total_resumo),
-        "alocacao": montar_alocacao(resumo_linhas, total),
+        "alocacao": montar_alocacao(valores_da_foto(), total),
         "fotos": fotos,
         # A caixa só liga de fato com IPCA carregado; sem ele o template a
         # desabilita e diz onde carregar.

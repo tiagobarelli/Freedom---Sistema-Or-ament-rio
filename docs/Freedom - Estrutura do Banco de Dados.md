@@ -4,9 +4,11 @@ Sistema web pessoal de controle financeiro. Roda localmente; acesso de outros me
 
 > **Status**: schema implementado em `db/init/01_schema.sql` (idempotente). Este documento reflete exatamente o que está no banco. Se o SQL mudar, atualizar aqui; se este documento mudar, atualizar o SQL.
 >
-> Histórico do DDL: criado na rodada 1 e inalterado até a rodada 6. São **três mudanças** desde então. A **rodada 7** acrescentou a view `vw_receitas`. A **rodada 15** criou `tb_orcamento_meses` e trocou `tb_orcamentos` de categoria para subcategoria (a tabela nunca recebera uma linha, então foi troca de coluna, sem migração de dados). A **rodada 20** criou `tb_resumos_anuais` e ampliou o `COMMENT` de `fn_set_atualizado_em()`, que agora serve três tabelas — nada mais foi tocado. Nenhuma tabela de movimento foi alterada em nenhuma das três.
+> Histórico do DDL: criado na rodada 1 e inalterado até a rodada 6. São **quatro mudanças** desde então. A **rodada 7** acrescentou a view `vw_receitas`. A **rodada 15** criou `tb_orcamento_meses` e trocou `tb_orcamentos` de categoria para subcategoria (a tabela nunca recebera uma linha, então foi troca de coluna, sem migração de dados). A **rodada 20** criou `tb_resumos_anuais` e ampliou o `COMMENT` de `fn_set_atualizado_em()`, que agora serve três tabelas — nada mais foi tocado. A **rodada 37** criou as seis tabelas de alocação da carteira e tirou `tb_ativos.classe` (ver abaixo). Nenhuma tabela de movimento foi alterada em nenhuma das quatro.
 >
 > **Desde a rodada 20 o DDL não muda.** As rodadas 21 a 24 encheram e leram `tb_ipca` sem tocar em uma linha do schema: carga pelo comando (21), tela de leitura (22), botão de atualizar (23) e o primeiro uso do índice, na Análise por subcategoria (24). As rodadas 25 a 32 tampouco tocaram em tabela, coluna, view, índice ou trigger — a 30 só começou a gravar em `tb_ativos` e `tb_patrimonio_snapshots`, que existiam desde a rodada 1, e a 32 (troca de senha pela interface) só reescreve `tb_usuarios.senha_hash`. O que as rodadas 4 a 24 acrescentaram fora do DDL está em **Regras da aplicação** e em **Padrões de acesso**.
+>
+> **A rodada 37 mudou o DDL pela quarta vez**, para abrir o módulo de investimentos: seis tabelas novas de alocação da carteira (`tb_alocacao_classes`, `tb_alocacao_subclasses`, `tb_alocacao_planos`, `tb_alocacao_alvos_classes`, `tb_alocacao_alvos_subclasses` e `tb_alocacao_composicao`, na seção **Alocação da carteira**) e a remoção de `tb_ativos.classe`, que era texto livre e virou a composição. É a primeira vez que o schema **descarta** uma informação real: o texto `Investimentos` do único ativo que existia (id 53, "Agregado patrimonial"). Nenhuma tabela de movimento foi tocada, e `tb_patrimonio_snapshots` não mudou — nem de coluna, nem de linha.
 
 ## Decisões de projeto
 
@@ -14,11 +16,13 @@ Sistema web pessoal de controle financeiro. Roda localmente; acesso de outros me
 - **Sem controle de saldo**: o sistema categoriza fluxos (entradas e saídas); não há saldo inicial nem transferências entre contas.
 - **Nada derivado é armazenado**: categoria e essencialidade vêm da subcategoria via JOIN; categoria e subcategoria de receita vêm da fonte via JOIN; o mês vem da data (`vw_despesas`, `vw_receitas`). Isso evita dados inconsistentes quando algo é renomeado.
 - **Usuários no próprio Postgres** (não em SQLite separado): a segurança está no hash da senha (scrypt via `werkzeug.security`), não no arquivo. Isso permite chave estrangeira entre lançamentos e usuários.
-- **Toda tabela tem `id` como chave primária** (`GENERATED ALWAYS AS IDENTITY`), **menos as duas em que o período é a chave**: `tb_orcamento_meses` (`ano_mes`, rodada 15) e `tb_resumos_anuais` (`ano`, rodada 20). Nos dois casos há no máximo uma linha por período, e um `id` sequencial ao lado exigiria um `UNIQUE` para dizer exatamente a mesma coisa. Nomes nunca são chave.
+- **Toda tabela tem `id` como chave primária** (`GENERATED ALWAYS AS IDENTITY`), **menos as três em que o período é a chave**: `tb_orcamento_meses` (`ano_mes`, rodada 15), `tb_resumos_anuais` (`ano`, rodada 20) e `tb_alocacao_planos` (`vigente_desde`, rodada 37). Nos três casos há no máximo uma linha por período, e um `id` sequencial ao lado exigiria um `UNIQUE` para dizer exatamente a mesma coisa. Nomes nunca são chave.
 - **Registros de referência não são apagados**: tabelas de referência têm coluna `ativo`, para sumir dos formulários sem quebrar o histórico. Todas as FKs são `ON DELETE RESTRICT`.
 - **Movimento se exclui, referência se desativa** (decisão da rodada 4): `tb_despesas` e `tb_receitas` não têm coluna de situação e admitem `DELETE` físico, porque um lançamento digitado errado é lixo, não histórico. Nenhuma tabela de referência pode ser apagada, nem em teste.
 - **Configurações têm vigência**: mudar a TSR no futuro não altera relatórios do passado.
 - **Configuração é corrigível** (decisão da rodada 8): `tb_configuracoes` admite `UPDATE` e `DELETE` físico pela interface. Uma vigência digitada errada é lixo, como um lançamento errado; como nada derivado é armazenado, apagá-la só muda o que os relatórios calculam dali em diante. A **chave** não muda na edição — trocar de chave é apagar e lançar de novo.
+- **Plano de alocação se edita e se exclui** (decisão da rodada 37): `tb_alocacao_planos` e as duas tabelas de alvo admitem `UPDATE` e `DELETE` físico pela interface — é entrada do usuário, como configuração, orçamento e resumo anual. A **data** do plano não muda na edição: trocar a vigência é criar outro plano e excluir o antigo.
+- **A composição do ativo não tem vigência** (decisão da rodada 37): ela descreve o produto (a previdência é 40 % VWRA e 60 % B5P211), e não uma escolha que muda com o tempo. Consequência aceita: mudar a composição muda a leitura de fotos antigas.
 - **Resumo anual se exclui** (decisão da rodada 20): `tb_resumos_anuais` admite `UPDATE` e `DELETE` físico pela interface, pela mesma razão da configuração e da linha de orçamento — é entrada do usuário, não histórico gerado pelo sistema. O **ano** não muda na edição: trocar de ano é excluir e escrever outro. Sem `ativo` e sem autoria.
 - **Orçamento é por subcategoria, e o mês tem tabela própria** (rodada 15): orçar por categoria pede um número que ninguém sabe dizer ("quanto vou gastar em Lazer?"); por subcategoria o número sai do histórico daquela linha e a categoria vira soma. O que é atributo do **mês** — receita planejada, encerramento, observação — mora em `tb_orcamento_meses`, e não repetido em cada linha; assim um mês recém-criado ou esvaziado continua existindo.
 - **Mês de orçamento se encerra, não se congela por trigger** (rodada 15): `encerrado_em` nulo significa aberto. A recusa de alterar mês encerrado é da aplicação (ver Regras da aplicação).
@@ -27,7 +31,7 @@ Sistema web pessoal de controle financeiro. Roda localmente; acesso de outros me
 ## Decisões de implementação (tomadas ao escrever o DDL)
 
 1. **Toda FK é `NOT NULL`.** Subcategoria sem categoria seria órfã; despesa sem conta, pessoa ou usuário sumiria dos relatórios agrupados. Consequência: lançar despesa ou receita exige que as tabelas de referência já tenham pelo menos um registro cada, incluindo um usuário. Despesas compartilhadas da casa (aluguel, luz) são atribuídas a uma pessoa chamada **Casa**.
-2. **`CHECK` de domínio em `tb_despesas.essencialidade` e `tb_contas.tipo`.** Sem o primeiro, o `COALESCE` da view poderia devolver texto arbitrário; o segundo existe porque `tipo` serve para agrupar relatórios e "outro" já é o escape. `tb_ativos.classe` fica **sem** CHECK de propósito (lista aberta), e `tb_configuracoes.chave` também (ver Regras da aplicação).
+2. **`CHECK` de domínio em `tb_despesas.essencialidade` e `tb_contas.tipo`.** Sem o primeiro, o `COALESCE` da view poderia devolver texto arbitrário; o segundo existe porque `tipo` serve para agrupar relatórios e "outro" já é o escape. `tb_configuracoes.chave` fica **sem** CHECK de propósito (lista aberta; ver Regras da aplicação). `tb_ativos.classe`, que também era lista aberta sem CHECK, saiu na rodada 37 — a classe de um ativo é agora a composição dele.
 3. **Regras de mês e sinal viraram `CHECK`.** `tb_ipca.mes` e `tb_orcamentos.ano_mes` exigem dia 1 (senão o JOIN por mês quebra em silêncio). `tb_orcamentos.valor_planejado` e `tb_patrimonio_snapshots.valor` aceitam zero, mas não negativo.
 4. **Booleanos são `NOT NULL` além do `DEFAULT`.** Evita um terceiro estado entre ativo e inativo. Mesmo para `criado_em`.
 5. **`atualizado_em` não tem `DEFAULT`.** Fica `NULL` até o primeiro `UPDATE`; assim o dado distingue registro nunca editado de editado.
@@ -42,7 +46,7 @@ Sistema web pessoal de controle financeiro. Roda localmente; acesso de outros me
 - **Autoria não muda na edição.** `usuario_id` vem sempre de `current_user` no lançamento e é preservado no `UPDATE`, em despesas e receitas.
 - **Referência desativada continua editável.** Nas telas de edição e nos filtros, categorias, subcategorias, contas, pessoas e fontes de receita inativas aparecem marcadas como tal; sem isso, o histórico ficaria inconsultável e ineditável. Nenhum id inativo é gravado em lançamento novo — o POST recusa.
 - **Regra de separador decimal (assimétrica, pt-BR).** A vírgula é sempre decimal: um ou dois dígitos depois dela são aceitos, três ou mais são erro (`10,999` é erro, não dez mil). O ponto sozinho segue heurística: seguido de exatamente três dígitos é milhar (`1.234` = 1234,00), de um ou dois dígitos é decimal (`1.5` = 1,50). Com os dois presentes, o separador mais à direita é o decimal (`1.234,56` e `1,234.56` = 1234,56). Prefixo `R$` e espaços ignorados; resultado sempre `Decimal` com 2 casas.
-- **Catálogo de chaves de configuração vive na aplicação** (rodada 8), num dicionário em `freedom/configuracoes/servico.py` — não em coluna nem em tabela nova. Ele diz o rótulo, a descrição e o **formato** de cada chave conhecida (`TSR`, `R`, `S`: percentual). O banco guarda sempre o número final em `NUMERIC(12,6)`.
+- **Catálogo de chaves de configuração vive na aplicação** (rodada 8), num dicionário em `freedom/configuracoes/servico.py` — não em coluna nem em tabela nova. Ele diz o rótulo, a descrição e o **formato** de cada chave conhecida (`TSR`, `R`, `S`, `TOL`: percentual) e, desde a rodada 31, se a chave **recusa zero** (`TSR`, `S` e `TOL` recusam; `R` aceita). O banco guarda sempre o número final em `NUMERIC(12,6)`.
 - **Entrada e exibição de configuração.** Chave de formato percentual: digita-se `4`, `4%` ou `4,5` e grava-se `0.04` / `0.045`; exibe-se `4,00%`. Chave livre (fora do catálogo): número puro — digita `0,03`, grava `0.030000`, exibe `0,03`. A tela avisa, enquanto se digita, quando a chave está fora do catálogo. A chave é normalizada para maiúsculas e sem espaços nas pontas antes de gravar.
 - **Configuração não aceita valor negativo** (regra da aplicação; o banco não tem `CHECK`). Nenhum dos três parâmetros iniciais admite negativo e `-4` é quase sempre `4` com um dedo a mais. *Reabrir se o dashboard precisar de um `R` real negativo.*
 - **Casas decimais em configuração**: percentual aceita até 4 casas digitadas (viram 6 ao dividir por 100, o limite de `NUMERIC(12,6)`); chave livre aceita 6. Acima disso, erro de campo — nunca arredondamento silencioso.
@@ -50,7 +54,11 @@ Sistema web pessoal de controle financeiro. Roda localmente; acesso de outros me
 - **Mês de orçamento encerrado não aceita alteração** (rodada 15). Com `tb_orcamento_meses.encerrado_em` preenchido, a aplicação recusa `INSERT`, `UPDATE` e `DELETE` nas linhas daquele mês, na receita planejada e na exclusão do próprio mês, sempre com mensagem legível — nunca 500. O banco não impede nada disso: uma trigger em `tb_orcamentos` consultando o mês a cada linha custaria caro e tornaria impossível corrigir um encerramento equivocado por SQL.
 - **Reabrir mês só enquanto for o último** (rodada 15). Zerar `encerrado_em` é permitido apenas se não existir `tb_orcamento_meses` com `ano_mes` posterior: o mês seguinte é criado copiando o anterior, e reabrir um mês que já teve descendente faria o descendente derivar de números que mudaram depois.
 - **Sugestão de orçamento vem do histórico, não é armazenada** (rodada 15). Ao criar um mês, se o mês imediatamente anterior tiver orçamento, copiam-se as linhas e a receita planejada dele; senão, sugere-se uma linha por subcategoria ativa com despesa nos **12 meses fechados anteriores**, com `valor_planejado` = soma dos 12 ÷ 12 (`ROUND_HALF_UP`, duas casas), e receita planejada pela mesma média. A divisão é sempre por 12, mesmo que só um mês tenha despesa: o orçamento é provisão, não média dos meses em que houve gasto. As colunas "Média 12m" e "Realizado no mês anterior" da tela são recalculadas a cada exibição e **nunca gravadas**.
-- **Padronização de `tb_ativos.classe`**: dropdown alimentado pelos valores já usados.
+- **As somas de 100 % da alocação** (rodada 37). O banco só garante a faixa de cada percentual. Que as **classes** preenchidas de um plano somem 100 %, que as **subclasses** preenchidas de cada classe preenchida somem 100 % (inclusive quando não há nenhuma: classe no plano exige a divisão interna, e a soma zero é recusada), que não haja subclasse preenchida sob classe vazia e que a **composição** de um ativo some 100 % ou não exista — tudo isso é da aplicação, verificado antes de gravar, com a grade inteira ou nada. Impor por trigger exigiria conferir a soma no fim da transação (`CONSTRAINT TRIGGER ... DEFERRABLE`), e a mensagem do banco seria pior que a da tela, que diz qual bloco falhou e quanto ele somou.
+- **Plano: vazio é "fora", zero é alvo** (rodada 37). Na grade do plano, campo vazio quer dizer que a classe (ou subclasse) não está no plano, e salvar apaga a linha dela; zero é alvo legítimo ("está no plano e não deve ter nada"), como no orçamento. A grade inteira vazia é recusada: o "Salvar" não apaga um plano — quem apaga é "Excluir plano". Criar um plano numa data copia as linhas do plano **vigente naquela data**, como estão (referência inativa inclusive, como a cópia do mês anterior no orçamento); sem plano anterior, ele nasce vazio.
+- **Composição: vazio é "não participa", zero é erro** (rodada 37). Na composição quem não participa não tem linha (`CHECK percentual > 0`), e o zero digitado é recusado com texto em vez de virar vazio em silêncio. Ativo sem composição nenhuma é permitido e é "não classificado": fica fora dos totais e do rateio do balanceamento, e aparece numa linha própria na alocação do Patrimônio.
+- **Referência de alocação inativa** (rodada 37): classe e subclasse inativas seguem a regra das outras referências — aparecem marcadas na grade do plano e na da composição quando já estão lá, e nunca entram em linha nova. A leitura do POST só olha as linhas que a grade desenhou.
+- **Tolerância da alocação (`TOL`)** (rodada 37): desvio **relativo** ao próprio alvo. Uma linha está fora quando `|atual − alvo| > TOL × alvo`; no limite exato, dentro; com alvo zero, qualquer valor positivo está fora. Sem `TOL` vigente o balanceamento não mostra a coluna de situação e diz por quê — nunca um padrão inventado.
 - **Senha** (rodada 32): o banco só guarda o hash. Mínimo de 8 caracteres, confirmação e conferência da senha atual são regras da **tela** `/conta/senha`; o comando `flask set-password` não impõe mínimo, de propósito — é o caminho administrativo e de recuperação, e grava pela mesma função. Trocar a senha **não** invalida outras sessões do usuário (decisão da rodada 32).
 
 ## Padrões de acesso (rodadas 5 a 8)
@@ -186,6 +194,7 @@ Chaves do catálogo da aplicação (todas de formato percentual):
 | `TSR` | Taxa segura de retirada (anual). |
 | `R` | Retorno real anual esperado da carteira. |
 | `S` | Meta de taxa de poupança. |
+| `TOL` | Tolerância da alocação (rodada 37): quanto uma linha pode se afastar do próprio alvo, em proporção dele, antes de ficar fora. |
 
 ---
 
@@ -258,13 +267,12 @@ Uma linha por **subcategoria** orçada num mês. Até a rodada 14 era por catego
 
 ### `tb_ativos`
 
-Onde o patrimônio está aplicado. Base para as metas de independência financeira.
+Onde o patrimônio está aplicado. Base para as metas de independência financeira. A classe de alocação **não** mora aqui desde a rodada 37: sai da composição (`tb_alocacao_composicao`), que pode repartir um ativo entre classes diferentes. A coluna `classe` (texto livre) foi removida por `DROP COLUMN IF EXISTS`.
 
 | Coluna | Tipo | Função |
 |---|---|---|
 | `id` | `INT IDENTITY PK` | Identificador único. |
 | `nome` | `TEXT NOT NULL UNIQUE` | Nome do ativo (ex.: Tesouro IPCA+ 2035, Fundo X, Poupança). |
-| `classe` | `TEXT NOT NULL` | Classe (ex.: `renda_fixa`, `acoes`, `fiis`, `caixa`, `imovel`). Lista aberta, sem `CHECK`. Para gráficos de alocação. |
 | `observacao` | `TEXT` | Anotação livre. |
 | `ativo` | `BOOLEAN NOT NULL DEFAULT TRUE` | Posição encerrada some dos formulários; snapshots permanecem. |
 
@@ -279,6 +287,78 @@ Foto mensal do valor de cada ativo, lançada manualmente (o sistema não control
 | `ativo_id` | `INT NOT NULL FK → tb_ativos` | Ativo avaliado. `UNIQUE (data, ativo_id)`. |
 | `valor` | `NUMERIC(14,2) NOT NULL` | Valor de mercado na data. `CHECK (>= 0)`. |
 | `observacao` | `TEXT` | Anotação livre. |
+
+---
+
+## Alocação da carteira (rodada 37)
+
+Dois níveis: a **classe** (Inflação, Ações Brasil, Internacional), com alvo sobre o total investido, e a **subclasse** dentro dela, com alvo sobre a classe. A subclasse é um "balde" que costuma levar o nome de um ETF. O valor de cada balde **não é digitado**: sai da última foto de patrimônio vezes a composição de cada ativo. Nenhuma tabela daqui é tocada pela foto, nem a toca.
+
+Percentuais em **fração** (`0.37` é 37 %), `NUMERIC(7,6)`: até quatro casas no percentual digitado, seis na fração. Todas as FKs são nomeadas (`fk_...`), `NOT NULL` e `ON DELETE RESTRICT`.
+
+### `tb_alocacao_classes`
+
+Referência, no padrão de `tb_categorias`: desativa, não apaga. Tela em Cadastros › Classes.
+
+| Coluna | Tipo | Função |
+|---|---|---|
+| `id` | `INT IDENTITY PK` | Identificador único. |
+| `nome` | `TEXT NOT NULL` | Nome da classe. `UNIQUE` (`uq_alocacao_classes_nome`) e `CHECK (nome ~ '[^[:space:]]')` (`ck_alocacao_classes_nome`). |
+| `ativo` | `BOOLEAN NOT NULL DEFAULT TRUE` | Inativa não entra em plano novo nem em composição nova; o que já a cita continua valendo. |
+
+### `tb_alocacao_subclasses`
+
+Referência, no padrão de `tb_subcategorias`, com a mesma unicidade. Tela em Cadastros › Subclasses.
+
+| Coluna | Tipo | Função |
+|---|---|---|
+| `id` | `INT IDENTITY PK` | Identificador único. |
+| `classe_id` | `INT NOT NULL FK → tb_alocacao_classes` (`fk_alocacao_subclasses_classe`) | Classe a que o balde pertence. |
+| `nome` | `TEXT NOT NULL` | Nome do balde (ex.: VWRA, B5P211). `UNIQUE (classe_id, nome)` (`uq_alocacao_subclasses_classe_nome`) e `CHECK` de caractere visível (`ck_alocacao_subclasses_nome`). |
+| `ativo` | `BOOLEAN NOT NULL DEFAULT TRUE` | Mesma regra da classe. |
+
+### `tb_alocacao_planos`
+
+O cabeçalho de cada plano. **A data é a chave primária** — a terceira tabela do banco com o período como chave, ao lado de `tb_orcamento_meses` e `tb_resumos_anuais`. O plano vigente numa data é o de maior `vigente_desde` menor ou igual a ela (a regra de `tb_configuracoes`). Entrada do usuário: edita e se exclui.
+
+| Coluna | Tipo | Função |
+|---|---|---|
+| `vigente_desde` | `DATE PK` | A partir de quando o plano vale. Há no máximo um plano por data. |
+| `criado_em` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Auditoria. |
+
+### `tb_alocacao_alvos_classes`
+
+Uma linha por (plano, classe). As classes de um plano somam 100 % — regra da aplicação.
+
+| Coluna | Tipo | Função |
+|---|---|---|
+| `id` | `INT IDENTITY PK` | Identificador único. |
+| `vigente_desde` | `DATE NOT NULL FK → tb_alocacao_planos` (`fk_alocacao_alvos_classes_plano`) | O plano. `UNIQUE (vigente_desde, classe_id)` (`uq_alocacao_alvos_classes_plano_classe`). |
+| `classe_id` | `INT NOT NULL FK → tb_alocacao_classes` (`fk_alocacao_alvos_classes_classe`) | A classe. |
+| `percentual` | `NUMERIC(7,6) NOT NULL` | Alvo sobre o total investido, em fração. `CHECK (percentual BETWEEN 0 AND 1)` (`ck_alocacao_alvos_classes_percentual`): **zero é alvo legítimo**. |
+
+### `tb_alocacao_alvos_subclasses`
+
+Uma linha por (plano, subclasse). As subclasses de cada classe preenchida somam 100 % — regra da aplicação, como a de que a classe delas esteja no mesmo plano.
+
+| Coluna | Tipo | Função |
+|---|---|---|
+| `id` | `INT IDENTITY PK` | Identificador único. |
+| `vigente_desde` | `DATE NOT NULL FK → tb_alocacao_planos` (`fk_alocacao_alvos_subclasses_plano`) | O plano. `UNIQUE (vigente_desde, subclasse_id)` (`uq_alocacao_alvos_subclasses_plano_subclasse`). |
+| `subclasse_id` | `INT NOT NULL FK → tb_alocacao_subclasses` (`fk_alocacao_alvos_subclasses_subclasse`) | A subclasse. |
+| `percentual` | `NUMERIC(7,6) NOT NULL` | Alvo sobre o total da classe, em fração. `CHECK BETWEEN 0 AND 1` (`ck_alocacao_alvos_subclasses_percentual`). |
+| `recebe_aporte` | `BOOLEAN NOT NULL DEFAULT TRUE` | Se a subclasse entra no rateio do aporte sugerido do balanceamento. `FALSE` para o balde que se quer manter, mas não engordar. |
+
+### `tb_alocacao_composicao`
+
+De que subclasses cada ativo é feito. Um ativo simples tem uma linha de 100 %; a previdência tem várias, em classes diferentes. **Sem vigência**, por decisão (ver Decisões de projeto). Ativo sem linha nenhuma é "não classificado". Grava junto com o ativo, no formulário dele, numa transação.
+
+| Coluna | Tipo | Função |
+|---|---|---|
+| `id` | `INT IDENTITY PK` | Identificador único. |
+| `ativo_id` | `INT NOT NULL FK → tb_ativos` (`fk_alocacao_composicao_ativo`) | O ativo. `UNIQUE (ativo_id, subclasse_id)` (`uq_alocacao_composicao_ativo_subclasse`). |
+| `subclasse_id` | `INT NOT NULL FK → tb_alocacao_subclasses` (`fk_alocacao_composicao_subclasse`) | A subclasse que recebe a parte do ativo. |
+| `percentual` | `NUMERIC(7,6) NOT NULL` | A parte, em fração. `CHECK (percentual > 0 AND percentual <= 1)` (`ck_alocacao_composicao_percentual`): quem não participa não tem linha. As linhas de um ativo somam 100 % — regra da aplicação. |
 
 ---
 
@@ -356,6 +436,13 @@ tb_pessoas 1──n tb_usuarios
 tb_usuarios 1──n tb_despesas
 tb_usuarios 1──n tb_receitas
 tb_ativos 1──n tb_patrimonio_snapshots
+tb_ativos 1──n tb_alocacao_composicao
+tb_alocacao_classes 1──n tb_alocacao_subclasses
+tb_alocacao_subclasses 1──n tb_alocacao_composicao
+tb_alocacao_planos 1──n tb_alocacao_alvos_classes      (por vigente_desde)
+tb_alocacao_planos 1──n tb_alocacao_alvos_subclasses   (por vigente_desde)
+tb_alocacao_classes 1──n tb_alocacao_alvos_classes
+tb_alocacao_subclasses 1──n tb_alocacao_alvos_subclasses
 tb_ipca (sem FK; cruza com vw_despesas pelo MES DA DATA,
          date_trunc('month', data) = tb_ipca.mes - nao pelo ano_mes)
 tb_configuracoes (sem FK; consultada por chave e data)
@@ -375,6 +462,9 @@ tb_resumos_anuais (sem FK; consultada pelo ano, que e a chave)
 | Poupança planejada do mês | `tb_orcamento_meses.receita_planejada` − soma de `tb_orcamentos.valor_planejado` do mês; a taxa é a poupança sobre a receita planejada |
 | Total do período e divisão essencial × não essencial | agregados sobre `vw_despesas` no intervalo de datas filtrado (implementado na consulta de despesas) |
 | Total de receitas do período por categoria | agregados sobre `vw_receitas` no intervalo filtrado (implementado na tela de receitas) |
+| Valor de uma subclasse de alocação | soma de (valor do ativo na última foto × percentual da composição); o de uma classe é a soma das subclasses dela, e o total investido é a soma das classes — **só o classificado**: ativo sem composição fica fora. Uma consulta, com `GROUPING SETS`, em `alocacao/servico.valores_da_foto`, que é a origem do balanceamento e da alocação da tela de Patrimônio (rodada 37) |
+| Desvio e ajuste do balanceamento | desvio = atual − alvo, em pontos percentuais; ajuste = alvo × total − atual, em reais, **sem o caixa digitado**. O atual (%) é sobre o total investido no nível das classes e sobre o total da classe no das subclasses |
+| Aporte sugerido | T = soma dos valores do bloco + caixa; déficit = alvo × T − valor; cada linha que recebe aporte com déficit > 0 leva déficit ÷ soma dos déficits × caixa. Pela URL, nunca gravado; arredondado a centavos só no ponto exibido (a soma exibida pode diferir do caixa em um centavo) |
 
 ## O roteiro não mora aqui
 

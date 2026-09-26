@@ -1,0 +1,41 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{% block title %}Subclasses - Freedom{% endblock %}
+{% block titulo_pagina %}Subclasses{% endblock %}
+{% block subtitulo_pagina %}
+  <p class="pagina-subtitulo">Os baldes dentro de cada classe. É a subclasse que a composição de um ativo cita.</p>
+{% endblock %}
+{% block acoes_pagina %}
+  <a class="btn btn--primario" href="{{ url_for('cadastros.subclasses_nova') }}">
+    {{ m.icone("plus", tamanho=14, tracado=2.25) }}Nova subclasse
+  </a>
+{% endblock %}
+
+{% block content %}
+<div class="painel painel--estreito">
+
+  <form class="filtros" method="get">
+      <label class="campo campo--em-linha">
+        <span class="campo__rotulo">Classe</span>
+        <select class="selecao" name="classe_id" onchange="this.form.submit()">
+          <option value="">Todas</option>
+          {% for c in classes %}
+            <option value="{{ c.id }}" {{ 'selected' if filtro_classe == c.id }}>{{ c.nome }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    <span class="filtros__direita">
+      <span class="filtros__contagem">{{ contagem }}</span>
+      {{ m.filtro_inativos(mostrar_inativos) }}
+    </span>
+  </form>
+
+  {% call m.lista_cadastro(linhas, ["Nome", "Classe", "Situação"],
+                            "Nenhuma subclasse",
+                 "Crie os baldes de cada classe, como VWRA ou B5P211.") %}
+    {% for item in linhas %}{% include "cadastros/_linha_subclasse.html" %}{% endfor %}
+  {% endcall %}
+
+</div>
+{% endblock %}

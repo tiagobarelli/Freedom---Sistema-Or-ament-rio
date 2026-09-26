@@ -3,7 +3,7 @@
 Um **ativo** é onde o patrimônio está aplicado: um título, um fundo, um
 imóvel, a reserva na conta. Não é conta de lançamento nem categoria — nada
 aqui cruza com despesa ou receita. A tabela existe no schema desde a rodada 1
-e nunca tinha recebido uma linha nem uma tela; esta é a tela.
+e ganhou esta tela na 30.
 
 Padrão de cadastro sem desvio: lista com badge e interruptor de inativos,
 criar e editar em página própria, ativar/desativar por HTMX trocando só a
@@ -13,10 +13,11 @@ impediria de qualquer jeito).
 
 Duas coisas são próprias daqui:
 
-- **`classe` é texto livre**, não select: `tb_ativos.classe` não tem CHECK, de
-  propósito (decisão registrada no `.md` do banco). A taxonomia de onde o
-  dinheiro está é do dono e muda com o tempo. A `combobox` oferece o que já
-  existe, sem impedir o que ainda não;
+- **a composição** (rodada 37): de que subclasses de alocação o ativo é
+  feito, numa grade de percentuais dentro do mesmo formulário, gravada junto
+  com o ativo numa transação. Tomou o lugar do antigo campo `classe`, texto
+  livre: a previdência se reparte entre classes diferentes, e um texto só não
+  dizia isso. Quem lê, valida e grava a grade é `alocacao/composicao.py`;
 - **inativo quer dizer "posição encerrada"**, e não "cadastro errado". O ativo
   encerrado some da grade da foto de patrimônio e não recebe linha nova, mas
   as fotos antigas dele continuam lá e continuam contando no total — quem
@@ -27,39 +28,42 @@ from flask import abort, flash, redirect, render_template, request, url_for
 from flask_login import login_required
 from psycopg import errors
 
+from freedom.alocacao import composicao
+from freedom.alocacao.servico import referencias
 from freedom.cadastros import bp
 from freedom.cadastros.forms import AtivoForm
 from freedom.cadastros.servico import (
     alternar_ativo,
     aplicar_erro_duplicado,
     contagem,
-    executar,
 )
 from freedom.db import query_all, query_one
-from freedom.util import chave_alfabetica
 
+# A linha da lista com a composição resumida. Os dois arrays saem na mesma
+# ordem (do maior pedaço para o menor), e quem os junta em texto é
+# `composicao.resumo`. O FILTER tira o NULL que o LEFT JOIN põe no ativo sem
+# composição: sem ele, o array seria `{NULL}`, e não vazio.
 _SELECT_LINHA = """
-    SELECT id, nome, classe, observacao, ativo
-      FROM tb_ativos
+    SELECT a.id, a.nome, a.observacao, a.ativo,
+           array_agg(sc.nome ORDER BY comp.percentual DESC, sc.nome)
+               FILTER (WHERE comp.id IS NOT NULL) AS partes,
+           array_agg(comp.percentual ORDER BY comp.percentual DESC, sc.nome)
+               FILTER (WHERE comp.id IS NOT NULL) AS percentuais
+      FROM tb_ativos a
+      LEFT JOIN tb_alocacao_composicao comp ON comp.ativo_id = a.id
+      LEFT JOIN tb_alocacao_subclasses sc   ON sc.id = comp.subclasse_id
 """
 
 
+def _com_resumo(linha):
+    return dict(linha, composicao=composicao.resumo(linha["partes"],
+                                                     linha["percentuais"]))
+
+
 def _buscar(ativo_id):
-    return query_one(_SELECT_LINHA + " WHERE id = %s", (ativo_id,))
-
-
-def classes_existentes():
-    """As classes já usadas, em ordem alfabética pt-BR, para a `combobox`.
-
-    A ordenação é a de `chave_alfabetica` (NFD, em Python), e não a do banco:
-    a lista é de dezenas de itens e sai de um DISTINCT sem ORDER BY — quem a
-    põe em ordem é a aplicação, como em toda lista que a tela monta.
-
-    Inclui as classes de ativos encerrados: quem reabre uma posição quer
-    encontrar o nome que já usava.
-    """
-    linhas = query_all("SELECT DISTINCT classe FROM tb_ativos")
-    return sorted((l["classe"] for l in linhas), key=chave_alfabetica)
+    linha = query_one(_SELECT_LINHA + " WHERE a.id = %s GROUP BY a.id",
+                      (ativo_id,))
+    return _com_resumo(linha) if linha else None
 
 
 @bp.route("/ativos")
@@ -67,40 +71,58 @@ def classes_existentes():
 def ativos_lista():
     mostrar_inativos = request.args.get("inativos") == "1"
     linhas = query_all(
-        _SELECT_LINHA + " WHERE (%s OR ativo = TRUE) ORDER BY classe, nome",
+        _SELECT_LINHA + " WHERE (%s OR a.ativo = TRUE)"
+                        " GROUP BY a.id ORDER BY a.nome",
         (mostrar_inativos,),
     )
     return render_template(
         "cadastros/ativos_lista.html",
-        linhas=linhas,
+        linhas=[_com_resumo(l) for l in linhas],
         contagem=contagem("ativos"),
         mostrar_inativos=mostrar_inativos,
     )
 
 
+def _formulario(registro):
+    """Criar e editar são o mesmo formulário, e o mesmo caminho.
+
+    A grade da composição é lida à mão (`composicao.ler`) ao lado do
+    WTForms, e as três recusas — campo do ativo, campo da grade e soma —
+    somam-se: quem errou o nome E a soma vê os dois de uma vez. Nada é
+    gravado enquanto houver uma.
+    """
+    ativo_id = registro["id"] if registro else None
+    form = AtivoForm(data=registro)
+    atual = composicao.do_ativo(ativo_id)
+    grupos = composicao.grupos_da_grade(referencias(), atual)
+    digitado, erros, erro_soma = None, None, None
+
+    if request.method == "POST":
+        valores, erros, digitado = composicao.ler(request.form, grupos)
+        erro_soma = None if erros else composicao.validar(valores)
+        if form.validate_on_submit() and not erros and not erro_soma:
+            try:
+                composicao.gravar(ativo_id, form.nome.data,
+                                  (form.observacao.data or "").strip() or None,
+                                  valores)
+            except errors.UniqueViolation as exc:
+                aplicar_erro_duplicado(form, exc)
+            else:
+                flash("Ativo atualizado." if registro else "Ativo criado.",
+                      "sucesso")
+                return redirect(url_for("cadastros.ativos_lista"))
+
+    return render_template(
+        "cadastros/ativos_form.html", form=form, registro=registro,
+        grade=composicao.montar(grupos, atual, digitado, erros),
+        erro_composicao=erro_soma,
+        prefixo_campo=composicao.PREFIXO_COMPOSICAO)
+
+
 @bp.route("/ativos/novo", methods=["GET", "POST"])
 @login_required
 def ativos_novo():
-    form = AtivoForm()
-    if form.validate_on_submit():
-        try:
-            executar(
-                "INSERT INTO tb_ativos (nome, classe, observacao)"
-                " VALUES (%s, %s, %s)",
-                (
-                    form.nome.data,
-                    form.classe.data,
-                    (form.observacao.data or "").strip() or None,
-                ),
-            )
-        except errors.UniqueViolation as exc:
-            aplicar_erro_duplicado(form, exc)
-        else:
-            flash("Ativo criado.", "sucesso")
-            return redirect(url_for("cadastros.ativos_lista"))
-
-    return render_template("cadastros/ativos_form.html", form=form,
-                           registro=None, classes=classes_existentes())
+    return _formulario(None)
 
 
 @bp.route("/ativos/<int:ativo_id>/editar", methods=["GET", "POST"])
@@ -109,28 +131,7 @@ def ativos_editar(ativo_id):
     registro = _buscar(ativo_id)
     if registro is None:
         abort(404)
-
-    form = AtivoForm(data=registro)
-    if form.validate_on_submit():
-        try:
-            executar(
-                "UPDATE tb_ativos SET nome = %s, classe = %s, observacao = %s"
-                " WHERE id = %s",
-                (
-                    form.nome.data,
-                    form.classe.data,
-                    (form.observacao.data or "").strip() or None,
-                    ativo_id,
-                ),
-            )
-        except errors.UniqueViolation as exc:
-            aplicar_erro_duplicado(form, exc)
-        else:
-            flash("Ativo atualizado.", "sucesso")
-            return redirect(url_for("cadastros.ativos_lista"))
-
-    return render_template("cadastros/ativos_form.html", form=form,
-                           registro=registro, classes=classes_existentes())
+    return _formulario(registro)
 
 
 @bp.route("/ativos/<int:ativo_id>/alternar", methods=["POST"])
@@ -138,8 +139,9 @@ def ativos_editar(ativo_id):
 def ativos_alternar(ativo_id):
     """Encerrar ou reabrir a posição. Só a `<tr>` volta.
 
-    As fotos do ativo não são tocadas: encerrar uma posição é dizer que ela
-    não recebe valor novo, não apagar o que ela já valeu.
+    As fotos do ativo não são tocadas, nem a composição dele: encerrar uma
+    posição é dizer que ela não recebe valor novo, não apagar o que ela já
+    valeu nem do que ela era feita.
     """
     linha = alternar_ativo("ativos", ativo_id)
     if linha is None:

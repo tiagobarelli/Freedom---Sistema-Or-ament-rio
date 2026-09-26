@@ -26,7 +26,7 @@ from flask_login import login_required
 from freedom import ipca
 from freedom.lancamentos import bp
 from freedom.lancamentos import servico_patrimonio as servico
-from freedom.util import caixa_marcada, so_fragmento
+from freedom.util import caixa_marcada, data_de_texto, so_fragmento
 
 
 def _corrigir(campos):
@@ -110,7 +110,7 @@ def patrimonio_excluir(data_foto):
     coincidem, os campos voltam a mostrar as sugestões do último valor
     conhecido — que é o que a grade de uma data sem foto mostra.
     """
-    alvo = servico.data_de_texto(data_foto)
+    alvo = data_de_texto(data_foto)
     if alvo is None:
         abort(404)
     quantas = servico.excluir_foto(alvo)

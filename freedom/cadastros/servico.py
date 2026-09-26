@@ -3,7 +3,8 @@
 Cada entidade tem seu módulo, mas alternar ativo/inativo, traduzir violação de
 UNIQUE e montar a lista são a mesma coisa em todas — ficam aqui.
 
-Eram cinco até a rodada 30, quando os ativos de patrimônio viraram a sexta.
+Eram cinco até a rodada 30, quando os ativos de patrimônio viraram a sexta;
+na 37 as classes e as subclasses de alocação viraram a sétima e a oitava.
 Entrar aqui é acrescentar três linhas de dicionário: a tabela, a mensagem do
 UNIQUE e o gênero do contador.
 """
@@ -48,6 +49,16 @@ _ENTIDADES = {
         "coluna_ativo": "ativo",
         "rotulo": "Ativo",
     },
+    "classes": {
+        "tabela": "tb_alocacao_classes",
+        "coluna_ativo": "ativo",
+        "rotulo": "Classe",
+    },
+    "subclasses": {
+        "tabela": "tb_alocacao_subclasses",
+        "coluna_ativo": "ativo",
+        "rotulo": "Subclasse",
+    },
 }
 
 # Constraint UNIQUE do banco -> (campo do formulário, mensagem para o usuário).
@@ -68,6 +79,10 @@ MENSAGENS_UNIQUE = {
     # tb_ativos.nome é UNIQUE sem constraint batizada no DDL.
     "tb_ativos_nome_key": (
         "nome", "Já existe um ativo com esse nome."),
+    "uq_alocacao_classes_nome": (
+        "nome", "Já existe uma classe com esse nome."),
+    "uq_alocacao_subclasses_classe_nome": (
+        "nome", "Já existe uma subclasse com esse nome nesta classe."),
 }
 
 
@@ -128,7 +143,7 @@ def rotulo(entidade):
     return _ENTIDADES[entidade]["rotulo"]
 
 
-# Plural das cinco entidades para o contador da barra de filtros. Fica aqui,
+# Plural das entidades para o contador da barra de filtros. Fica aqui,
 # ao lado do nome da tabela, e não no template: escolher entre "ativas" e
 # "ativos" é conhecimento da aplicação, como qualquer outro rótulo.
 _GENERO = {
@@ -141,6 +156,8 @@ _GENERO = {
     # a contagem dos ativos fala de POSIÇÃO — é o vocabulário da tela de
     # patrimônio, onde inativo quer dizer "posição encerrada".
     "ativos": ("em carteira", "encerrados"),
+    "classes": ("ativas", "inativas"),
+    "subclasses": ("ativas", "inativas"),
 }
 
 

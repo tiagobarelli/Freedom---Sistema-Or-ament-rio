@@ -17,7 +17,7 @@
 
   {{ m.filtros_cadastro(contagem, mostrar_inativos) }}
 
-  {% call m.lista_cadastro(linhas, ["Nome", "Classe", "Observação", "Situação"],
+  {% call m.lista_cadastro(linhas, ["Nome", "Composição", "Observação", "Situação"],
                             "Nenhum ativo",
                  "Cadastre onde o patrimônio está: títulos, fundos, imóveis, reserva.") %}
     {% for item in linhas %}{% include "cadastros/_linha_ativo.html" %}{% endfor %}

@@ -312,6 +312,38 @@ def com_sinal(texto, valor):
     return "+" + texto if valor is not None and valor > 0 else texto
 
 
+def reais_com_sinal(valor):
+    """'+R$ 1.234,56' / '-R$ 1.234,56' / 'R$ 0,00'.
+
+    O sinal vem NA FRENTE do R$, e não depois (como a macro `reais` faz com
+    um valor negativo), porque a coluna que o usa não é uma quantia: é uma
+    diferença, e o que se lê primeiro é para que lado ela vai. O negativo
+    entra pelo `-` que `formatar_valor` já produz sobre o módulo; o `+` do
+    positivo é de `com_sinal`.
+
+    Nasceu privada na variação da foto de patrimônio (rodada 30) e subiu na
+    37, quando o ajuste do balanceamento da Alocação virou a segunda coluna
+    de diferença em reais.
+    """
+    if valor < 0:
+        return f"-R$ {formatar_valor(-valor)}"
+    return com_sinal(f"R$ {formatar_valor(valor)}", valor)
+
+
+def data_de_texto(texto):
+    """'2026-08-31' -> date; qualquer outra coisa -> None. Nunca levanta.
+
+    Ler uma data que veio da URL ou de um campo é uma coisa só no sistema.
+    Nasceu em `lancamentos/servico_patrimonio.py` (a data da foto) e subiu na
+    rodada 37, quando a Alocação passou a ler a data de um plano do caminho e
+    do formulário de criar.
+    """
+    try:
+        return date.fromisoformat((texto or "").strip())
+    except (ValueError, TypeError):
+        return None
+
+
 def parece_zero(texto):
     """'0', '0,00', 'R$ 0', '0.000' -> True. Negativo NÃO passa: vira erro.
 

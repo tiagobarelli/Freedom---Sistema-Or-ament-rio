@@ -1,0 +1,17 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{% block title %}{{ 'Editar subclasse' if registro else 'Nova subclasse' }} - Freedom{% endblock %}
+{% block titulo_pagina %}{{ 'Editar subclasse' if registro else 'Nova subclasse' }}{% endblock %}
+
+{% block content %}
+  <div class="card formulario">
+    <form method="post" novalidate>
+      {{ form.hidden_tag() }}
+      {{ m.campo_selecao(form.classe_id) }}
+      {{ m.campo(form.nome, dica="Costuma levar o nome de um ETF: VWRA, B5P211.",
+                 extra={"maxlength": 120}) }}
+      {{ m.acoes_formulario(url_for('cadastros.subclasses_lista')) }}
+    </form>
+  </div>
+{% endblock %}

@@ -49,6 +49,19 @@ CATALOGO = {
         "recusa_zero": "A meta de poupança não pode ser zero: quem não poupa "
                        "não chega à independência.",
     },
+    # Rodada 37. Desvio RELATIVO ao próprio alvo, e não em pontos
+    # percentuais: 20 % num alvo de 5 % aceita de 4 % a 6 %, e num alvo de
+    # 40 %, de 32 % a 48 %. Quem a lê é o balanceamento da Alocação, e sem
+    # vigência a coluna de situação some — nunca um padrão inventado.
+    "TOL": {
+        "rotulo": "Tolerância da alocação",
+        "descricao": "Quanto uma linha da alocação pode se afastar do próprio "
+                     "alvo, em proporção dele, antes de ficar fora: 20% num "
+                     "alvo de 5% aceita de 4% a 6%.",
+        "formato": PERCENTUAL,
+        "recusa_zero": "A tolerância não pode ser zero: qualquer centavo de "
+                       "diferença deixaria a linha fora do alvo.",
+    },
 }
 
 

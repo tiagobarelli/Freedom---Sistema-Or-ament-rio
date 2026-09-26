@@ -1,0 +1,154 @@
+{% import "_macros.html" as m %}
+{#
+  A grade do plano - que E o editor, no contrato da foto de patrimonio. Uma
+  linha por classe e, abaixo de cada uma, as subclasses dela; cada linha com
+  o alvo, e a subclasse com a caixa "Recebe aporte".
+
+  E o alvo do POST de gravacao (`hx-target` nela mesma, `outerHTML`): a
+  resposta de sucesso e a de recusa devolvem este mesmo parcial, uma com o
+  aviso do que mudou e outra com o que foi digitado mais as recusas no bloco
+  que falhou. O cabecalho vai junto porque mora no mesmo cartao.
+
+  Vazio quer dizer "fora do plano"; zero e alvo legitimo. Cada bloco (a
+  classe e as subclasses dela) e um <tbody> proprio: a recusa de soma de um
+  bloco vai numa linha no fim dele, e a das classes, no rodape da tabela.
+
+  Nada e decidido aqui: rotulo (com a marca de inativa), texto de cada
+  campo, estado da caixa, recusas e aviso vem prontos de `alocacao/plano.py`.
+#}
+<section class="card card--tabela" id="plano-grade">
+  <div class="card__cabecalho">
+    <h2 class="card__titulo">
+      Plano vigente desde {{ plano.extenso }}
+      <span class="badge {{ plano.badge }}">{{ plano.situacao }}</span>
+    </h2>
+    {#
+      Confirmacao em dois passos pelo `hx-confirm`, como o Excluir foto do
+      Patrimonio. A resposta e 204 com HX-Redirect: excluir troca o seletor
+      de vigencias e a grade, e a tela recarrega inteira.
+    #}
+    <button type="button" class="btn btn--secundario btn--perigo btn--pequeno"
+            hx-post="{{ url_for('alocacao.alocacao_excluir', data_plano=plano.data_texto) }}"
+            hx-confirm="Excluir o plano vigente desde {{ plano.extenso }}? Todos os alvos dele serão apagados. Isso não pode ser desfeito.">Excluir plano</button>
+  </div>
+
+  {% if not plano.tem_referencias %}
+    {{ m.vazio("Cadastre as classes",
+               "O plano dá um alvo a cada classe e, dentro dela, a cada subclasse. Cadastre-as antes de preencher a grade.") }}
+    <div class="card__acoes card__acoes--centro">
+      <a class="btn btn--secundario" href="{{ url_for('cadastros.classes_lista') }}">
+        {{ m.icone("layers", tamanho=14, tracado=2.25) }}Cadastrar classes
+      </a>
+    </div>
+  {% else %}
+    <form method="post"
+          action="{{ url_for('alocacao.alocacao_gravar', data_plano=plano.data_texto) }}"
+          hx-post="{{ url_for('alocacao.alocacao_gravar', data_plano=plano.data_texto) }}"
+          hx-target="#plano-grade"
+          hx-swap="outerHTML">
+      {# CSRF em campo oculto, mesmo com o `hx-headers` do <body>: sem
+         JavaScript o POST comum precisa dele, e a rota devolve um redirect -
+         a regra da foto de patrimonio. #}
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="tabela-caixa">
+        <table class="tabela tabela--resumo tabela--painel tabela--plano">
+          <caption class="so-leitor">Alvos do plano vigente desde {{ plano.extenso }}</caption>
+          <thead>
+            <tr>
+              <th>Classe e subclasse</th>
+              <th class="col-num col-alvo">Alvo</th>
+              <th class="col-aporte">Recebe aporte</th>
+            </tr>
+          </thead>
+          {% for b in plano.grade %}
+            <tbody>
+              <tr class="linha-subgrupo">
+                <td><label for="{{ prefixos.classe }}{{ b.id }}">{{ b.rotulo }}</label></td>
+                <td class="col-num col-alvo">
+                  <span class="entrada-pct">
+                    <input class="entrada entrada--pct{{ ' entrada--erro' if b.erro }}"
+                           type="text" inputmode="decimal" autocomplete="off"
+                           id="{{ prefixos.classe }}{{ b.id }}" name="{{ prefixos.classe }}{{ b.id }}"
+                           value="{{ b.campo }}">
+                    <span class="entrada-pct__sufixo" aria-hidden="true">%</span>
+                  </span>
+                  {% if b.erro %}<p class="campo__erro">{{ b.erro }}</p>{% endif %}
+                </td>
+                <td></td>
+              </tr>
+              {% for s in b.subclasses %}
+                <tr>
+                  <td class="plano-subclasse">
+                    <label for="{{ prefixos.subclasse }}{{ s.id }}">{{ s.rotulo }}</label>
+                  </td>
+                  <td class="col-num col-alvo">
+                    <span class="entrada-pct">
+                      <input class="entrada entrada--pct{{ ' entrada--erro' if s.erro }}"
+                             type="text" inputmode="decimal" autocomplete="off"
+                             id="{{ prefixos.subclasse }}{{ s.id }}" name="{{ prefixos.subclasse }}{{ s.id }}"
+                             value="{{ s.campo }}">
+                      <span class="entrada-pct__sufixo" aria-hidden="true">%</span>
+                    </span>
+                    {% if s.erro %}<p class="campo__erro">{{ s.erro }}</p>{% endif %}
+                  </td>
+                  <td class="col-aporte">
+                    <label class="marcar">
+                      <input type="checkbox" name="{{ prefixos.aporte }}{{ s.id }}" value="1"
+                             {{ 'checked' if s.recebe }}>
+                      <span class="so-leitor">{{ s.rotulo }} recebe aporte</span>
+                    </label>
+                  </td>
+                </tr>
+              {% else %}
+                <tr>
+                  <td class="plano-subclasse tabela__suave" colspan="3">
+                    Nenhuma subclasse ativa nesta classe.
+                  </td>
+                </tr>
+              {% endfor %}
+              {% if b.erro_bloco %}
+                <tr class="plano-recusa">
+                  <td colspan="3"><p class="campo__erro" role="alert">{{ b.erro_bloco }}</p></td>
+                </tr>
+              {% endif %}
+            </tbody>
+          {% endfor %}
+          {% if plano.erro_classes %}
+            <tfoot>
+              <tr class="plano-recusa">
+                <td colspan="3"><p class="campo__erro" role="alert">{{ plano.erro_classes }}</p></td>
+              </tr>
+            </tfoot>
+          {% endif %}
+        </table>
+      </div>
+
+      {#
+        O aviso e a recusa geral ficam DENTRO do formulario, que ja e trocado
+        inteiro a cada resposta - a mesma razao do aviso da foto.
+      #}
+      <div class="card__acoes">
+        <button type="submit" class="btn btn--primario">
+          {{ m.icone("check", tamanho=14, tracado=2.25) }}Salvar plano
+        </button>
+        <span class="htmx-indicator texto-fraco texto-p">salvando…</span>
+        {% if plano.aviso %}
+          <span class="aviso-inline" role="status">{{ plano.aviso }}</span>
+        {% endif %}
+        {% if plano.erro_geral %}
+          <p class="campo__erro" role="alert">{{ plano.erro_geral }}</p>
+        {% endif %}
+      </div>
+    </form>
+
+    <div class="nota-rodape">
+      <p class="card__nota">
+        Campo vazio quer dizer fora do plano; zero é alvo legítimo. As
+        classes preenchidas somam 100%, e as subclasses de cada classe
+        preenchida também. Só as subclasses marcadas recebem parte do aporte
+        no Balanceamento. Classe ou subclasse inativa só aparece aqui se já
+        está no plano.
+      </p>
+    </div>
+  {% endif %}
+</section>

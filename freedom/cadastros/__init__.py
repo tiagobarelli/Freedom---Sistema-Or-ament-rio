@@ -8,12 +8,14 @@ bp = Blueprint("cadastros", __name__, url_prefix="/cadastros")
 from freedom.cadastros import (  # noqa: E402,F401
     ativos,
     categorias,
+    classes,
     contas,
     pessoas,
     ref_receitas,
     resumos_anuais,
     serie_ipca,
     subcategorias,
+    subclasses,
 )
 
 __all__ = ["bp"]

@@ -29,8 +29,8 @@
 --        essencial / nao essencial.
 --      - tb_contas.tipo: o documento lista os quatro valores como fechados
 --        (corrente, cartao, dinheiro, outro), e "outro" ja e o escape.
---    tb_ativos.classe ficou SEM CHECK de proposito: ali o .md usa "ex.:",
---    sinalizando lista aberta que deve crescer sem exigir migracao.
+--    (tb_ativos.classe, texto livre sem CHECK, existiu ate a rodada 36; a 37
+--    a trocou pela composicao em classes cadastradas - ver decisao 11.)
 --
 -- 3. REGRAS IMPLICITAS DE MES E DE SINAL VIRARAM "CHECK".
 --    O .md diz "sempre dia 1" para tb_ipca.mes e tb_orcamentos.ano_mes sem
@@ -87,6 +87,34 @@
 --    so espacos, so quebras de linha. Um resumo em branco nao e resumo, e a
 --    coluna e NOT NULL justamente para isso; NOT NULL sozinho aceita ''.
 --
+-- 10. A ALOCACAO DA CARTEIRA SAO SEIS TABELAS NOVAS. (rodada 37)
+--    Duas referencias (tb_alocacao_classes e tb_alocacao_subclasses), no
+--    padrao de tb_categorias / tb_subcategorias: `ativo` em vez de DELETE e
+--    a mesma unicidade - nome unico na classe, (classe_id, nome) na
+--    subclasse.
+--    O plano (tb_alocacao_planos) tem a DATA como chave primaria: e a
+--    terceira tabela em que o periodo e a chave, ao lado de
+--    tb_orcamento_meses e tb_resumos_anuais, pela mesma razao das duas - ha
+--    no maximo um plano por data de vigencia, e um id ao lado exigiria um
+--    UNIQUE para dizer o mesmo. As duas tabelas de linha do plano apontam
+--    para ela pela propria data, como tb_orcamentos aponta para o mes.
+--    Percentual e FRACAO (0.37 e 37 %), como em tb_configuracoes. No alvo,
+--    zero e legitimo ("esta no plano e nao deve ter nada"), dai o BETWEEN 0
+--    AND 1; na composicao, zero nao existe - quem nao participa nao tem
+--    linha -, dai o > 0.
+--    A composicao NAO tem vigencia, por decisao do dono: ela descreve o
+--    PRODUTO (a previdencia e 40 % VWRA e 60 % B5P211), nao uma escolha que
+--    muda com o tempo. Consequencia aceita: mudar a composicao muda a leitura
+--    de fotos antigas.
+--    Todas as FKs sao nomeadas (fk_...), como desde a rodada 15.
+--
+-- 11. tb_ativos PERDEU A COLUNA classe. (rodada 37)
+--    Era texto livre, sem CHECK, e servia so a alocacao por classe da tela
+--    de Patrimonio. Um ativo como a previdencia se reparte entre classes
+--    diferentes, e uma coluna com UM texto nao diz isso: quem diz agora e a
+--    composicao (decisao 10). O DROP COLUMN IF EXISTS abaixo e a unica
+--    informacao real que a rodada 37 descartou - o texto de um ativo.
+--
 -- -----------------------------------------------------------------------------
 -- REGRAS DA APLICACAO (deliberadamente NAO impostas pelo banco)
 --
@@ -110,6 +138,15 @@
 --    Reabrir (zerar encerrado_em) so e permitido enquanto nao existir
 --    tb_orcamento_meses com ano_mes posterior: senao o mes seguinte, que foi
 --    copiado deste, passaria a descender de um numero que mudou depois.
+--
+-- AS SOMAS DE 100 % DA ALOCACAO. (rodada 37)
+--    O banco garante a faixa de cada percentual, e so. Que as classes de um
+--    plano somem 100 %, que as subclasses de cada classe preenchida somem
+--    100 % e que a composicao de um ativo some 100 % (ou nao exista) e regra
+--    da aplicacao, verificada antes de gravar - a grade inteira ou nada.
+--    Impor por trigger exigiria conferir a soma no FIM da transacao
+--    (constraint trigger DEFERRABLE), e a mensagem que o banco daria seria
+--    pior que a da tela, que diz qual bloco falhou e quanto ele somou.
 -- =============================================================================
 
 SET client_encoding = 'UTF8';
@@ -456,18 +493,20 @@ COMMENT ON COLUMN tb_orcamentos.ano_mes         IS 'Mes de referencia, dia 1, qu
 COMMENT ON COLUMN tb_orcamentos.valor_planejado IS 'Teto planejado da subcategoria no mes. Aceita zero, nao aceita negativo. Realizado vs. planejado sai comparando com vw_despesas por intervalo de data.';
 
 -- --------------------------------------------------------------------- ativos
+-- Em banco novo o CREATE ja nasce sem `classe`. Num banco anterior a rodada
+-- 37 a coluna existe, e o DROP abaixo a leva; depois disso e no-op.
 CREATE TABLE IF NOT EXISTS tb_ativos (
     id          INT     GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     nome        TEXT    NOT NULL UNIQUE,
-    classe      TEXT    NOT NULL,
     observacao  TEXT,
     ativo       BOOLEAN NOT NULL DEFAULT TRUE
 );
 
-COMMENT ON TABLE  tb_ativos            IS 'Onde o patrimonio esta aplicado. Base para as metas de independencia financeira.';
+ALTER TABLE tb_ativos DROP COLUMN IF EXISTS classe;
+
+COMMENT ON TABLE  tb_ativos            IS 'Onde o patrimonio esta aplicado. Base para as metas de independencia financeira. A classe de alocacao sai da composicao (tb_alocacao_composicao), nao de coluna daqui.';
 COMMENT ON COLUMN tb_ativos.id         IS 'Identificador unico.';
 COMMENT ON COLUMN tb_ativos.nome       IS 'Nome do ativo (ex.: Tesouro IPCA+ 2035, Fundo X, Poupanca).';
-COMMENT ON COLUMN tb_ativos.classe     IS 'Classe (ex.: renda_fixa, acoes, fiis, caixa, imovel). Para graficos de alocacao.';
 COMMENT ON COLUMN tb_ativos.observacao IS 'Anotacao livre.';
 COMMENT ON COLUMN tb_ativos.ativo      IS 'Posicao encerrada some dos formularios; snapshots permanecem.';
 
@@ -493,7 +532,132 @@ COMMENT ON COLUMN tb_patrimonio_snapshots.observacao IS 'Anotacao livre.';
 
 
 -- =============================================================================
--- 5. ANOTACOES DO USUARIO
+-- 5. ALOCACAO DA CARTEIRA (rodada 37)
+-- =============================================================================
+--
+-- Dois niveis: a CLASSE (Inflacao, Acoes Brasil, Internacional), com alvo
+-- sobre o total, e a SUBCLASSE dentro dela, com alvo sobre a classe. Uma
+-- subclasse e um "balde" que costuma levar o nome de um ETF.
+--
+-- O valor de cada balde nao e digitado: sai da foto de patrimonio
+-- (tb_patrimonio_snapshots) vezes a composicao de cada ativo. Nenhuma linha
+-- daqui toca na foto, cujo contrato nao muda.
+
+-- -------------------------------------------------------- classes de alocacao
+CREATE TABLE IF NOT EXISTS tb_alocacao_classes (
+    id     INT     GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    nome   TEXT    NOT NULL
+                   CONSTRAINT uq_alocacao_classes_nome UNIQUE
+                   CONSTRAINT ck_alocacao_classes_nome
+                   CHECK (nome ~ '[^[:space:]]'),
+    ativo  BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+COMMENT ON TABLE  tb_alocacao_classes       IS 'Primeiro nivel da alocacao da carteira (ex.: Inflacao, Acoes Brasil, Internacional). Referencia: desativa, nao apaga.';
+COMMENT ON COLUMN tb_alocacao_classes.id    IS 'Identificador unico.';
+COMMENT ON COLUMN tb_alocacao_classes.nome  IS 'Nome da classe. UNIQUE e CHECK de caractere visivel.';
+COMMENT ON COLUMN tb_alocacao_classes.ativo IS 'Classe inativa nao entra em plano novo nem em composicao nova; o que ja a cita continua valendo.';
+
+-- ----------------------------------------------------- subclasses de alocacao
+CREATE TABLE IF NOT EXISTS tb_alocacao_subclasses (
+    id         INT     GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    classe_id  INT     NOT NULL
+                       CONSTRAINT fk_alocacao_subclasses_classe
+                       REFERENCES tb_alocacao_classes (id) ON DELETE RESTRICT,
+    nome       TEXT    NOT NULL
+                       CONSTRAINT ck_alocacao_subclasses_nome
+                       CHECK (nome ~ '[^[:space:]]'),
+    ativo      BOOLEAN NOT NULL DEFAULT TRUE,
+    CONSTRAINT uq_alocacao_subclasses_classe_nome UNIQUE (classe_id, nome)
+);
+
+COMMENT ON TABLE  tb_alocacao_subclasses           IS 'Segundo nivel da alocacao: o balde dentro de uma classe, que costuma levar o nome de um ETF. E a subclasse que a composicao de um ativo cita.';
+COMMENT ON COLUMN tb_alocacao_subclasses.id        IS 'Identificador unico.';
+COMMENT ON COLUMN tb_alocacao_subclasses.classe_id IS 'Classe a que o balde pertence.';
+COMMENT ON COLUMN tb_alocacao_subclasses.nome      IS 'Nome do balde (ex.: VWRA, B5P211). UNIQUE (classe_id, nome), como tb_subcategorias.';
+COMMENT ON COLUMN tb_alocacao_subclasses.ativo     IS 'Subclasse inativa nao entra em plano novo nem em composicao nova; o que ja a cita continua valendo.';
+
+-- ------------------------------------------------------------------- planos
+-- O cabecalho de cada plano. So a data: ha no maximo um plano por vigencia, e
+-- o plano vigente numa data e o de maior vigente_desde <= data - a mesma
+-- regra de tb_configuracoes.
+CREATE TABLE IF NOT EXISTS tb_alocacao_planos (
+    vigente_desde  DATE        PRIMARY KEY,
+    criado_em      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+COMMENT ON TABLE  tb_alocacao_planos               IS 'Cabecalho de cada plano de alocacao. E a tabela pai das duas tabelas de alvo. Entrada do usuario: edita e se exclui.';
+COMMENT ON COLUMN tb_alocacao_planos.vigente_desde IS 'A partir de quando o plano vale. E a chave primaria: ha no maximo um plano por data. O vigente numa data e o de maior vigente_desde menor ou igual a ela.';
+COMMENT ON COLUMN tb_alocacao_planos.criado_em     IS 'Auditoria.';
+
+-- ------------------------------------------------------- alvos por classe
+CREATE TABLE IF NOT EXISTS tb_alocacao_alvos_classes (
+    id             INT          GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    vigente_desde  DATE         NOT NULL
+                                CONSTRAINT fk_alocacao_alvos_classes_plano
+                                REFERENCES tb_alocacao_planos (vigente_desde) ON DELETE RESTRICT,
+    classe_id      INT          NOT NULL
+                                CONSTRAINT fk_alocacao_alvos_classes_classe
+                                REFERENCES tb_alocacao_classes (id) ON DELETE RESTRICT,
+    percentual     NUMERIC(7,6) NOT NULL
+                                CONSTRAINT ck_alocacao_alvos_classes_percentual
+                                CHECK (percentual BETWEEN 0 AND 1),
+    CONSTRAINT uq_alocacao_alvos_classes_plano_classe UNIQUE (vigente_desde, classe_id)
+);
+
+COMMENT ON TABLE  tb_alocacao_alvos_classes               IS 'Alvo de cada classe num plano, sobre o total investido. As classes de um plano somam 100 % - regra da aplicacao.';
+COMMENT ON COLUMN tb_alocacao_alvos_classes.id            IS 'Identificador unico.';
+COMMENT ON COLUMN tb_alocacao_alvos_classes.vigente_desde IS 'Plano a que a linha pertence. UNIQUE (vigente_desde, classe_id).';
+COMMENT ON COLUMN tb_alocacao_alvos_classes.classe_id     IS 'Classe.';
+COMMENT ON COLUMN tb_alocacao_alvos_classes.percentual    IS 'Alvo em fracao (0.37 = 37 %). CHECK entre 0 e 1: zero e alvo legitimo.';
+
+-- ---------------------------------------------------- alvos por subclasse
+CREATE TABLE IF NOT EXISTS tb_alocacao_alvos_subclasses (
+    id             INT          GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    vigente_desde  DATE         NOT NULL
+                                CONSTRAINT fk_alocacao_alvos_subclasses_plano
+                                REFERENCES tb_alocacao_planos (vigente_desde) ON DELETE RESTRICT,
+    subclasse_id   INT          NOT NULL
+                                CONSTRAINT fk_alocacao_alvos_subclasses_subclasse
+                                REFERENCES tb_alocacao_subclasses (id) ON DELETE RESTRICT,
+    percentual     NUMERIC(7,6) NOT NULL
+                                CONSTRAINT ck_alocacao_alvos_subclasses_percentual
+                                CHECK (percentual BETWEEN 0 AND 1),
+    recebe_aporte  BOOLEAN      NOT NULL DEFAULT TRUE,
+    CONSTRAINT uq_alocacao_alvos_subclasses_plano_subclasse UNIQUE (vigente_desde, subclasse_id)
+);
+
+COMMENT ON TABLE  tb_alocacao_alvos_subclasses               IS 'Alvo de cada subclasse num plano, sobre o total da classe dela. As subclasses de cada classe preenchida somam 100 % - regra da aplicacao.';
+COMMENT ON COLUMN tb_alocacao_alvos_subclasses.id            IS 'Identificador unico.';
+COMMENT ON COLUMN tb_alocacao_alvos_subclasses.vigente_desde IS 'Plano a que a linha pertence. UNIQUE (vigente_desde, subclasse_id).';
+COMMENT ON COLUMN tb_alocacao_alvos_subclasses.subclasse_id  IS 'Subclasse. A classe dela tem de estar no mesmo plano - regra da aplicacao.';
+COMMENT ON COLUMN tb_alocacao_alvos_subclasses.percentual    IS 'Alvo em fracao, sobre a classe. CHECK entre 0 e 1: zero e alvo legitimo.';
+COMMENT ON COLUMN tb_alocacao_alvos_subclasses.recebe_aporte IS 'Se a subclasse entra no rateio do aporte sugerido. FALSE para o balde que se quer manter mas nao engordar.';
+
+-- --------------------------------------------------------------- composicao
+CREATE TABLE IF NOT EXISTS tb_alocacao_composicao (
+    id            INT          GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    ativo_id      INT          NOT NULL
+                               CONSTRAINT fk_alocacao_composicao_ativo
+                               REFERENCES tb_ativos (id) ON DELETE RESTRICT,
+    subclasse_id  INT          NOT NULL
+                               CONSTRAINT fk_alocacao_composicao_subclasse
+                               REFERENCES tb_alocacao_subclasses (id) ON DELETE RESTRICT,
+    percentual    NUMERIC(7,6) NOT NULL
+                               CONSTRAINT ck_alocacao_composicao_percentual
+                               CHECK (percentual > 0 AND percentual <= 1),
+    CONSTRAINT uq_alocacao_composicao_ativo_subclasse UNIQUE (ativo_id, subclasse_id)
+);
+
+COMMENT ON TABLE  tb_alocacao_composicao              IS 'De que subclasses cada ativo e feito. Ativo simples: uma linha de 100 %. Previdencia: varias, em classes diferentes. Sem vigencia, por decisao: descreve o produto. Ativo sem linha nenhuma e "nao classificado".';
+COMMENT ON COLUMN tb_alocacao_composicao.id           IS 'Identificador unico.';
+COMMENT ON COLUMN tb_alocacao_composicao.ativo_id     IS 'Ativo. UNIQUE (ativo_id, subclasse_id).';
+COMMENT ON COLUMN tb_alocacao_composicao.subclasse_id IS 'Subclasse que recebe a parte do ativo.';
+COMMENT ON COLUMN tb_alocacao_composicao.percentual   IS 'Parte do ativo nesta subclasse, em fracao. CHECK > 0 e <= 1. As linhas de um ativo somam 100 % - regra da aplicacao.';
+
+
+-- =============================================================================
+-- 6. ANOTACOES DO USUARIO
 -- =============================================================================
 
 -- -------------------------------------------------------------- resumo anual
@@ -528,7 +692,7 @@ CREATE TRIGGER tg_resumos_anuais_atualizado_em
 
 
 -- =============================================================================
--- 6. VIEWS
+-- 7. VIEWS
 -- =============================================================================
 
 CREATE OR REPLACE VIEW vw_despesas AS

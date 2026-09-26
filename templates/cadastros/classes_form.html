@@ -1,0 +1,16 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{% block title %}{{ 'Editar classe' if registro else 'Nova classe' }} - Freedom{% endblock %}
+{% block titulo_pagina %}{{ 'Editar classe' if registro else 'Nova classe' }}{% endblock %}
+
+{% block content %}
+  <div class="card formulario">
+    <form method="post" novalidate>
+      {{ form.hidden_tag() }}
+      {{ m.campo(form.nome, dica="Ex.: Inflação, Ações Brasil, Internacional.",
+                 extra={"autofocus": true, "maxlength": 120}) }}
+      {{ m.acoes_formulario(url_for('cadastros.classes_lista')) }}
+    </form>
+  </div>
+{% endblock %}

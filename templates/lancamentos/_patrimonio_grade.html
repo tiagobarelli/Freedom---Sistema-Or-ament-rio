@@ -1,7 +1,10 @@
 {% import "_macros.html" as m %}
 {#
   A grade da foto - que E o editor. Um ativo EM CARTEIRA por linha, na ordem
-  classe/nome; o campo de valor da direita e o que se grava.
+  do nome; o campo de valor da direita e o que se grava. A coluna de classe
+  saiu na rodada 37, junto com a propria `tb_ativos.classe`: a classe agora e
+  a composicao do ativo, que pode repartir um ativo entre varias, e mora no
+  cadastro de Ativos.
 
   Ela e o alvo principal do POST (`hx-target` nela mesma, `outerHTML`): a
   resposta de sucesso e a de erro devolvem este mesmo fragmento, uma com os
@@ -24,7 +27,7 @@
   {% if not tem_ativos %}
     {{ m.vazio("Cadastre um ativo",
                "A foto do patrimônio é a lista dos seus ativos com o valor de cada um na data.") }}
-    <div class="grade-foto__acoes grade-foto__acoes--centro">
+    <div class="card__acoes card__acoes--centro">
       <a class="btn btn--secundario" href="{{ url_for('cadastros.ativos_lista') }}">
         {{ m.icone("coins", tamanho=14, tracado=2.25) }}Cadastrar ativo
       </a>
@@ -52,7 +55,6 @@
           <thead>
             <tr>
               <th>Ativo</th>
-              <th class="col-classe">Classe</th>
               <th class="col-num col-ultimo">Último valor</th>
               <th class="col-num col-valor">Valor na data</th>
             </tr>
@@ -62,12 +64,11 @@
               <tr>
                 <th scope="row" class="tabela__principal">
                   {{ l.nome }}
-                  {# So abaixo de 768px, onde as duas colunas do meio somem. #}
+                  {# So abaixo de 768px, onde a coluna do meio some. #}
                   <span class="linha-secundaria">
-                    {{ l.classe }} &middot; último {{ l.ultimo }}{% if l.ultimo_data %} em {{ l.ultimo_data }}{% endif %}
+                    último {{ l.ultimo }}{% if l.ultimo_data %} em {{ l.ultimo_data }}{% endif %}
                   </span>
                 </th>
-                <td class="col-classe">{{ l.classe }}</td>
                 <td class="col-num col-ultimo">
                   {{ l.ultimo }}
                   {% if l.ultimo_data %}
@@ -94,7 +95,7 @@
         entre os dois nao e garantida. E a mesma razao do `_gravado` da
         despesa.
       #}
-      <div class="grade-foto__acoes">
+      <div class="card__acoes">
         <button type="submit" class="btn btn--primario btn--grande">
           {{ m.icone("plus", tamanho=14, tracado=2.25) }}Gravar foto
         </button>

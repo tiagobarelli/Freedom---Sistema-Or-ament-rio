@@ -143,40 +143,65 @@ class ResumoAnualForm(_Base):
 class AtivoForm(_Base):
     """Um ativo de patrimônio (tb_ativos), da rodada 30.
 
-    `classe` é texto livre, e não select: o `.md` do banco decidiu a lista
-    aberta (`tb_ativos.classe` não tem CHECK), porque a taxonomia de onde o
-    dinheiro está é do dono e muda — "Tesouro IPCA+", "FII", "Imóvel". Quem
-    oferece o que já existe é a `combobox`, um `<input>` com `<datalist>`:
-    sugere sem impedir.
+    Até a rodada 36 tinha um campo `classe`, texto livre. Na 37 a classe
+    passou a sair da COMPOSIÇÃO, que é uma grade de percentuais por
+    subclasse no mesmo formulário: ela não cabe num campo WTForms de valor
+    único, e quem a lê é `alocacao/composicao.py`. Aqui ficam só os dois
+    campos que são do ativo mesmo.
 
-    As pontas são aparadas na rota, como nos cadastros vizinhos, e o resto do
-    texto vai para o banco como foi digitado — caixa inclusive.
+    As pontas são aparadas na validação, como nos cadastros vizinhos, e o
+    resto do texto vai para o banco como foi digitado — caixa inclusive.
     """
 
     nome = StringField(
         "Nome",
         validators=[DataRequired(message="Informe o nome."), Length(max=120)],
     )
-    classe = StringField(
-        "Classe",
-        validators=[DataRequired(message="Informe a classe."), Length(max=120)],
-    )
     observacao = TextAreaField(
         "Observação",
         validators=[Optional(), Length(max=500)],
     )
 
-    def validate_classe(self, field):
-        """Aparar aqui, e não só na rota, é o que faz "  " virar erro.
-
-        `DataRequired` aceita um campo só de espaços (ele testa o valor bruto),
-        e a classe entraria no banco em branco — `tb_ativos.classe` é
-        `NOT NULL` e `NOT NULL` em TEXT aceita `''`.
-        """
+    def validate_nome(self, field):
         texto = (field.data or "").strip()
         if not texto:
-            raise ValidationError("Informe a classe.")
+            raise ValidationError("Informe o nome.")
         field.data = texto
+
+
+class ClasseAlocacaoForm(_Base):
+    """Uma classe de alocação (tb_alocacao_classes), da rodada 37."""
+
+    nome = StringField(
+        "Nome",
+        validators=[DataRequired(message="Informe o nome."), Length(max=120)],
+    )
+
+    def validate_nome(self, field):
+        """Aparar aqui, e não só na rota, é o que faz "  " virar erro de
+        campo antes de chegar ao CHECK de caractere visível do banco."""
+        texto = (field.data or "").strip()
+        if not texto:
+            raise ValidationError("Informe o nome.")
+        field.data = texto
+
+
+class SubclasseAlocacaoForm(_Base):
+    """Uma subclasse de alocação (tb_alocacao_subclasses), da rodada 37.
+
+    A classe é `<select>`, e não texto livre: é cadastro fechado, como a
+    categoria da subcategoria.
+    """
+
+    classe_id = SelectField(
+        "Classe",
+        coerce=int,
+        validators=[DataRequired(message="Escolha a classe.")],
+    )
+    nome = StringField(
+        "Nome",
+        validators=[DataRequired(message="Informe o nome."), Length(max=120)],
+    )
 
     def validate_nome(self, field):
         texto = (field.data or "").strip()

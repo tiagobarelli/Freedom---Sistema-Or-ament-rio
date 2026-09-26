@@ -1,0 +1,17 @@
+{% import "_macros.html" as m %}
+{# Uma linha da lista de subclasses de alocacao (rodada 37), no molde da de
+   subcategorias: a classe ao lado, marcada quando esta inativa. #}
+<tr id="linha-subclasse-{{ item.id }}" class="{{ 'linha--inativa' if not item.ativo }}">
+  <td class="tabela__principal">{{ item.nome }}</td>
+  <td class="tabela__suave">
+    {{ item.classe_nome }}
+    {%- if not item.classe_ativa %} <span class="badge badge--neutro">classe inativa</span>{% endif %}
+  </td>
+  <td>{{ m.badge_ativo(item.ativo) }}</td>
+  <td class="tabela__acoes">
+    {{ m.acoes_linha(
+         url_for('cadastros.subclasses_editar', subclasse_id=item.id),
+         url_for('cadastros.subclasses_alternar', subclasse_id=item.id),
+         item.ativo) }}
+  </td>
+</tr>

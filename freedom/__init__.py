@@ -96,6 +96,7 @@ def create_app(config_class=Config):
     def load_user(user_id):
         return User.get_by_id(user_id)
 
+    from freedom.alocacao import bp as alocacao_bp
     from freedom.auth import bp as auth_bp
     from freedom.cadastros import bp as cadastros_bp
     from freedom.configuracoes import bp as configuracoes_bp
@@ -109,6 +110,7 @@ def create_app(config_class=Config):
     app.register_blueprint(lancamentos_bp)
     app.register_blueprint(configuracoes_bp)
     app.register_blueprint(orcamento_bp)
+    app.register_blueprint(alocacao_bp)
 
     from freedom.util import formatar_numero, formatar_valor
 

@@ -1,0 +1,27 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{% block title %}Classes - Freedom{% endblock %}
+{% block titulo_pagina %}Classes{% endblock %}
+{% block subtitulo_pagina %}
+  <p class="pagina-subtitulo">Primeiro nível da alocação da carteira. O alvo de cada uma fica no plano, em Alocação.</p>
+{% endblock %}
+{% block acoes_pagina %}
+  <a class="btn btn--primario" href="{{ url_for('cadastros.classes_nova') }}">
+    {{ m.icone("plus", tamanho=14, tracado=2.25) }}Nova classe
+  </a>
+{% endblock %}
+
+{% block content %}
+<div class="painel painel--estreito">
+
+  {{ m.filtros_cadastro(contagem, mostrar_inativos) }}
+
+  {% call m.lista_cadastro(linhas, ["Nome", "Subclasses", "Situação"],
+                            "Nenhuma classe",
+                 "Crie as classes da carteira, como Inflação, Ações Brasil e Internacional.") %}
+    {% for item in linhas %}{% include "cadastros/_linha_classe.html" %}{% endfor %}
+  {% endcall %}
+
+</div>
+{% endblock %}

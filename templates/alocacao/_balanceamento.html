@@ -1,0 +1,170 @@
+{% import "_macros.html" as m %}
+{#
+  O modo Balanceamento: a ultima foto contra o plano vigente hoje.
+
+  Uma tabela do nivel 1 (as classes, sobre o total investido) e, abaixo, um
+  cartao por classe com as subclasses (sobre o total da classe). As colunas
+  sao as mesmas nos dois niveis, e por isso e uma macro so.
+
+  O aporte e um formulario GET SO, que embrulha os cartoes: o campo do nivel
+  1 e o "Caixa para alocar" de cada bloco viajam juntos na query string
+  (`?aporte=...&caixa_<id>=...`), independentes, como na planilha. Qualquer
+  "Calcular" (ou Enter em qualquer campo) manda todos. Nada e gravado - e a
+  simulacao da Independencia.
+
+  Nenhum numero daqui e vermelho: desvio nao e prejuizo. Quem sai da
+  tolerancia ganha o ambar, e so na coluna Situacao, pela classe que o
+  servico escolheu.
+
+  Nada e decidido neste arquivo: todo texto de celula (travessao incluido),
+  a classe da situacao, a dica e a frase vem prontos de
+  `alocacao/balanceamento.py`.
+#}
+
+{% macro cartao(titulo, nota, t, rotulo_campo, primeira_coluna, tem_tolerancia) %}
+  <section class="card card--tabela">
+    <div class="card__cabecalho balanco-cabecalho">
+      <div>
+        <h2 class="card__titulo">{{ titulo }}</h2>
+        <span class="card__nota">{{ nota }}</span>
+      </div>
+      <div class="balanco-campo">
+        <label class="balanco-campo__rotulo" for="{{ t.campo.nome }}">{{ rotulo_campo }}</label>
+        <span class="balanco-campo__linha">
+          <span class="entrada-moeda">
+            <span class="entrada-moeda__prefixo" aria-hidden="true">R$</span>
+            <input class="entrada{{ ' entrada--erro' if t.campo.erro }}" type="text"
+                   id="{{ t.campo.nome }}" name="{{ t.campo.nome }}"
+                   value="{{ t.campo.texto }}" inputmode="decimal"
+                   autocomplete="off" placeholder="0,00">
+          </span>
+          <button type="submit" class="btn btn--secundario">Calcular</button>
+        </span>
+        {% if t.dica %}<p class="campo__dica">{{ t.dica }}</p>{% endif %}
+        {% if t.campo.erro %}<p class="campo__erro">{{ t.campo.erro }}</p>{% endif %}
+      </div>
+    </div>
+    <div class="tabela-caixa">
+      <table class="tabela tabela--resumo tabela--painel tabela--balanceamento">
+        <thead>
+          <tr>
+            <th class="col-rotulo">{{ primeira_coluna }}</th>
+            <th class="col-num col-alvo">Alvo</th>
+            <th class="col-num col-atual">Atual (R$)</th>
+            <th class="col-num col-atual-pct">Atual (%)</th>
+            <th class="col-num col-desvio">Desvio (p.p.)</th>
+            <th class="col-num col-ajuste">Ajuste (R$)</th>
+            {% if tem_tolerancia %}<th class="col-situacao">Situação</th>{% endif %}
+            <th class="col-num col-aporte">Aporte sugerido</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in t.linhas %}
+            <tr>
+              <td class="tabela__principal">{{ l.rotulo }}</td>
+              <td class="col-num">{{ l.alvo }}</td>
+              <td class="col-num">{{ l.atual }}</td>
+              <td class="col-num">{{ l.atual_pct }}</td>
+              <td class="col-num">{{ l.desvio }}</td>
+              <td class="col-num">{{ l.ajuste }}</td>
+              {% if tem_tolerancia %}
+                <td><span class="situacao {{ l.situacao.classe }}">{{ l.situacao.texto }}</span></td>
+              {% endif %}
+              <td class="col-num">{{ l.aporte }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td>Total</td>
+            <td></td>
+            <td class="col-num">{{ t.rodape.atual }}</td>
+            <td class="col-num">{{ t.rodape.atual_pct }}</td>
+            <td></td>
+            <td></td>
+            {% if tem_tolerancia %}<td></td>{% endif %}
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    {#
+      Caixa e nenhuma linha elegivel: a resposta e uma frase, e nao uma coluna
+      de zeros que pareceria conta feita. A coluna fica em travessao.
+    #}
+    {% if t.frase %}
+      <div class="nota-rodape"><p class="card__nota">{{ t.frase }}</p></div>
+    {% endif %}
+  </section>
+{% endmacro %}
+
+{% if vazio %}
+  <div class="card">
+    {{ m.vazio(vazio.titulo, vazio.texto) }}
+    <div class="card__acoes card__acoes--centro">
+      {% if vazio.destino == 'patrimonio' %}
+        <a class="btn btn--secundario" href="{{ url_for('lancamentos.patrimonio_tela') }}">
+          {{ m.icone("wallet", tamanho=14, tracado=2.25) }}{{ vazio.rotulo_link }}
+        </a>
+      {% else %}
+        <a class="btn btn--primario"
+           href="{{ url_for('alocacao.alocacao_tela', modo='plano', plano=vazio.plano) }}">
+          {{ m.icone("scale", tamanho=14, tracado=2.25) }}{{ vazio.rotulo_link }}
+        </a>
+      {% endif %}
+    </div>
+  </div>
+{% else %}
+
+  {% if nota_tolerancia %}
+    <p class="pagina-subtitulo nota-topo">{{ nota_tolerancia }}
+      <a href="{{ url_for('configuracoes.configuracoes_tela') }}">Cadastrar em Parâmetros</a></p>
+  {% endif %}
+
+  <form class="painel" method="get" action="{{ url_for('alocacao.alocacao_tela') }}">
+    <input type="hidden" name="modo" value="balanceamento">
+
+    {{ cartao("Classes", nota_nivel1, nivel1, "Aporte", "Classe", tem_tolerancia) }}
+
+    {% for b in blocos %}
+      {{ cartao(b.titulo, "sobre o total da classe", b, "Caixa para alocar",
+                "Subclasse", tem_tolerancia) }}
+    {% endfor %}
+
+    {% if nao_classificados %}
+      <section class="card card--tabela">
+        <div class="card__cabecalho">
+          <h2 class="card__titulo">Não classificado</h2>
+          <span class="card__nota">fora dos totais e do rateio</span>
+        </div>
+        <div class="tabela-caixa">
+          <table class="tabela tabela--resumo tabela--painel">
+            <thead>
+              <tr>
+                <th>Ativo</th>
+                <th class="col-num">Valor na foto</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for a in nao_classificados.linhas %}
+                <tr>
+                  <td class="tabela__principal">{{ a.nome }}</td>
+                  <td class="col-num">{{ a.valor }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>Total</td>
+                <td class="col-num">{{ nao_classificados.total }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div class="nota-rodape">
+          <p class="card__nota">{{ nota_nao_classificado }}</p>
+        </div>
+      </section>
+    {% endif %}
+  </form>
+{% endif %}

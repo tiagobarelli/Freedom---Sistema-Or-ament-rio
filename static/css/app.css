@@ -39,7 +39,7 @@
         5.12 Parametros (o que identifica a chave e o numero que vale hoje;
             cada secao e um .card--tabela com a .tabela--cadastro dentro)
         5.13 Paineis: o que a Visao Anual e a Visao Mensal compartilham -
-            .filtro-barra, .painel-grade, o cartao .kpi (que as duas Analises
+            .filtro-barra (e .filtro-barras, duas lado a lado), .painel-grade, o cartao .kpi (que as duas Analises
             tambem usam) e o .painel-card, que depois da rodada 27 so o
             acompanhamento do orcamento usa; em 5.13.1 os graficos (so da
             Anual) e em 5.13.2 o visual das tabelas dos dois paineis - a
@@ -50,8 +50,7 @@
             Categoria e a primeira coluna fixa, esta ultima um modificador
             reutilizavel da .tabela-caixa; em 5.14.1, o detalhe da categoria
             em linha expansivel)
-        5.15 Orcamento (as duas barras de filtro lado a lado, a faixa do 409,
-            o cabecalho de estado do mes, a receita planejada, o minimo das
+        5.15 Orcamento (a faixa do 409, o cabecalho de estado do mes, a receita planejada, o minimo das
             duas tabelas e o rodape de resumo; o resto e componente - a
             .tabela--painel de 5.13.2, o .segmentado de 5.2 nos dois
             alternadores e o edicao-linha de 5.20); em 5.15.1 sobrou so a
@@ -71,10 +70,16 @@
         5.21 Independencia financeira (a nota da curva e o que e so dela)
         5.22 Patrimonio (a grade da foto mensal e a altura do grafico de
             evolucao, mais alto por ter uma marca por foto)
+        (5.1 traz tambem o .card__acoes, a barra de acao de um .card--tabela,
+         que era o `.grade-foto__acoes` da 5.22 ate a rodada 37.)
         5.23 Prosa - o HTML que veio de Markdown (o historico de versoes),
             o unico do sistema que chega ao template sem classe nenhuma
         5.24 Observacao da linha - o "i" ao lado da descricao nas listas de
             lancamento e o balao (popover) que ele abre
+        5.25 Alocacao (rodada 37): o campo de percentual com o "%" colado,
+            a grade da composicao no formulario do ativo, a grade do plano,
+            o campo de aporte no cabecalho dos cartoes do balanceamento e a
+            coluna Situacao
      6. Tela de login
      7. Responsivo (< 768px)
      8. Utilitarios
@@ -848,6 +853,31 @@ body {
    de toda tela ate a rodada 25 - o seletor nao alcanca nada, e nada muda. */
 .nota-rodape .card__nota + .card__nota {
   margin-top: 4px;
+}
+
+/* Barra de acao de um `.card--tabela`: o botao que grava a grade de cima, o
+   indicador e o aviso. Nao e o `.card__rodape` de cima: aquele tem margem de
+   dentro de um `.card` normal, e o `.card--tabela` zera o padding para a
+   tabela ir de ponta a ponta - o recuo lateral aqui e o mesmo da
+   `.nota-rodape`, que costuma fechar o cartao logo abaixo.
+   Nasceu como `.grade-foto__acoes` na 5.22 (rodada 30, o "Gravar foto") e
+   perdeu o nome de tela na 37, quando a grade do plano da Alocacao passou a
+   fechar do mesmo jeito. */
+.card__acoes {
+  display: flex;
+  align-items: center;
+  gap: var(--e-3);
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  border-top: 1px solid var(--line-soft);
+}
+
+/* No estado vazio nao ha tabela em cima: o filete separaria o botao de nada,
+   e o `.vazio` que o precede e centrado. */
+.card__acoes--centro {
+  justify-content: center;
+  border-top: 0;
+  padding-top: 0;
 }
 
 /* A irma de cima: nota que abre o conteudo em vez de fechar o cartao - fica
@@ -2498,6 +2528,24 @@ body {
   font-size: 13px;
 }
 
+/* Duas barras na mesma faixa: a da esquerda navega, a da direita cria (um
+   mes de orcamento, um plano de alocacao). Cada uma e um .filtro-barra
+   inteiro; aqui so o arranjo lado a lado.
+   Nasceu como `.orcamento-barras` na 5.15 (rodada 28) e subiu na 37, quando
+   a Alocacao passou a ter a mesma dupla - e perdeu o nome da primeira tela,
+   que e a regra do projeto. */
+.filtro-barras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.filtro-barras > .filtro-barra {
+  flex: 1 1 320px;
+  margin-bottom: 16px;
+}
+
 /* Rotulo de uma fileira de cards. Nasceu na rodada 31, quando a Independencia
    financeira passou a ter DUAS fileiras de quatro - o alvo e o ponto de
    partida - e oito cartoes seguidos deixaram de dizer onde um assunto acaba e
@@ -3339,25 +3387,12 @@ body {
    `.tabela--painel` da 5.13.2, a `.linha-subgrupo` da mesma 5.13.2, o
    `.entrada-moeda` do lancamento e o `edicao-linha` da 5.20.
 
-   Aqui mora so o que nao existia: as duas barras de filtro lado a lado (uma
-   navega, a outra cria), a faixa do 409, o cabecalho de estado do mes, a
-   faixa da receita planejada, o rodape de resumo e o formulario de
-   acrescentar linha.
+   Aqui mora so o que nao existia: a faixa do 409, o cabecalho de estado do
+   mes, a faixa da receita planejada, o rodape de resumo e o formulario de
+   acrescentar linha. As duas barras de filtro lado a lado (uma navega, a
+   outra cria) moraram aqui ate a rodada 37, como `.orcamento-barras`; com a
+   Alocacao fazendo o mesmo, subiram para a 5.13 como `.filtro-barras`.
 */
-
-/* Duas barras na mesma faixa: a de escolher o mes e a de criar um novo. Cada
-   uma e um .filtro-barra inteiro, com o mesmo visual da Anual e da Mensal. */
-.orcamento-barras {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  align-items: flex-start;
-}
-
-.orcamento-barras > .filtro-barra {
-  flex: 1 1 320px;
-  margin-bottom: 16px;
-}
 
 /* Faixa das regras recusadas (o 409). Fica vazia - e sem altura - ate o
    servidor por uma mensagem dentro, entao nao abre buraco na tela em uso
@@ -3900,36 +3935,17 @@ body {
    `.linha-secundaria` da 5.9 no celular.
 
    Sobra o que nenhuma tela tinha: uma tabela cujo corpo E um formulario - um
-   campo de dinheiro por linha -, a data do ultimo valor colada ao numero, e a
-   barra de acoes de um cartao que nao tem padding proprio.
+   campo de dinheiro por linha - e a data do ultimo valor colada ao numero. A
+   barra de acoes do cartao morou aqui ate a rodada 37 (`.grade-foto__acoes`);
+   quando a grade do plano da Alocacao passou a fechar igual, subiu para a 5.1
+   como `.card__acoes`.
 
    O que e so do celular (a grade em duas colunas) NAO esta aqui: mora na
    secao 7, junto das outras tabelas que escondem coluna em 390px.
 
-   O cadastro de Ativos nao acrescenta nada: e a `lista_cadastro` das outras
-   seis entidades, com a `combobox` da 5.3 no campo de classe.
+   O cadastro de Ativos e a `lista_cadastro` das outras entidades; a grade da
+   composicao do formulario dele (rodada 37) mora na 5.25, com a Alocacao.
 */
-
-/* Barra de acao do cartao da grade. Nao e o `.card__rodape` da 5.1: aquele
-   tem margem de dentro de um `.card` normal, e este cartao e `.card--tabela`,
-   que zera o padding para a tabela ir de ponta a ponta - o recuo lateral e o
-   mesmo da `.nota-rodape`, que fecha o cartao logo abaixo. */
-.grade-foto__acoes {
-  display: flex;
-  align-items: center;
-  gap: var(--e-3);
-  flex-wrap: wrap;
-  padding: 16px 20px;
-  border-top: 1px solid var(--line-soft);
-}
-
-/* No estado vazio nao ha tabela em cima: o filete separaria o botao de nada,
-   e o `.vazio` que o precede e centrado. */
-.grade-foto__acoes--centro {
-  justify-content: center;
-  border-top: 0;
-  padding-top: 0;
-}
 
 /* O campo de dinheiro de cada linha. Mais baixo que o `.entrada` de
    formulario (36px), pela mesma razao da edicao em linha da 5.20: dentro de
@@ -4147,6 +4163,239 @@ body {
   text-align: left;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+
+/* --- 5.25 Alocacao -------------------------------------------------------
+   Rodada 37. Quase tudo e componente existente: o `.segmentado` da 5.2 no
+   modo, as `.filtro-barras` da 5.13, o `.card--tabela` com o
+   `.card__cabecalho`, o `.card__acoes` e a `.nota-rodape` da 5.1, a
+   `.tabela--painel` com a `.linha-subgrupo` da 5.13.2, o `.entrada-moeda`
+   da 5.9 no aporte, a `.marcar` da 5.3 no "Recebe aporte" e o `.aviso-inline`
+   da 5.9 na confirmacao.
+
+   Aqui mora o que nenhuma tela tinha: o campo de percentual com o "%" colado,
+   a grade da composicao dentro do formulario do ativo, o recuo da subclasse
+   na grade do plano, o campo de aporte no cabecalho de um cartao e a coluna
+   Situacao.
+*/
+
+/* --- o campo de percentual ---
+   Um numero curto, alinhado a direita, com o "%" do lado de fora: a unidade
+   nao precisa ser digitada (quem digita "37%" tambem e entendido), mas
+   precisa estar a vista. E a irma do `.entrada-moeda`, que poe o "R$" do
+   lado de dentro, a esquerda. */
+.entrada-pct {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.entrada--pct {
+  width: 96px;
+  height: var(--control-h-sm);
+  text-align: right;
+}
+
+.entrada-pct__sufixo {
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+/* --- a composicao do ativo ---
+   Um `<fieldset>` dentro do formulario, sem a moldura e o recuo que o
+   navegador da a ele: visualmente e um campo como os outros, com rotulo e
+   dica. As classes vem em colunas quando cabem, e cada subclasse e uma linha
+   de nome e campo. */
+.composicao {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+/* A `legend` ganha do navegador um recuo lateral de 2px, e o rotulo sairia
+   fora do prumo dos outros campos do formulario. */
+.composicao > legend {
+  padding: 0;
+}
+
+.composicao__grupos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--e-3) var(--e-5);
+  margin-top: var(--e-2);
+}
+
+/* O mesmo versalete dos rotulos de filtro e de card: nomeia o grupo sem
+   competir com os nomes das subclasses. */
+.composicao__classe {
+  margin-bottom: var(--e-1);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.composicao__linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-3);
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.composicao__nome {
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+/* O erro de uma linha fica colado a ela, a direita, que e onde esta o campo. */
+.composicao__erro {
+  text-align: right;
+}
+
+/* --- a grade do plano ---
+   Uma `<tbody>` por classe: a linha da classe e o `.linha-subgrupo` da
+   5.13.2, e as subclasses descem recuadas embaixo dela. */
+.tabela--plano .col-alvo {
+  width: 160px;
+}
+
+.tabela--plano .col-aporte {
+  width: 130px;
+  text-align: center;
+}
+
+/* O recuo da subclasse. Mesmo peso da regra das pontas da 5.13.2
+   (`.tabela--painel td:first-child`) e declarada depois dela: vence por
+   ordem, sem subir o peso da regra de que as outras telas dependem. */
+.tabela--plano td.plano-subclasse {
+  padding-left: 40px;
+}
+
+/* A recusa de um bloco, numa linha no fim dele: sem o fundo do hover, que a
+   faria acender como se fosse uma linha de dado. */
+.tabela--plano .plano-recusa td,
+.tabela--plano tbody .plano-recusa:hover td {
+  padding-top: 6px;
+  padding-bottom: 8px;
+  background: transparent;
+}
+
+.tabela--plano .plano-recusa .campo__erro {
+  margin: 0;
+}
+
+.tabela--plano .campo__erro {
+  text-align: right;
+}
+
+/* --- o balanceamento ---
+   Oito colunas, e a tela e desktop-first como o Orcamento: a tabela repoe um
+   minimo e ROLA POR DENTRO da `.tabela-caixa` quando falta largura - a
+   pagina nunca rola de lado. O minimo precisa ser reposto de novo na secao 7,
+   depois da regra que zera o das tabelas de painel no celular.
+
+   Largura FIXA por coluna: sao varias tabelas empilhadas (o nivel 1 e um
+   bloco por classe) com as mesmas colunas, e cada uma se dimensionando pelo
+   proprio conteudo deixava o "Alvo" de um cartao fora do prumo do de baixo.
+   Sem a coluna Situacao (sem tolerancia vigente) as larguras somam 90 %, e o
+   navegador reparte a sobra na mesma proporcao. */
+.tabela--balanceamento {
+  min-width: 900px;
+  table-layout: fixed;
+}
+
+.tabela--balanceamento .col-rotulo { width: 20%; }
+.tabela--balanceamento .col-alvo { width: 9%; }
+.tabela--balanceamento .col-atual { width: 14%; }
+.tabela--balanceamento .col-atual-pct { width: 9%; }
+.tabela--balanceamento .col-desvio { width: 10%; }
+.tabela--balanceamento .col-ajuste { width: 14%; }
+.tabela--balanceamento .col-situacao { width: 10%; }
+.tabela--balanceamento .col-aporte { width: 14%; }
+
+/* O nome quebra em vez de empurrar as colunas: com largura fixa, uma
+   subclasse de nome longo so cresce para baixo. */
+.tabela--balanceamento td:first-child {
+  overflow-wrap: anywhere;
+}
+
+/* O cabecalho do cartao leva o campo de aporte a direita do titulo. Quebra
+   quando nao cabe - o `.card__cabecalho` da 5.1 nao quebra, porque la so ha
+   titulo e nota. */
+.balanco-cabecalho {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.balanco-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.balanco-campo__rotulo {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.balanco-campo__linha {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+}
+
+.balanco-campo .entrada-moeda {
+  width: 180px;
+}
+
+.balanco-campo .campo__dica,
+.balanco-campo .campo__erro {
+  margin: 0;
+}
+
+/* --- a coluna Situacao ---
+   O ambar e o par da secao 1: `--orange-ink` no texto (o `--orange` puro nao
+   se le sobre branco) e `--orange` no ponto, que e preenchimento. Dentro da
+   tolerancia fica no tom de apoio, sem cor: o normal e a maioria, e pintar
+   tudo faria o fora sumir no meio. Nunca vermelho - desvio nao e prejuizo.
+   Quem escolhe a classe e o servico; aqui so se pinta. */
+.situacao {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.situacao::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fill);
+}
+
+.situacao--dentro {
+  color: var(--ink-3);
+}
+
+.situacao--fora {
+  font-weight: 600;
+  color: var(--orange-ink);
+}
+
+.situacao--fora::before {
+  background: var(--orange);
 }
 
 
@@ -4992,7 +5241,7 @@ body {
      a tabela rola por dentro da caixa e o formulario de acrescentar vira uma
      coluna. Nada mais - a tela de planejar e de desktop. */
 
-  .orcamento-barras > .filtro-barra {
+  .filtro-barras > .filtro-barra {
     flex: 1 1 100%;
   }
 
@@ -5033,8 +5282,8 @@ body {
   }
 
   /* --- Patrimonio no celular ---
-     A grade fica em DUAS colunas: o ativo (com classe e ultimo valor na linha
-     de apoio dentro da propria celula) e o campo de valor. A coluna principal
+     A grade fica em DUAS colunas: o ativo (com o ultimo valor na linha de
+     apoio dentro da propria celula) e o campo de valor. A coluna principal
      e larga - o nome do ativo -, entao o apoio vai DENTRO dela, e nao numa
      `<tr>` a parte como na tabela mes a mes da Anual, onde a coluna principal
      e o mes.
@@ -5045,7 +5294,6 @@ body {
 
      O historico e a alocacao seguem a `.tabela--painel` como estao: cinco e
      tres colunas curtas cabem. */
-  .tabela--foto .col-classe,
   .tabela--foto .col-ultimo {
     display: none;
   }
@@ -5056,6 +5304,40 @@ body {
 
   .tabela--foto .entrada--valor {
     max-width: none;
+  }
+
+  /* --- Alocacao no celular ---
+     Desktop-first, como o Orcamento. A tabela do balanceamento tem oito
+     colunas e ROLA POR DENTRO da caixa: o minimo dela e reposto aqui, depois
+     da regra que zera o das tabelas de painel, porque as duas pesam duas
+     classes e a que vem depois vence - a mesma razao da Independencia.
+
+     A grade do plano tem tres colunas e cabe; o recuo da subclasse volta
+     aqui porque a regra das pontas do celular (8px/5px) o apagaria. */
+  .tabela--resumo.tabela--balanceamento {
+    min-width: 900px;
+  }
+
+  .tabela--plano td.plano-subclasse {
+    padding-left: 18px;
+  }
+
+  .tabela--plano .col-alvo {
+    width: auto;
+  }
+
+  .tabela--plano .col-aporte {
+    width: 64px;
+  }
+
+  .balanco-campo,
+  .balanco-campo .entrada-moeda {
+    width: 100%;
+  }
+
+  .balanco-campo__linha .entrada-moeda {
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   /* --- Autocomplete no celular --- */

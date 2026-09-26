@@ -2,6 +2,35 @@ O que mudou em cada versão do Freedom, da mais nova para a mais antiga. Este
 arquivo é a fonte do número de versão que aparece no rodapé do menu: a versão
 é o primeiro título daqui, e o sistema o lê quando sobe.
 
+## 1.1 — 26/09/2026
+
+- **Alocação da carteira**, a primeira tela do módulo de investimentos, no
+  fim do grupo Painel. Dois modos:
+  - **Plano**: o alvo de cada classe sobre o total e, dentro dela, o de cada
+    subclasse, com a data em que o plano passa a valer. Criar um plano copia
+    o que valia na data escolhida. A grade só salva se as classes somarem
+    100% e as subclasses de cada classe também — senão diz qual bloco não
+    fechou, e nada é gravado. Cada subclasse diz se recebe aporte.
+  - **Balanceamento**: a última foto de patrimônio contra o plano vigente —
+    alvo, atual, desvio, quanto falta ou sobra e, com a tolerância cadastrada
+    em Parâmetros, o que está fora do alvo, em âmbar. Digitando um aporte (e o
+    caixa de cada classe), a tela sugere como reparti-lo, do mesmo jeito que
+    a planilha. Nada disso é gravado.
+- **Classes e Subclasses** em Cadastros, perto de Ativos.
+- **Composição do ativo**: no cadastro de cada ativo, quanto dele vai para
+  cada subclasse — um ETF é 100% de uma; a previdência pode se repartir entre
+  classes. A soma precisa dar 100%, ou fica tudo vazio para um ativo sem
+  classificação. A lista de ativos mostra a composição no lugar da classe.
+- **Parâmetros**: chave nova, **TOL** (tolerância da alocação), em
+  porcentagem do próprio alvo — 20% num alvo de 5% aceita de 4% a 6%.
+- **Patrimônio**: a alocação por classe passa a usar as classes novas, pela
+  composição de cada ativo; o que não tem composição aparece como "Não
+  classificado".
+
+> **Ao atualizar:** o campo de texto "Classe" dos ativos deixou de existir.
+> O único ativo cadastrado tinha "Investimentos" ali, e esse texto não foi
+> guardado. Ele aparece como "Não classificado" até receber uma composição.
+
 ## 1.0.3 — 25/09/2026
 
 - **Observação à vista na lista.** Despesa que tem observação ganha um "i" ao

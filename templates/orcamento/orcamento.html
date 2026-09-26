@@ -16,7 +16,7 @@
 
 {% block content %}
   {#
-    Duas barras de filtro lado a lado (.filtro-barra, secao 5.13). A da
+    Duas barras de filtro lado a lado (.filtro-barras, secao 5.13). A da
     esquerda NAVEGA entre meses que ja tem orcamento; a da direita GRAVA um mes
     novo. Sao formularios separados porque fazem coisas diferentes - e porque o
     segundo e POST com CSRF, enquanto o primeiro e GET com recarga inteira,
@@ -24,7 +24,7 @@
 
     Ficam FORA do `.painel`: as duas ja tem margem propria.
   #}
-  <div class="orcamento-barras">
+  <div class="filtro-barras">
     {% if anos %}
       <form class="filtro-barra" method="get"
             action="{{ url_for('orcamento.orcamento_tela') }}">

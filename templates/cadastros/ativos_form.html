@@ -8,16 +8,62 @@
   <div class="card formulario">
     <form method="post" novalidate>
       {{ form.hidden_tag() }}
-      {{ m.campo(form.nome, dica="Ex.: Tesouro IPCA+ 2035, Fundo X, Apartamento.",
+      {{ m.campo(form.nome, dica="Ex.: Tesouro IPCA+ 2035, Fundo X, Previdência.",
                  extra={"autofocus": true, "maxlength": 120}) }}
+
       {#
-        Lista ABERTA: a `combobox` e um <input> com <datalist>, entao ela
-        sugere as classes que ja existem sem impedir uma nova. E o que o .md
-        do banco decidiu ao deixar `tb_ativos.classe` sem CHECK.
+        A composicao (rodada 37): de que subclasses de alocacao o ativo e
+        feito. Tomou o lugar do antigo campo de classe, texto livre - a
+        previdencia se reparte entre classes diferentes, e um texto so nao
+        dizia isso.
+
+        Uma linha por subclasse ativa, agrupadas por classe; a inativa so
+        aparece se ja esta na composicao, marcada. Vazio quer dizer "nao
+        participa". A grade grava junto com o ativo, numa transacao, e aceita
+        duas formas: soma 100 %, ou tudo vazio (ativo nao classificado).
+
+        Nao e um campo WTForms: sao N campos de percentual, lidos a mao por
+        `alocacao/composicao.py`. Rotulos, texto de cada campo e erros vem
+        prontos de la.
       #}
-      {{ m.combobox(form.classe, classes,
-                    dica="Ex.: Renda fixa, Ações, Fundos imobiliários, Imóveis.",
-                    extra={"maxlength": 120, "autocomplete": "off"}) }}
+      <fieldset class="campo composicao">
+        <legend class="campo__rotulo">Composição</legend>
+        {% if grade %}
+          <p class="campo__dica">
+            Quanto do ativo vai para cada subclasse. Deixe vazio o que não
+            participa. A soma precisa dar 100%, ou fique tudo vazio para um
+            ativo sem classificação.
+          </p>
+          <div class="composicao__grupos">
+            {% for g in grade %}
+              <div class="composicao__grupo">
+                <p class="composicao__classe">{{ g.rotulo }}</p>
+                {% for s in g.subclasses %}
+                  <div class="composicao__linha">
+                    <label class="composicao__nome" for="{{ prefixo_campo }}{{ s.id }}">{{ s.rotulo }}</label>
+                    <span class="entrada-pct">
+                      <input class="entrada entrada--pct{{ ' entrada--erro' if s.erro }}"
+                             type="text" inputmode="decimal" autocomplete="off"
+                             id="{{ prefixo_campo }}{{ s.id }}"
+                             name="{{ prefixo_campo }}{{ s.id }}"
+                             value="{{ s.campo }}">
+                      <span class="entrada-pct__sufixo" aria-hidden="true">%</span>
+                    </span>
+                  </div>
+                  {% if s.erro %}<p class="campo__erro composicao__erro">{{ s.erro }}</p>{% endif %}
+                {% endfor %}
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="campo__dica">
+            Nenhuma subclasse cadastrada: o ativo fica sem classificação.
+            <a href="{{ url_for('cadastros.subclasses_lista') }}">Cadastrar subclasses</a>
+          </p>
+        {% endif %}
+        {% if erro_composicao %}<p class="campo__erro">{{ erro_composicao }}</p>{% endif %}
+      </fieldset>
+
       {{ m.campo_area(form.observacao) }}
       {{ m.acoes_formulario(url_for('cadastros.ativos_lista')) }}
     </form>

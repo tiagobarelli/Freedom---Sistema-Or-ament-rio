@@ -1,0 +1,91 @@
+{% extends "layout_app.html" %}
+{% import "_macros.html" as m %}
+
+{#
+  Alocacao da carteira (rodada 37): uma tela, dois modos, como o Orcamento.
+
+  - Plano: os alvos, por vigencia. A grade e o editor, no contrato da foto de
+    patrimonio (um POST, upsert do preenchido, DELETE do esvaziado).
+  - Balanceamento: a ultima foto contra o plano vigente hoje, e o rateio de
+    um aporte - que vive na URL e nao grava nada.
+
+  O modo e o `.segmentado` de links da 5.2, por GET: a URL e o estado.
+
+  Nada e decidido neste arquivo: texto, travessao, classe CSS, situacao e o
+  destino de cada estado vazio vem prontos de `alocacao/plano.py` e
+  `alocacao/balanceamento.py`.
+
+  Sem olho: so a Visao Anual tem.
+#}
+
+{% block title %}Alocação - Freedom{% endblock %}
+{% block titulo_pagina %}Alocação{% endblock %}
+{% block subtitulo_pagina %}
+  {% if subtitulo %}<p class="pagina-subtitulo">{{ subtitulo }}</p>{% endif %}
+{% endblock %}
+
+{% block content %}
+  {#
+    Duas barras lado a lado (.filtro-barras, 5.13), como no Orcamento: a da
+    esquerda NAVEGA (modo e, no Plano, a vigencia aberta); a da direita, so no
+    Plano, CRIA um plano novo - POST com CSRF, por isso formulario proprio.
+  #}
+  <div class="filtro-barras">
+    <form class="filtro-barra" method="get"
+          action="{{ url_for('alocacao.alocacao_tela') }}">
+      <div class="filtro-campo">
+        <span class="filtro-campo__rotulo">Modo</span>
+        <nav class="segmentado" aria-label="Modo">
+          {% for valor, rotulo in [('plano', 'Plano'),
+                                   ('balanceamento', 'Balanceamento')] %}
+            <a class="segmentado__item"
+               href="{{ url_for('alocacao.alocacao_tela', modo=valor) }}"
+               {% if modo == valor %}aria-current="page"{% endif %}>{{ rotulo }}</a>
+          {% endfor %}
+        </nav>
+      </div>
+
+      {% if modo == 'plano' and opcoes %}
+        <input type="hidden" name="modo" value="plano">
+        <label class="filtro-campo">
+          <span class="filtro-campo__rotulo">Plano vigente desde</span>
+          <select class="selecao" name="plano" onchange="this.form.submit()">
+            {% for o in opcoes %}
+              <option value="{{ o.valor }}"
+                      {{ 'selected' if plano and o.valor == plano.data_texto }}>{{ o.rotulo }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      {% endif %}
+    </form>
+
+    {% if modo == 'plano' %}
+      {#
+        Sem HTMX: criar troca a vigencia aberta, o seletor e a grade - e uma
+        navegacao. `novalidate` e o que impede a armadilha do
+        `<input type="date">` de travar o botao numa data impossivel: a data
+        chega ao servidor como foi digitada, e volta com texto se nao servir.
+      #}
+      <form class="filtro-barra" method="post" novalidate
+            action="{{ url_for('alocacao.alocacao_criar') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="filtro-campo">
+          <span class="filtro-campo__rotulo">Criar plano vigente desde</span>
+          <input class="entrada" type="date" name="vigente_desde"
+                 value="{{ criar_padrao }}">
+        </label>
+        <div class="filtro-campo filtro-campo--acao">
+          <button type="submit" class="btn btn--primario">
+            {{ m.icone("plus", tamanho=14, tracado=2.25) }}Criar plano
+          </button>
+        </div>
+      </form>
+    {% endif %}
+  </div>
+
+  {% if modo == 'plano' %}
+    {% include "alocacao/_plano.html" %}
+  {% else %}
+    {% include "alocacao/_balanceamento.html" %}
+  {% endif %}
+{% endblock %}

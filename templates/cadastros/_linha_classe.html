@@ -1,0 +1,20 @@
+{% import "_macros.html" as m %}
+{#
+  Uma linha da lista de classes de alocacao (rodada 37). Mesma forma das
+  outras: nome, colunas proprias, badge e as duas acoes, sem Excluir - o
+  plano e as subclasses apontam para ela.
+
+  A contagem de subclasses ativas vem pronta do servidor: classe sem
+  subclasse nao fecha 100 % no plano, e a lista e onde se ve isso.
+#}
+<tr id="linha-classe-{{ item.id }}" class="{{ 'linha--inativa' if not item.ativo }}">
+  <td class="tabela__principal">{{ item.nome }}</td>
+  <td class="tabela__suave">{{ item.texto_subclasses }}</td>
+  <td>{{ m.badge_ativo(item.ativo) }}</td>
+  <td class="tabela__acoes">
+    {{ m.acoes_linha(
+         url_for('cadastros.classes_editar', classe_id=item.id),
+         url_for('cadastros.classes_alternar', classe_id=item.id),
+         item.ativo) }}
+  </td>
+</tr>
